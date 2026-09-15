@@ -100,6 +100,25 @@ migrations v5–v7 and the delivery half. That does not matter for this measurem
 what k6 can push, not about what the twin can serve; it would matter for a column in the table and
 that column is not being quoted.
 
+## Correction, a few hours later: the cap was right, the fix was not
+
+The paragraph above ends by saying the pool should be sized by the rate. **It should not, and the
+harness was changed back.**
+
+"2 000 rps over 200 connections" makes 200 a property of the *offered load*. A pool of 200 models
+exactly that, and `dropped_iterations` counts what did not fit — which is the criterion's own
+answer rather than a defect in the stand. Opening the pool asks a different and harder question:
+measured on the same pair, with 4 000 VUs the service takes 4 000 concurrent requests, delivers
+**196 rps and fails 24.8 %**, against **523 rps and no failures** inside 200.
+
+So the table at the top of this file was not measuring the generator after all. **523 rps was the
+answer**: at 200 connections with 380 ms per request, 526 is arithmetically all that fits, and the
+criterion fails on latency rather than on throughput. What the pilot got wrong was the diagnosis —
+"a ceiling shared by three arms must be the stand" — not the number.
+
+The generator's own ceiling stands and is worth keeping: 8 000 rps offered with none dropped means
+nothing below that belongs to the stand, whichever question is being asked.
+
 ## And the criterion reads differently once the two numbers are joined
 
 "2 000 rps at 200 connections" is not two independent constraints. Under an open model the

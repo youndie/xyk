@@ -117,3 +117,37 @@ the half that is hardest to fudge.
 
 Still to do before the three columns are run: the settle between arms and the idle check the pilot
 also asked for, then interleaved rounds with the first discarded.
+
+## The three columns exist, 2026-09-16 — [throughput-three-columns.md](../research/measurements-2026-09-16/throughput-three-columns.md)
+
+Two machines, generator off the subject, three rounds interleaved, first discarded, 2 000 rps offered
+over 200 connections.
+
+| arm | mean rps | spread | p50 | failed | peak concurrency |
+|---|---:|---:|---|---:|---:|
+| xyk ingest | **437** | 1.07× | 426–465 ms | 0 % | 200 |
+| twin ingest | **601** | 1.04× | 295–307 ms | 0 % | 200 |
+| control (no database) | **434** | 1.05× | 442–455 ms | 0 % | 200 |
+
+**The criterion is not met, by either column.** Best delivered is 601 against 2 000 offered. Nothing
+failed and nothing timed out: at 200 connections throughput is `200 ÷ latency`, and these latencies
+are 300–460 ms where 2 000 through 200 needs 100 ms. It fails on latency, and `dropped_iterations` is
+the arithmetic saying so.
+
+**The control equals the ingest arm — 434 against 437 — so the database is not the cost.** The
+signature check, the SQLite write and the WAL together add nothing measurable to a route that does
+none of them. The cost is the HTTP path, which is
+[research §1.18](../research/research-architecture.md)'s four-visible-core pathology, measured this
+time with the generator on another machine and a spread of 1.05× rather than 2.3×.
+
+- AC: **met** — the table exists, with three columns, both hosts named, the round count, k6's version
+  and the twin's driver.
+- AC: **met** — the control is present. It is not faster than the twin and that is the correct
+  outcome rather than a void run: it shares a binary with the Kotlin arm and bounds *that* arm, which
+  is exactly what it did.
+- AC: **the criterion itself is answered: no.** 437 rps against 2 000, on four visible cores, with the
+  reason named.
+
+Left open deliberately: the same table on a host with more visible cores. §1.18 measured 2 112 rps at
+twelve against 355–816 at four on a route of this shape, so the number here is the small end of the
+range the product is aimed at rather than the whole answer.

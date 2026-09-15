@@ -752,10 +752,26 @@ still", because a sagging server receives less. A VU pool sized to the connectio
 exactly that, while the executor's name says otherwise. The failure is invisible in the summary: k6
 reports the dropped iterations honestly, and they read as "the service could not keep up".
 
-**Consequence 3 — the criterion's two numbers are one statement.** "2 000 rps at 200 connections"
-under an open model is `rate × latency ≤ 200`, i.e. a mean under 100 ms. Stated that way it is
-checkable before the run rather than eyeballed after it, and the connection half stops being the
-half that nothing measures.
+**Consequence 3 — the criterion's two numbers are one statement.** "2 000 rps over 200 connections"
+under an open model implies `rate × latency ≤ 200`, i.e. a mean under 100 ms. Stated that way it is
+checkable before the run rather than eyeballed after it.
+
+**Correction, the same day — the observation above was right and the conclusion first drawn from it
+was wrong.** Having found that `maxVUs: connections` caps the offered rate, the harness was changed
+to size the pool by the rate instead. That is not this criterion. **200 connections is a property of
+the offered load, not an outcome to observe**: the line says 2 000 rps *over* 200 connections, so a
+pool of 200 is what models it, and `dropped_iterations` is the honest count of what did not fit.
+
+The measurement that settled it, on the same pair: with the pool opened to 4 000, the service takes
+4 000 concurrent requests, delivers **196 rps and fails 24.8 %** of them — against **523 rps with no
+failures** inside 200. The larger number is not a better measurement of the same thing; it is a
+harder scenario nobody declared. **So 526 rps was the criterion's answer all along**: at 200
+connections and 380 ms per request, 526 is all that fits, and the service fails the line because its
+latency is 380 ms rather than the 100 ms that 2 000 through 200 requires.
+
+What survives unchanged is the arithmetic and the generator's ceiling — 8 000 rps offered with none
+dropped, so nothing below that belongs to the stand. What changed is which question the harness asks.
+**A ceiling that is explained is not thereby a ceiling that should be removed.**
 
 ### 1.22 A row count is a condition of a bug report, and this one was missing (B-25, 2026-09-16)
 

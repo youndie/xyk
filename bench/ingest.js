@@ -14,9 +14,8 @@ const duration = __ENV.DURATION || '60s';
 const connections = Number(__ENV.CONNECTIONS || 200);
 const target = __ENV.TARGET;
 const arm = __ENV.ARM || 'unknown';
-// Enough that the generator cannot be the ceiling: the rate it has to offer, times a latency budget
-// well past anything this service should reach, with a floor for low rates.
-const vuCeiling = Number(__ENV.VUS || Math.max(500, rate * 2));
+// The criterion's connection count, unless a probe deliberately asks for more.
+const vuCeiling = Number(__ENV.VUS || connections);
 const body = __ENV.BODY || '';
 const signature = __ENV.SIGNATURE || '';
 
@@ -27,30 +26,37 @@ export const options = {
       rate: rate,
       timeUnit: '1s',
       duration: duration,
-      // SIZED BY THE RATE, NOT BY THE CONNECTION COUNT — and the previous version of these two
-      // lines is the reason this file has a paragraph about it.
+      // THE POOL IS THE CRITERION'S CONNECTION COUNT, and this paragraph is here because that was
+      // changed once — on a correct observation and a wrong conclusion — and changed back a day
+      // later by the measurement below.
       //
-      // It read `maxVUs: connections`, on the reasoning that the criterion names 200 connections so
-      // the generator must not open a 201st. But a VU under an open model is not a connection: it is
-      // occupied for the whole round trip, so the pool caps **requests in flight**, and the highest
-      // rate it can then offer is `VUs / latency`. At the 380 ms this service was showing, 200 VUs
-      // cannot offer more than about 526 rps — which is exactly the band all three arms of the pilot
-      // landed in, control included, and which was read at the time as a mysterious shared ceiling.
-      // Sizing the pool by the connection count silently converts the open model back into a closed
-      // one: the very thing the header above says this executor is here to avoid.
+      // THE OBSERVATION, which was right: a VU under this executor is not a connection. It is held
+      // for the whole round trip, so the pool caps **requests in flight**, and the highest rate such
+      // a pool can offer is `VUs / latency`. At the 380 ms the service was showing, 200 VUs cannot
+      // offer more than about 526 rps — exactly the band all three arms of the pilot landed in, and
+      // read at the time as a shared ceiling of unknown origin.
       //
-      // Measured on the real pair (bench-b → bench-a, 2026-09-16): with a large pool the generator
-      // delivers 8 000 rps at p50 0.5 ms with zero dropped iterations, and only begins to drop at
-      // 16 000. So it is not the limit anywhere near this criterion, and any ceiling seen below that
-      // belongs to the subject.
+      // THE CONCLUSION DRAWN FROM IT, which was wrong: that the pool should therefore be sized by
+      // the rate. It should not. The criterion says **2 000 rps over 200 connections** — 200 is a
+      // property of the offered load, not an outcome to observe — and a pool of 200 is what models
+      // it. The 526 rps *was* the criterion's answer: at 200 connections and 380 ms per request, 526
+      // is all that fits, and the service fails the line because its latency is 380 ms rather than
+      // the 100 ms that 2 000 through 200 would require.
       //
-      // The connection count has not been forgotten, it has moved to where it can be observed.
-      // Under an open model concurrency is an **outcome** (`rate × latency`), not an input, so
-      // "2 000 rps at 200 connections" is measured by offering 2 000 and reading how many VUs were
-      // actually busy — `vus … max=N` in k6's own summary, which under this executor is the number
-      // of requests in flight. `bench/run.sh` compares that maximum against CONNECTIONS and fails
-      // the run when the service needed more concurrency than the criterion allows.
-      preAllocatedVUs: Math.min(vuCeiling, 500),
+      // The measurement that settled it (bench-b to bench-a, 2026-09-16): with the pool opened to
+      // 4 000, the same service takes 4 000 concurrent requests, delivers 196 rps and fails a
+      // quarter of them. That is a harder scenario than the one declared, and reporting it against
+      // this criterion would be measuring something else and calling it the number.
+      //
+      // So `dropped_iterations` is the honest signal rather than an embarrassment: it counts the
+      // offered requests that did not fit inside the allowed concurrency. What the generator *can*
+      // do is not in question — unpooled, this pair offers 8 000 rps at p50 0.5 ms with none
+      // dropped, and first strains at 16 000.
+      //
+      // VUS overrides the pool for probing what the service does with more concurrency than the
+      // criterion allows. A run that sets it is not a run against this criterion, and the harness
+      // records the peak so that an override left on cannot pass unnoticed.
+      preAllocatedVUs: vuCeiling,
       maxVUs: vuCeiling,
     },
   },

@@ -61,12 +61,13 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (7)
+## Open (8)
 
 | Task | | Priority | Size | Blocked by |
 |---|---|---|---|---|
 | [B-20](docs/backlog/B-20-criterion-throughput.md) `[~]` | Criterion: 2 000 rps over 200 connections with no slow state, in three columns | P0 | L | B-06, B-16 |
 | [B-21](docs/backlog/B-21-criterion-memory.md) `[~]` | Criterion: 64 MiB limit, ten runs out of ten survive | P0 | L | B-06, B-17 |
+| [B-27](docs/backlog/B-27-bind-failure-is-unreadable.md) `[ ]` | A port already in use is reported as a cancelled coroutine, after the start was announced | P0 | S | - |
 | [B-10](docs/backlog/B-10-delivery-sink.md) `[~]` | The delivery sink: one POST, one timeout, one attempt row | P1 | M | B-03 |
 | [B-22](docs/backlog/B-22-criterion-cold-start.md) `[ ]` | Criterion: cold start to the first 200 under a second on a k0s node | P1 | M | B-17 |
 | [B-24](docs/backlog/B-24-soak-wal.md) `[~]` | The soak: the journal page reading while ingest writes, long enough to find the cliff | P1 | M | B-04, B-12 |
