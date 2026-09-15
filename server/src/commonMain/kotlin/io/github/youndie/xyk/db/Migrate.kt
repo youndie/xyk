@@ -162,8 +162,35 @@ internal val migrationV5: List<String> =
         "CREATE INDEX IF NOT EXISTS idx_chronik_timers_state_due_at ON chronik_timers (state, due_at);",
     )
 
+/**
+ * One row per delivery attempt — the history the `attempts` counter on `deliveries` cannot hold.
+ *
+ * The counter answers "how many times"; an operator at two in the morning is asking "what did it
+ * say", and that needs the status, the duration and the first bytes of what came back. The response
+ * is stored as a bounded prefix rather than whole: it is a string written by somebody else, arriving
+ * on every failed attempt, and an unbounded one would make a misbehaving subscriber a way to fill
+ * this disk.
+ */
+private val migrationV6: List<String> =
+    listOf(
+        """
+        CREATE TABLE delivery_attempts (
+            id TEXT PRIMARY KEY,
+            delivery_id TEXT NOT NULL,
+            attempt INTEGER NOT NULL,
+            status INTEGER,
+            duration_ms INTEGER NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            at INTEGER NOT NULL
+        );
+        """.trimIndent(),
+        // Every read of this table is "the attempts of one delivery, in order", which is the one
+        // query the journal's detail page makes.
+        "CREATE INDEX delivery_attempts_delivery ON delivery_attempts(delivery_id, attempt);",
+    )
+
 private val allMigrations: List<List<String>> =
-    listOf(migrationV1, migrationV2, migrationV3, migrationV4, migrationV5)
+    listOf(migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6)
 
 /**
  * Brings the database up to [allMigrations]`.size`.

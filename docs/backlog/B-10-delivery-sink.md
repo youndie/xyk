@@ -1,7 +1,7 @@
 ---
 id: B-10
 title: "The delivery sink: one POST, one timeout, one attempt row"
-status: open
+status: wip
 priority: P1
 size: M
 stage: stage-1-product
@@ -28,6 +28,51 @@ that sink: resolve the subscriber, POST the stored bytes with the original `Cont
 - Not covered: how many workers call it ([B-11](B-11-delivery-workers.md),
   [B-14](B-14-delivery-worker-count.md)); signing the outbound request.
 
+## Built, 2026-09-16 — with one acceptance criterion honestly unmet
+
+**The sink exists and its seven single-attempt cases are green on the native target**
+(`DeliverySinkTest`, 7 tests, 0 failures): a `200` delivers the stored bytes byte for byte with the
+four `X-Xyk-*` headers; a `500` throws so the worker retries; a `302` is a failure and the sink posts
+exactly once; a subscriber that never answers is cut at the timeout and recorded with a **null**
+status rather than a sentinel; a refused connection is a failed attempt rather than a crash; the
+fifth attempt writes `dead` instead of `pending`; and a delivery whose row is gone returns normally
+so the timer retires instead of retrying against nothing.
+
+**`OutboundPost` is a port because of the linker, not because of the tests.** The default binary
+links no HTTP engine — `ktor-client-curl` is 8.8 MB of image and only a build that delivers needs it
+— so `commonMain` may not name a Ktor type. `outboundPost()` is `expect`, with the curl binding in
+the `with-curl` variant and `null` everywhere else. The testability is a by-product, and the better
+half: the timeout, the redirect and the never-answers cases need no socket.
+
+**`followRedirects = false` is set on the client, not per request**, so no future call site can
+forget it. The sink treating a `3xx` as a failure only means something if there is a `3xx` to treat.
+
+**Migration v6 adds `delivery_attempts`** — status, duration and a bounded prefix of the response.
+The `attempts` counter on `deliveries` answers "how many times"; an operator is asking "what did it
+say". The prefix is bounded because that string is written by somebody else and arrives on every
+failed attempt.
+
+**A cancellation is not an attempt.** The first version caught `Exception` around the POST, which
+swallows the `CancellationException` the worker's scope raises during shutdown — it would have
+recorded a failed attempt nobody made and let a cancelled coroutine run past the drain. Caught and
+rethrown ahead of the transport catch, below the timeout one, because
+`TimeoutCancellationException` is itself a `CancellationException`.
+
+### The https acceptance criterion is half met, and the half that is missing is stated
+
+**Measured:** `GET https://example.com -> 200` from **inside** the `gcr.io/distroless/cc-debian13`
+image built with the curl engine. That settles the part this criterion is really about — certificates
+exist on every developer machine and in no minimal base image, and the failure looks like a
+connection error rather than a missing file.
+
+**Not measured: a delivery.** Nothing calls the sink yet; the worker that does is
+[B-11](B-11-delivery-workers.md). A POST through the sink from inside the image is that item's to
+run, and writing "https delivery works" on the strength of a `GET` would be exactly the substitution
+this repository keeps catching.
+
+- AC: **met** for the single-attempt scenarios.
+- AC: **half met** for https from inside the image — the engine and the certificates are measured, a
+  delivery is not, and it moves to B-11 rather than being counted here.
 - AC: the delivery scenarios of [feature-delivery](../features/feature-delivery.md) that concern a
   single attempt pass, including the timeout one, measured against a subscriber that never responds.
 - AC: an https delivery succeeds **from inside the image** — certificates exist on every developer

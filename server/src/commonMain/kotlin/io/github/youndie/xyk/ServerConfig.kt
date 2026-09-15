@@ -26,6 +26,8 @@ data class ServerConfig(
      * not a policy.
      */
     val retentionDays: Long,
+    val deliveryTimeoutMillis: Long,
+    val deliveryMaxAttempts: Int,
     /**
      * Stripe's recency window, in seconds, for endpoints that do not carry their own.
      *
@@ -60,6 +62,12 @@ data class ServerConfig(
          * it is the soak in B-24, and the number here moves when that runs.
          */
         const val DEFAULT_WAL_CHECKPOINT_SECONDS: Long = 60
+
+        /** Two seconds: long enough for a slow subscriber, short enough that fifty of them fit in a tick. */
+        const val DEFAULT_DELIVERY_TIMEOUT_MS: Long = 2_000
+
+        /** Five attempts, which with a 1 s base and a 300 s cap spans about five minutes. */
+        const val DEFAULT_DELIVERY_MAX_ATTEMPTS: Int = 5
 
         /** 32 MiB. Same status: a starting point that B-24 replaces with a measured one. */
         const val DEFAULT_WAL_MAX_BYTES: Long = 32L * 1024 * 1024
@@ -138,6 +146,20 @@ fun getServerConfig(): ServerConfig {
         retentionDays =
             (readEnv("XYK_RETENTION_DAYS")?.toLongOrNull() ?: 0L)
                 .also { require(it >= 0) { "XYK_RETENTION_DAYS cannot be negative" } },
+        // THE TIMEOUT IS NOT A TUNING KNOB, it is what bounds a tick. chronik's `tick()` walks its
+        // batch sequentially, so the worst case for one tick is `batchSize × this`, and a
+        // subscriber that accepts a connection and never answers costs exactly this much of every
+        // other delivery's latency rather than all of it. Zero would mean unbounded, which is the
+        // one value that must not be expressible.
+        deliveryTimeoutMillis =
+            (readEnv("XYK_DELIVERY_TIMEOUT_MS")?.toLongOrNull() ?: ServerConfig.DEFAULT_DELIVERY_TIMEOUT_MS)
+                .also { require(it > 0) { "XYK_DELIVERY_TIMEOUT_MS must be positive" } },
+        // The same number chronik is configured with. It is read here as well because the journal's
+        // state depends on it — a delivery out of attempts must read `dead` rather than `pending` —
+        // and two places reading one variable is better than this half inventing its own policy.
+        deliveryMaxAttempts =
+            (readEnv("XYK_DELIVERY_MAX_ATTEMPTS")?.toIntOrNull() ?: ServerConfig.DEFAULT_DELIVERY_MAX_ATTEMPTS)
+                .also { require(it > 0) { "XYK_DELIVERY_MAX_ATTEMPTS must be positive" } },
         publicBaseUrl = (readEnv("XYK_PUBLIC_BASE_URL") ?: "http://localhost:8080").trimEnd('/'),
         bootstrapEndpoint = readBootstrapEndpoint(),
     )
