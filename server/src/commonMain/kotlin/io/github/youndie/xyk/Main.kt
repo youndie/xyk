@@ -12,6 +12,10 @@ import io.github.youndie.xyk.db.WalCheckpoint
 import io.github.youndie.xyk.db.WalSweep
 import io.github.youndie.xyk.db.applyBootstrap
 import io.github.youndie.xyk.db.openDatabase
+import io.github.youndie.xyk.delivery.DeliverySink
+import io.github.youndie.xyk.delivery.data.Sqlx4kDeliveryRepository
+import io.github.youndie.xyk.delivery.deliveryWorkers
+import io.github.youndie.xyk.delivery.outboundPost
 import io.github.youndie.xyk.health.XykProbes
 import io.github.youndie.xyk.ingest.RejectionCounters
 import io.github.youndie.xyk.ingest.RejectionFlush
@@ -89,17 +93,64 @@ fun main() {
         RetentionSweep(
             retention = Retention(db),
             retentionDays = config.retentionDays,
-            nowEpochSeconds = { startedAtEpochSeconds() },
+            nowEpochSeconds = { hostNowEpochSeconds() },
             onPurged = { count -> println("xyk: retention purged $count payloads") },
             onFailure = { failure -> println("xyk: retention failed: ${failure::class.simpleName}") },
         )
 
-    val probes = XykProbes(db, wal, config.walCeilingBytes)
+    // THE DELIVERY HALF, BUILT BEFORE THE PROBES because readiness watches it. Both pieces can be
+    // absent and that is a shipping configuration rather than a failure: a build without
+    // `ktor-client-curl` has no way to POST, and a host where chronik publishes no variant has no
+    // way to schedule. What must not happen is a service that accepts webhooks and silently never
+    // delivers them, so whichever is missing is said out loud, once, at start-up.
+    val outbound = outboundPost()
+    val workers =
+        outbound?.let { post ->
+            deliveryWorkers(
+                db = db,
+                sink =
+                    DeliverySink(
+                        repository = Sqlx4kDeliveryRepository(db),
+                        outbound = post,
+                        timeoutMillis = config.deliveryTimeoutMillis,
+                        maxAttempts = config.deliveryMaxAttempts,
+                        nowEpochSeconds = { hostNowEpochSeconds() },
+                    ),
+                count = config.deliveryWorkers,
+                pollIntervalSeconds = 1,
+                leaseSeconds = 30,
+                maxAttempts = config.deliveryMaxAttempts,
+                // The clock is read HERE, at the composition root, with the suppression and its
+                // reason in one place. A timer's due-at is compared against this host's own clock by
+                // the process that scheduled it — it is a local schedule, not a time anybody else
+                // has an opinion about — but the rule is worth obeying anyway, because a clock
+                // reachable from inside a worker is a clock a test cannot move.
+                nowEpochSeconds = ::hostNowEpochSeconds,
+            )
+        }
+    when {
+        workers != null -> {
+            println(
+                "xyk: delivery is on — ${workers.count} worker(s), " +
+                    "${config.deliveryTimeoutMillis}ms per attempt, ${config.deliveryMaxAttempts} attempts",
+            )
+        }
+
+        outbound == null -> {
+            println("xyk: delivery is OFF — this binary links no outbound HTTP engine (-Pxyk.httpClient=true adds one)")
+        }
+
+        else -> {
+            println("xyk: delivery is OFF — this build has no chronik variant for its target")
+        }
+    }
+
+    val probes = XykProbes(db, wal, config.walCeilingBytes, workers, config.deliveryStallSeconds.seconds)
 
     // The one endpoint of B-06, put into the real tables so that B-07 replaces the *way* they are
     // created and nothing else.
     config.bootstrapEndpoint?.let { endpoint ->
-        runBlocking { db.applyBootstrap(endpoint, startedAtEpochSeconds()) }
+        runBlocking { db.applyBootstrap(endpoint, hostNowEpochSeconds()) }
     }
 
     val koin =
@@ -167,6 +218,10 @@ fun main() {
 
     val checksScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     probes.start(checksScope)
+    // Started after the engine, so the first tick cannot race the schema or the port. A delivery
+    // attempted before this process can answer its own probes would be an attempt nobody could
+    // explain from the outside.
+    workers?.start(checksScope)
     sweep.start(checksScope)
     rejectionFlush.start(checksScope)
     // Returns null and logs nothing when no horizon is configured, which is the default.
@@ -185,8 +240,12 @@ fun main() {
             announce(AnnounceNotReady(probes.readiness))
             drain(EngineDrain(server, DEADLINES.drain, DEADLINES.drain + 5.seconds))
 
-            // B-11 adds the delivery workers here, between the drain and the pool: they are what
-            // holds work that was accepted and not yet delivered.
+            // BETWEEN THE DRAIN AND THE POOL, and this position is the whole reason kore is in this
+            // design. A worker mid-POST is holding a webhook that was already accepted with a
+            // `200`; stopping it before the engine drains would cut deliveries for events still
+            // arriving, and closing the pool before it would lose the attempt row rather than the
+            // attempt — the record of the one thing an operator would come looking for.
+            workers?.let { running -> consumer(participant("delivery workers") { running.stop() }) }
 
             // Before the pool and after the drain: the last checkpoint runs while the database is
             // still open, and it decides how much journal the *next* process has to work through
@@ -245,4 +304,4 @@ private fun participant(
     "ktlint:kapkan:wall-clock",
     "created_at on locally written rows is not a time anybody else has an opinion about",
 )
-private fun startedAtEpochSeconds(): Long = Clock.System.now().epochSeconds
+private fun hostNowEpochSeconds(): Long = Clock.System.now().epochSeconds

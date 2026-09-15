@@ -28,6 +28,8 @@ data class ServerConfig(
     val retentionDays: Long,
     val deliveryTimeoutMillis: Long,
     val deliveryMaxAttempts: Int,
+    val deliveryWorkers: Int,
+    val deliveryStallSeconds: Long,
     /**
      * Stripe's recency window, in seconds, for endpoints that do not carry their own.
      *
@@ -68,6 +70,20 @@ data class ServerConfig(
 
         /** Five attempts, which with a 1 s base and a 300 s cap spans about five minutes. */
         const val DEFAULT_DELIVERY_MAX_ATTEMPTS: Int = 5
+
+        /**
+         * Two workers, and the number is a placeholder with a measurement behind it pending.
+         *
+         * Fan-out comes from several claimants rather than from a concurrent sink, so this is the
+         * only knob that buys parallel deliveries — and the right value depends on where the ceiling
+         * is, which [B-14](../../../../../../../../docs/backlog/B-14-delivery-worker-count.md)
+         * measures. Two is small enough to be safe under the pool of two and large enough that the
+         * lease is exercised at all.
+         */
+        const val DEFAULT_DELIVERY_WORKERS: Int = 2
+
+        /** Two minutes: past the worst case of a full batch at the default timeout, with room. */
+        const val DEFAULT_DELIVERY_STALL_SECONDS: Long = 120
 
         /** 32 MiB. Same status: a starting point that B-24 replaces with a measured one. */
         const val DEFAULT_WAL_MAX_BYTES: Long = 32L * 1024 * 1024
@@ -160,6 +176,20 @@ fun getServerConfig(): ServerConfig {
         deliveryMaxAttempts =
             (readEnv("XYK_DELIVERY_MAX_ATTEMPTS")?.toIntOrNull() ?: ServerConfig.DEFAULT_DELIVERY_MAX_ATTEMPTS)
                 .also { require(it > 0) { "XYK_DELIVERY_MAX_ATTEMPTS must be positive" } },
+        // ZERO IS LEGAL and it means "do not deliver from this process" — a deployment that only
+        // receives and journals is a real one. It is not the default, because a service that
+        // silently delivers nothing is the failure this whole half exists to avoid; opting out has
+        // to be an act.
+        deliveryWorkers =
+            (readEnv("XYK_DELIVERY_WORKERS")?.toIntOrNull() ?: ServerConfig.DEFAULT_DELIVERY_WORKERS)
+                .also { require(it >= 0) { "XYK_DELIVERY_WORKERS cannot be negative" } },
+        // Configurable because the right value is arithmetic on the deployment's own numbers:
+        // `batchSize × deliveryTimeout` plus a margin, and a batch of fifty at two seconds is a
+        // hundred. It is also what makes the probe checkable inside a container in seconds rather
+        // than in minutes — a guard nobody can watch fail is a guard nobody has watched.
+        deliveryStallSeconds =
+            (readEnv("XYK_DELIVERY_STALL_SECONDS")?.toLongOrNull() ?: ServerConfig.DEFAULT_DELIVERY_STALL_SECONDS)
+                .also { require(it > 0) { "XYK_DELIVERY_STALL_SECONDS must be positive" } },
         publicBaseUrl = (readEnv("XYK_PUBLIC_BASE_URL") ?: "http://localhost:8080").trimEnd('/'),
         bootstrapEndpoint = readBootstrapEndpoint(),
     )

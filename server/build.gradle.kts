@@ -181,12 +181,25 @@ kotlin {
         // two drivers, and a kit green on Xerial says nothing about the binary in the image
         // (research §1.11). So it is declared on the native suite, and only where chronik has a
         // variant for it.
-        if (chronikOnThisHost) {
-            getByName("nativeTest") {
-                kotlin.srcDir("src/variants/with-chronik/kotlin")
+        // The delivery half is a source directory rather than an `if` in the code, exactly like the
+        // engine variant above and for the same reason: chronik has no `macosArm64` variant, so the
+        // two actuals have different dependencies and only one of them may reach the compiler.
+        getByName("nativeMain") {
+            kotlin.srcDir(
+                if (chronikOnThisHost) "src/variants/with-chronik/kotlin" else "src/variants/no-chronik/kotlin",
+            )
+            if (chronikOnThisHost) {
                 dependencies {
                     implementation(libs.chronik.core)
                     implementation(libs.chronik.sqlx4k.sqlite)
+                }
+            }
+        }
+
+        if (chronikOnThisHost) {
+            getByName("nativeTest") {
+                kotlin.srcDir("src/variants/with-chronik-test/kotlin")
+                dependencies {
                     implementation(libs.chronik.conformance)
                 }
             }

@@ -8,9 +8,12 @@ import io.github.youndie.kore.health.ReadinessGate
 import io.github.youndie.kore.health.StartupGate
 import io.github.youndie.kore.health.storeCheck
 import io.github.youndie.xyk.db.WalCheckpoint
+import io.github.youndie.xyk.delivery.DeliveryWorkers
 import kotlinx.coroutines.CoroutineScope
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * The three questions a deployment asks this process.
@@ -41,12 +44,17 @@ class XykProbes(
     db: ISQLite,
     wal: WalCheckpoint? = null,
     ceilingBytes: Long = Long.MAX_VALUE,
+    workers: DeliveryWorkers? = null,
+    workerStallAfter: Duration = DEFAULT_WORKER_STALL,
 ) {
     private val checks =
         HealthRegistry(
             listOfNotNull(
                 storeCheck("sqlite") { db.fetchAll("SELECT 1;").getOrThrow() },
                 wal?.let { journalCheck(it, ceilingBytes) },
+                // Only when this build has workers. A build that does not deliver must not report
+                // itself unready for not delivering.
+                workers?.let { deliveryCheck(it, workerStallAfter) },
             ),
         )
 
@@ -88,6 +96,62 @@ internal fun journalCheck(
             val bytes = wal.walBytes()
             check(bytes < ceilingBytes) {
                 "write-ahead log is $bytes bytes, ceiling is $ceilingBytes — the sweep is not keeping up"
+            }
+        }
+    }
+
+/**
+ * How long a worker may go without completing a pass before readiness calls it stalled.
+ *
+ * Ten seconds against a one-second poll: generous enough that a slow tick — a full batch of fifty
+ * against the two-second timeout is a hundred seconds in the worst case — is not the thing that
+ * trips it... which is exactly why this number is a *configuration* rather than a constant, and why
+ * the value below is the floor for a service whose batches are small. A deployment with large
+ * batches raises it, and the arithmetic is `batchSize × deliveryTimeout` plus a margin.
+ */
+val DEFAULT_WORKER_STALL: Duration = 120.seconds
+
+/**
+ * Readiness watches the tick counter, because nothing else would notice.
+ *
+ * `TimerWorker.start` catches everything that is not a cancellation, reports it and keeps polling
+ * (research §1.3). That is right for a poll loop and it means **a store that cannot be read looks
+ * exactly like a service with nothing to do**: no crash, no restart, no alert, and webhooks quietly
+ * accumulating undelivered. The counter is the only difference visible from outside, so it is what
+ * the probe reads.
+ *
+ * It checks **movement, not a rate**. A service with no due timers still ticks — the pass returns
+ * zero — so a stalled counter means the loop itself has stopped, which is the one thing that is
+ * always wrong. Counting deliveries instead would make an idle Sunday look like an outage.
+ */
+internal fun deliveryCheck(
+    workers: DeliveryWorkers,
+    stallAfter: Duration,
+    timeSource: TimeSource = TimeSource.Monotonic,
+): HealthCheck =
+    object : HealthCheck {
+        private var lastTicks: Long = -1
+        private var lastMovedAt: TimeMark = timeSource.markNow()
+
+        override val name: String = "delivery"
+        override val timeout: Duration = 1.seconds
+
+        override suspend fun check() {
+            val ticks = workers.completedTicks
+            if (ticks != lastTicks) {
+                lastTicks = ticks
+                lastMovedAt = timeSource.markNow()
+                return
+            }
+
+            val stalledFor = lastMovedAt.elapsedNow()
+            check(stalledFor < stallAfter) {
+                // The worker's own last complaint is appended when there is one: "readiness is
+                // failing" is half an answer and sends an operator looking, while
+                // "poll: IllegalStateException: database is locked" sends them to the cause.
+                "delivery workers have not completed a pass in $stalledFor " +
+                    "(${workers.count} worker(s), $ticks tick(s) total)" +
+                    (workers.lastFailure?.let { "; last failure — $it" } ?: "")
             }
         }
     }
