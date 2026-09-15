@@ -1,0 +1,48 @@
+# The code gate: the native link, the image, and the assertion that the process stops in order.
+#
+# Separate from `check.yaml` (the documents) because it is minutes rather than seconds and needs
+# docker. Same rule as there: it runs the target a contributor runs — `make build` — so that the two
+# cannot drift apart.
+#
+# NOTE ON THIS REPOSITORY'S RUNNERS: the account's GitHub-hosted minutes are exhausted, so this
+# workflow will queue rather than run until that changes or a self-hosted runner is attached. That is
+# stated here rather than discovered: the target it wraps is `make build`, which runs on the Linux
+# box today and is where the evidence actually comes from.
+
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # MANDATORY, NOT AN OPTIMISATION. Without it every run downloads the Kotlin/Native distribution
+      # before it can compile a line — minutes, on every push, for bytes that never change within a
+      # Kotlin version. The key carries that version for exactly that reason.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
+      - run: make build
+
+      # The size of what would actually be pulled, measured the same way the documents quote it:
+      # `docker save`, on one host. `docker image inspect .Size` reports the compressed size on the
+      # containerd snapshotter and the uncompressed one on overlay2 — two numbers behind one field,
+      # and a runner and a workstation disagree by a factor of three.
+      - name: Image pull bytes
+        run: echo "pull bytes: $(docker save xyk:dev | wc -c)"

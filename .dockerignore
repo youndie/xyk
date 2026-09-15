@@ -1,0 +1,15 @@
+# The scratch image builds the binary INSIDE itself (docker/scratch.Dockerfile), so the build context
+# is the source tree — and these are the parts of it that must not travel.
+#
+# `.git` is excluded, which has a visible consequence rather than none: `KoreBuildIdentity` stamps
+# `commit = unknown` in that image. It already does on the Linux box, whose mutagen replica carries
+# no `.git` either. The alternative is worse than it looks — a file git TRACKS but `.dockerignore`
+# excludes reads as deleted inside the build, and the stamp becomes `-dirty` for ever.
+.git
+.github
+build
+*/build
+.gradle
+.kotlin
+.idea
+docs

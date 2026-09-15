@@ -1,0 +1,51 @@
+[versions]
+# The shared build conventions. One number: every sborka plugin below takes its version from here.
+sborka = "0.4.0.58"
+kotlin = "2.4.10"
+# kore: the process lifecycle of a server binary — the ordered shutdown, the three probes and
+# /version. One number for the two libraries and the Gradle plugin that generates the identity: they
+# are published together, and a plugin from one version with a library from another would compile
+# and then disagree about the object it generates.
+kore = "0.1.4"
+koin = "4.2.2"
+kotlinxCoroutinesCore = "1.11.0"
+kotlinxDatetime = "0.8.0"
+kotlinxSerializationJson = "1.11.0"
+# HMAC and a random source that is not `kotlin.random`. Both are used on linuxX64 by two
+# other repositories here, which is the evidence this line rests on rather than a datasheet.
+kotlincrypto = "0.8.0"
+kotlincryptoRandom = "0.6.0"
+okio = "3.18.2"
+sqlx4k = "1.13.0"
+
+[libraries]
+kore-core = { module = "io.github.youndie:kore-core", version.ref = "kore" }
+kore-ktor = { module = "io.github.youndie:kore-ktor", version.ref = "kore" }
+
+# Koin through its BOM, and only `koin-core`. `koin-ktor` is deliberately absent: what this service
+# needs is a container, and the Ktor integration would add a plugin whose native publication nobody
+# here has checked. shildik runs `koin-core` on Kotlin/Native in production, which is the evidence
+# this line rests on.
+koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
+koin-core = { module = "io.insert-koin:koin-core" }
+koin-test = { module = "io.insert-koin:koin-test" }
+
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesCore" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+
+kotlincrypto-hmac-sha2 = { module = "org.kotlincrypto.macs:hmac-sha2", version.ref = "kotlincrypto" }
+kotlincrypto-hash-sha2 = { module = "org.kotlincrypto.hash:sha2", version.ref = "kotlincrypto" }
+kotlincrypto-random = { module = "org.kotlincrypto.random:crypto-rand", version.ref = "kotlincryptoRandom" }
+
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+
+sqlx4k-sqlite = { module = "io.github.smyrgeorge:sqlx4k-sqlite", version.ref = "sqlx4k" }
+
+[plugins]
+koreBuild = { id = "io.github.youndie.kore.build", version.ref = "kore" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+pluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+sborkaKmp = { id = "io.github.youndie.sborka.kmp", version.ref = "sborka" }
+sborkaLint = { id = "io.github.youndie.sborka.lint", version.ref = "sborka" }
