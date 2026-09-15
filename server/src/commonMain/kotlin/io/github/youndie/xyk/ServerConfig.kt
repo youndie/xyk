@@ -1,5 +1,7 @@
 package io.github.youndie.xyk
 
+import io.github.youndie.xyk.db.SQLITE_POOL
+
 /**
  * Everything the process is told by its environment, read once and checked once.
  *
@@ -30,6 +32,7 @@ data class ServerConfig(
     val deliveryMaxAttempts: Int,
     val deliveryWorkers: Int,
     val deliveryStallSeconds: Long,
+    val sqlitePoolSize: Int,
     /**
      * Stripe's recency window, in seconds, for endpoints that do not carry their own.
      *
@@ -187,6 +190,15 @@ fun getServerConfig(): ServerConfig {
         // `batchSize × deliveryTimeout` plus a margin, and a batch of fifty at two seconds is a
         // hundred. It is also what makes the probe checkable inside a container in seconds rather
         // than in minutes — a guard nobody can watch fail is a guard nobody has watched.
+        // THE DEFAULT IS STILL TWO, and the reason is unchanged: every connection is one more
+        // reader, and SQLite's automatic checkpoint never truncates the journal while a reader is
+        // alive (B-04). The override exists because the pool is one of two named suspects for the
+        // journal page's collapse (B-25), and a suspect that cannot be varied cannot be measured.
+        // Raising it in a deployment trades journal truncation for read concurrency — a decision
+        // with a measurement behind it or not at all.
+        sqlitePoolSize =
+            (readEnv("XYK_SQLITE_POOL")?.toIntOrNull() ?: SQLITE_POOL)
+                .also { require(it >= 1) { "XYK_SQLITE_POOL must be at least 1" } },
         deliveryStallSeconds =
             (readEnv("XYK_DELIVERY_STALL_SECONDS")?.toLongOrNull() ?: ServerConfig.DEFAULT_DELIVERY_STALL_SECONDS)
                 .also { require(it > 0) { "XYK_DELIVERY_STALL_SECONDS must be positive" } },

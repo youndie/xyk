@@ -731,6 +731,35 @@ positive control is for. The lesson is not about the numbers: **a control has to
 measurement like anything else**, and a harness that stops when its control survives is worth more
 than one that produces a table.
 
+### 1.22 A row count is a condition of a bug report, and this one was missing (B-25, 2026-09-16)
+
+| Fact | Where verified |
+|---|---|
+| At **500** events, `/journal` under 50 concurrent readers answers **471 rps**, 0 failures | `bench/journal.sh`, first run |
+| At **39 000** events, the same load completes **not one request** in 20 s | the same harness, k6: `No script iterations fully finished`, `data_received: 0 B` |
+| `/api/events` — the same query, no HTML — collapses identically | the two arms of one run |
+| One page over 28 781 events costs **1 568 ms**; SQLite plans two of the three subqueries as `SEARCH d USING INDEX deliveries_state (state=?)` | `EXPLAIN QUERY PLAN` and a timed execution against the seeded file |
+| Adding `deliveries(event_id, state)` takes the same page to **1.7 ms** on the same data | the same session, before and after |
+| A pool of **8** is 3.5× worse than 2 on that page (294 rps against 1 053) | the two pool arms after the fix |
+
+**Consequence 1 — a symptom recorded without its conditions is a report that cannot be reproduced.**
+B-25 held the latency, the failure rate, the host and the concurrency, and not the one number that
+decides the behaviour: how many rows were in the table. The first attempt to reproduce it found a
+healthy page and nearly closed the item as unreal. **Whatever makes the subject slow is part of the
+subject** — for a query that is the data, and a bug report about a query says how much of it there
+was.
+
+**Consequence 2 — an index that exists is not an index that is used.** `deliveries(event_id)` was
+there the whole time and the plan ignored it for the two subqueries that also filter on `state`,
+choosing the `state` index instead — which in a healthy service selects most of the table. The tell
+is only visible in `EXPLAIN QUERY PLAN`; from the outside it is indistinguishable from "the page is
+slow". A composite covering both columns is what the query was always asking for.
+
+**Consequence 3 — the second suspect was tested rather than assumed, and it would have made things
+worse.** Raising the pool was the other candidate fix and it is 3.5× *slower* on this page. Had the
+easier change been made first, the report would have been "addressed" and the page would have gotten
+worse — which is the argument for a criterion that demands the fix name its suspect.
+
 ### 1.21 A build broken by an ignore file, hidden by the image it already built (B-03, 2026-09-15)
 
 | Fact | Where verified |

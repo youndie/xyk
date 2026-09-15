@@ -31,7 +31,7 @@ const val SQLITE_POOL: Int = 2
  * `ApplicationStopping` runs before the drain on Kotlin/Native and after it on the JVM, from
  * identical source.
  */
-fun openDatabase(config: ServerConfig): ISQLite = openDatabase(config.sqlitePath, SQLITE_POOL)
+fun openDatabase(config: ServerConfig): ISQLite = openDatabase(config.sqlitePath, config.sqlitePoolSize)
 
 /**
  * The same, addressed by path — which is what a test can use.

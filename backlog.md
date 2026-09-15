@@ -61,7 +61,7 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (8)
+## Open (7)
 
 | Task | | Priority | Size | Blocked by |
 |---|---|---|---|---|
@@ -70,11 +70,10 @@ re-prioritising one must never move its file.
 | [B-10](docs/backlog/B-10-delivery-sink.md) `[~]` | The delivery sink: one POST, one timeout, one attempt row | P1 | M | B-03 |
 | [B-22](docs/backlog/B-22-criterion-cold-start.md) `[ ]` | Criterion: cold start to the first 200 under a second on a k0s node | P1 | M | B-17 |
 | [B-24](docs/backlog/B-24-soak-wal.md) `[~]` | The soak: the journal page reading while ingest writes, long enough to find the cliff | P1 | M | B-04, B-12 |
-| [B-25](docs/backlog/B-25-journal-page-collapses-under-concurrency.md) `[ ]` | The journal page collapses under fifty concurrent readers | P1 | M | - |
 | [B-14](docs/backlog/B-14-delivery-worker-count.md) `[?]` | How many delivery workers, and is the curl dispatcher the real ceiling? | P2 | S | B-11 |
 | [B-19](docs/backlog/B-19-secret-handling.md) `[?]` | Secrets at rest, and how long payloads are kept | P2 | M | B-07 |
 
-## Closed (18)
+## Closed (19)
 
 **Does this work at all**
 
@@ -93,6 +92,7 @@ re-prioritising one must never move its file.
 - [B-11](docs/backlog/B-11-delivery-workers.md) `[x]` - Delivery workers: owners, lifecycle, and a readiness check that counts ticks
 - [B-12](docs/backlog/B-12-journal-page.md) `[x]` - The journal page and its five states
 - [B-13](docs/backlog/B-13-journal-api.md) `[x]` - The journal API: keyset pages, streamed payloads, redelivery
+- [B-25](docs/backlog/B-25-journal-page-collapses-under-concurrency.md) `[x]` - The journal page collapses under fifty concurrent readers
 - [B-26](docs/backlog/B-26-schedule-timers-on-ingest.md) `[x]` - Nothing schedules a timer yet, so nothing is ever delivered
 
 **What actually ships**

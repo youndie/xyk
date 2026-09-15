@@ -189,8 +189,32 @@ private val migrationV6: List<String> =
         "CREATE INDEX delivery_attempts_delivery ON delivery_attempts(delivery_id, attempt);",
     )
 
+/**
+ * The index the journal page was missing, and the one it no longer needs.
+ *
+ * **Measured before it was chosen** (B-25). The list query carries three correlated subqueries per
+ * row — the delivery counts — and two of them filter on `event_id` **and** `state`. With only
+ * `deliveries(event_id)` and `deliveries(state, created_at)` to choose from, SQLite took the second:
+ * `SEARCH d USING INDEX deliveries_state (state=?)`. Every delivery in a healthy service is
+ * `pending` for a moment and `delivered` afterwards, so that index selects a large fraction of the
+ * table and filters by `event_id` after the fact — per event row, fifty times a page.
+ *
+ * On 28 781 events one page cost **1 568 ms**. With `(event_id, state)` the same page on the same
+ * data costs **1.7 ms**, and the plan changes to
+ * `SEARCH d USING COVERING INDEX deliveries_event_state (event_id=? AND state=?)`.
+ *
+ * `deliveries_event` goes because the composite covers its queries as a prefix: keeping both would
+ * make every ingest write two index entries where one does, and ingest is the path with a throughput
+ * criterion on it.
+ */
+private val migrationV7: List<String> =
+    listOf(
+        "CREATE INDEX deliveries_event_state ON deliveries(event_id, state);",
+        "DROP INDEX deliveries_event;",
+    )
+
 private val allMigrations: List<List<String>> =
-    listOf(migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6)
+    listOf(migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7)
 
 /**
  * Brings the database up to [allMigrations]`.size`.
