@@ -731,6 +731,31 @@ positive control is for. The lesson is not about the numbers: **a control has to
 measurement like anything else**, and a harness that stops when its control survives is worth more
 than one that produces a table.
 
+### 1.24 A failure that aborts the runtime cannot be caught downstream of itself (B-27, 2026-09-16)
+
+| Fact | Where verified |
+|---|---|
+| With the port held, the binary exits 134 with a core dump, reporting `JobCancellationException: LazyStandaloneCoroutine is cancelling` and `EADDRINUSE` in a `Caused by` | 12 restarts on bench-a: 6 deaths, strictly alternating |
+| The crash arrives **after** Ktor logs `Application started in 0.003 seconds` | the same logs |
+| Awaiting `resolvedConnectors()` after `start(wait = false)` changes nothing | tried, still exit 134 |
+| Binding the address before the engine starts turns it into one line and exit 78 | 12 restarts: 6 alive, 6 clean refusals, 0 crashes |
+
+**Consequence 1 — `start(wait = false)` moves the bind off the call that appears to perform it.** The
+flag is right and is there for the shutdown sequence (§1.10); the cost is that a bind failure is no
+longer *this* call's failure. It belongs to whichever coroutine notices, and on Kotlin/Native an
+unhandled exception there takes the process down before any handler further along can run.
+
+**Consequence 2 — so the check has to precede the thing it is checking.** There is no downstream
+position from which to catch it: the runtime is already aborting. `preflightBind()` claims the
+address and releases it before `embeddedServer` exists, which has a race and is still the right
+trade — it converts the case that happens (an instance already running, or still shutting down) from
+an abort into a sentence.
+
+**Consequence 3 — a log line that precedes the thing it announces is worse than no line.**
+`Application started` was printed by Ktor before the connector was bound, so the last cheerful line
+in a crash loop was a lie. The fix removes it by never reaching it, which is better than adding a
+second line to correct the first.
+
 ### 1.23 A virtual user is not a connection, and sizing the pool by one caps the other (B-20, 2026-09-16)
 
 | Fact | Where verified |

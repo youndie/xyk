@@ -1,7 +1,7 @@
 ---
 id: B-27
 title: "A port already in use is reported as a cancelled coroutine, after the start was announced"
-status: open
+status: done
 priority: P0
 size: S
 stage: stage-1-product
@@ -57,3 +57,42 @@ whatever scope noticed it rather than as a start-up failure.
 - AC: the alternating-restart reproduction runs 12 times out of 12 alive once the port is free, and
   12 times out of 12 with a clean message when it is not.
 - Anchors: `server/src/commonMain/kotlin/io/github/youndie/xyk/Main.kt`
+
+## Fixed by asking before starting, 2026-09-16
+
+**The obvious fix does not work, and finding that out is half the item.** The first attempt awaited
+`server.engine.resolvedConnectors()` after `start(wait = false)` and reported the failure from there.
+It changed nothing: on Kotlin/Native an unhandled exception in a coroutine aborts the process, and by
+the time `resolvedConnectors()` could answer, the process is already dying. A failure that kills the
+runtime cannot be caught downstream of itself.
+
+So the question is asked **before the engine exists**: `preflightBind()` binds the address, closes
+it, and the engine starts afterwards.
+
+| | before | after |
+|---|---|---|
+| exit code | 134, core dumped | **78** (`EX_CONFIG`) |
+| stack lines | 15+ | **0** |
+| first line about the failure | `JobCancellationException: LazyStandaloneCoroutine is cancelling` | `xyk: cannot bind 0.0.0.0:8071 — EADDRINUSE (98): Address already in use` |
+| claimed to start first | yes — `Application started in 0.003 seconds` | **no**; Ktor never reaches that line |
+| 12 alternating restarts | 6 alive, **6 core dumps** | 6 alive, **6 clean refusals, 0 crashes** |
+
+**The race is real and is the right trade.** Between releasing the preflight socket and Ktor's own
+bind, another process could take the port, and then the old crash returns. What this converts is the
+case that actually happens — an instance already running, or one still shutting down — from an
+unreadable abort into a line naming the address. A fix that handles the common case and says so beats
+one that waits for an answer with no race in it.
+
+**Exit 78 rather than 1**, because a supervisor restarting on any non-zero code would restart this
+one for ever against a port that is not coming back.
+
+**The `catch (Exception)` rethrows `CancellationException` first even though nothing can cancel it
+here** — it runs on the main thread before any scope, signal handler or job exists. The rethrow is
+one line, and the claim it would protect is about the code as it is today rather than as somebody
+leaves it.
+
+- AC: **met** — one line, the port in it, no stack, non-zero, and no claim of having started.
+- AC: **met** — 12 restarts: 6 alive, 6 clean refusals, 0 crashes.
+- Verified unchanged: the stop order still reads `SIGNAL ANNOUNCE DRAIN RELEASE_CONSUMERS
+  RELEASE_POOLS EXIT`, all `COMPLETED`, against the image — the preflight's `SelectorManager` is
+  closed before the engine starts and leaves nothing behind.

@@ -29,9 +29,12 @@ import io.github.youndie.xyk.registry.domain.CreateEndpointUseCase
 import io.github.youndie.xyk.registry.domain.RegistryRepository
 import io.github.youndie.xyk.registry.domain.RotateSecretUseCase
 import io.github.youndie.xyk.registry.registryModule
+import io.ktor.network.selector.SelectorManager
+import io.ktor.network.sockets.aSocket
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EngineConnectorBuilder
 import io.ktor.server.engine.embeddedServer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +42,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
+import kotlin.system.exitProcess
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
@@ -219,6 +223,27 @@ fun main() {
             },
         )
 
+    // THE PORT IS CLAIMED AND RELEASED BEFORE THE ENGINE IS STARTED, and this is the difference
+    // between one sentence and a core dump.
+    //
+    // `start(wait = false)` returns before the connector is bound, so a taken port does not fail at
+    // the call — it fails inside whichever coroutine notices, and on Kotlin/Native an unhandled
+    // exception there aborts the process. What the operator gets is
+    // `JobCancellationException: LazyStandaloneCoroutine is cancelling` with `EADDRINUSE` buried in
+    // a `Caused by`, **after** Ktor has logged `Application started`, plus a core dump. Six deaths
+    // in twelve restarts on a benchmark host, every one of them a run that began while the previous
+    // instance still held the port (B-27).
+    //
+    // Catching it downstream does not work — `resolvedConnectors()` was tried and the process is
+    // already dying by the time it could answer. So the question is asked *before* the engine
+    // exists, by binding the address ourselves and letting go of it.
+    //
+    // **This has a race and it is the right trade.** Between the release and Ktor's own bind
+    // another process could take the port, and then the old crash returns. What it converts is the
+    // case that actually happens — an instance that is already running, or one still shutting down
+    // — from an unreadable abort into a line naming the address.
+    preflightBind(config.host, config.port)
+
     // NOT `wait = true`. The main thread has to reach the await below, or the signal arrives at a
     // process that has no sequence to run and is killed at the end of the grace period instead —
     // which from outside is indistinguishable from a clean stop.
@@ -313,3 +338,43 @@ private fun participant(
     "created_at on locally written rows is not a time anybody else has an opinion about",
 )
 private fun hostNowEpochSeconds(): Long = Clock.System.now().epochSeconds
+
+/**
+ * The exit code for a port that was already taken.
+ *
+ * Distinct from `1` on purpose: a supervisor that restarts on any non-zero code will restart this
+ * one for ever against a port that is not coming back, and an operator reading `docker inspect`
+ * deserves a code that means something more specific than "it failed".
+ */
+private const val BIND_FAILED: Int = 78
+
+/**
+ * Takes the address for a moment, to find out whether it can be taken at all.
+ *
+ * Prints one line and exits when it cannot. No stack: a stack is for a failure nobody predicted, and
+ * a port already in use is the most predictable deployment mistake there is — the operator needs the
+ * address and nothing else.
+ */
+private fun preflightBind(
+    host: String,
+    port: Int,
+) {
+    runBlocking {
+        val selector = SelectorManager(Dispatchers.Default)
+        try {
+            aSocket(selector).tcp().bind(host, port).close()
+        } catch (cancelled: CancellationException) {
+            // Nothing can cancel this today — it runs on the main thread before any scope, signal
+            // handler or job exists. It is rethrown anyway because that claim is about the code as
+            // it is now, and the next person to add a scope above this line will not come back to
+            // check.
+            throw cancelled
+        } catch (failure: Exception) {
+            println("xyk: cannot bind $host:$port — ${failure.message ?: failure::class.simpleName}")
+            println("xyk: nothing was started and nothing was served")
+            selector.close()
+            exitProcess(BIND_FAILED)
+        }
+        selector.close()
+    }
+}
