@@ -96,3 +96,24 @@ the owner's request, and this workstation is the only machine left — so the ha
 what it claims. Everything else is ready: the arms agree, the gate runs, the pinning is enforced by
 the harness rather than by memory.
 - Anchors: `bench/run.sh`, `bench/scenario.js`, `docs/research/`
+
+## The blocker named by the pilot is cleared, 2026-09-16
+
+The pilot listed three things that had to happen before a number could be quoted. The first is done,
+and it was the one that mattered: **the cap on in-flight concurrency was the harness's own VU pool**,
+set to the connection count on a misreading of what a k6 virtual user is
+([research §1.23](../research/research-architecture.md),
+[throughput-pilot.md](../research/measurements-2026-09-15/throughput-pilot.md)).
+
+Measured on the real pair, bench-b → bench-a: the generator offers **8 000 rps with zero dropped
+iterations at p50 0.5 ms**, and first strains at 16 000. Four times this criterion, so nothing below
+it is the generator's.
+
+**And the criterion now has a checkable form.** `2 000 rps at 200 connections` under an open model is
+`rate × latency ≤ 200` — a mean under 100 ms. That threshold is declared in the scenario, and
+`bench/run.sh` reads the peak VU count out of k6's summary and records a violation when the service
+forced more concurrency than the line allows. The half of the criterion that nothing measured is now
+the half that is hardest to fudge.
+
+Still to do before the three columns are run: the settle between arms and the idle check the pilot
+also asked for, then interleaved rounds with the first discarded.

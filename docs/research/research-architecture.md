@@ -731,6 +731,32 @@ positive control is for. The lesson is not about the numbers: **a control has to
 measurement like anything else**, and a harness that stops when its control survives is worth more
 than one that produces a table.
 
+### 1.23 A virtual user is not a connection, and sizing the pool by one caps the other (B-20, 2026-09-16)
+
+| Fact | Where verified |
+|---|---|
+| `bench/ingest.js` set `preAllocatedVUs: connections` and `maxVUs: connections`, both 200 | the file, before this change |
+| Under `constant-arrival-rate` a VU is held for the whole round trip, so the pool caps requests **in flight**; the highest offerable rate is `VUs ÷ latency` | k6's executor semantics, and the numbers below |
+| 200 VUs ÷ 380 ms ≈ **526 rps** — the pilot's three arms delivered 523, 568 and 630 | [throughput-pilot.md](measurements-2026-09-15/throughput-pilot.md) |
+| With a large pool the same host pair offers **8 000 rps, 0 dropped, p50 0.5 ms**, and first drops at 16 000 | bench-b → bench-a, 2026-09-16 |
+
+**Consequence 1 — the pilot's "shared ceiling across all three arms" was correctly spotted and wrongly
+attributed.** The reading was that a number landing in the same band for the subject, the twin and the
+control means the limit is not in the service. True — and the limit was in the *harness*, one line
+above the comment that justified it. A control tells you the ceiling is shared; it does not tell you
+whose it is, and the next question after "not the subject" is "then which part of the stand".
+
+**Consequence 2 — an open model with a small VU pool is a closed model wearing its clothes.** The
+scenario's own header explains that a closed loop cannot show "slower → more in flight → slower
+still", because a sagging server receives less. A VU pool sized to the connection count reproduces
+exactly that, while the executor's name says otherwise. The failure is invisible in the summary: k6
+reports the dropped iterations honestly, and they read as "the service could not keep up".
+
+**Consequence 3 — the criterion's two numbers are one statement.** "2 000 rps at 200 connections"
+under an open model is `rate × latency ≤ 200`, i.e. a mean under 100 ms. Stated that way it is
+checkable before the run rather than eyeballed after it, and the connection half stops being the
+half that nothing measures.
+
 ### 1.22 A row count is a condition of a bug report, and this one was missing (B-25, 2026-09-16)
 
 | Fact | Where verified |

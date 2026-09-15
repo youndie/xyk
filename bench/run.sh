@@ -135,6 +135,18 @@ run_one() {
     > "$OUT/raw/$arm-round$round.log" 2>&1
   cp "$staged/summary.json" "$summary" 2>/dev/null
   rm -rf "$staged"
+
+  # THE CONNECTION HALF OF THE CRITERION, read off the run rather than assumed by it. Under
+  # `constant-arrival-rate` a busy VU is a request in flight, so the peak VU count is the peak
+  # concurrency the service forced the generator into. The criterion allows CONNECTIONS of it; more
+  # than that is the service failing the half of the line that is not about throughput.
+  local peak
+  peak=$(grep -oE 'vus[. ]+: [0-9]+ +min=[0-9]+ +max=[0-9]+' "$OUT/raw/$arm-round$round.log" \
+    | grep -oE 'max=[0-9]+' | cut -d= -f2 | head -1)
+  if [ -n "${peak:-}" ] && [ "$peak" -gt "$CONNECTIONS" ]; then
+    echo "  $arm round $round: peak concurrency $peak exceeded the criterion's $CONNECTIONS" >&2
+    echo "$arm,$round,over-concurrency,$peak" >> "$OUT/violations.csv"
+  fi
   rss_after=$(rss_kb bench-kotlin)
   printf '%s round %s: rss %s -> %s kB\n' "$arm" "$round" "${rss_before:-?}" "${rss_after:-?}" \
     >> "$OUT/raw/rss.log"
