@@ -129,8 +129,41 @@ private val migrationV4: List<String> =
         "CREATE INDEX events_received_at ON events(received_at);",
     )
 
+/**
+ * chronik's timers table — **its SQL, copied here on purpose, and guarded by a test**.
+ *
+ * chronik ships no DDL and executes none: `chronikTimersSchema()` hands back these two statements as
+ * text for the application's own migration list, so that the table's lifecycle, its version number
+ * and its ordering stay with the rest of the schema ([research §1.1](../../../../../../../../docs/research/research-architecture.md)).
+ *
+ * **Why the text is duplicated rather than called.** `chronik-sqlx4k-sqlite` publishes `jvm` and
+ * `linuxX64` and nothing else. Calling `chronikTimersSchema()` from here would make this file — and
+ * therefore the whole migration list — compile only on Linux, and a migration list that is shorter
+ * on one host is worse than a duplicated string: `user_version = 5` would then mean two different
+ * schemas depending on where the binary was built.
+ *
+ * The duplication is held to its source by `ChronikSchemaParityTest`, which runs where chronik
+ * resolves and fails the build if upstream changes a line. A copy with a test against the original
+ * is a different thing from a copy.
+ */
+internal val migrationV5: List<String> =
+    listOf(
+        """
+        CREATE TABLE IF NOT EXISTS chronik_timers (
+            id TEXT PRIMARY KEY,
+            due_at INTEGER NOT NULL,
+            payload TEXT NOT NULL,
+            state TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            locked_until INTEGER,
+            locked_by TEXT
+        );
+        """.trimIndent(),
+        "CREATE INDEX IF NOT EXISTS idx_chronik_timers_state_due_at ON chronik_timers (state, due_at);",
+    )
+
 private val allMigrations: List<List<String>> =
-    listOf(migrationV1, migrationV2, migrationV3, migrationV4)
+    listOf(migrationV1, migrationV2, migrationV3, migrationV4, migrationV5)
 
 /**
  * Brings the database up to [allMigrations]`.size`.

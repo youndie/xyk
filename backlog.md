@@ -61,28 +61,27 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (12)
+## Open (9)
 
 | Task | | Priority | Size | Blocked by |
 |---|---|---|---|---|
-| [B-02](docs/backlog/B-02-chronik-native-targets.md) `[~]` | Upstream: chronik-core and chronik-conformance publish native targets | P0 | S | - |
-| [B-03](docs/backlog/B-03-chronik-sqlite-store.md) `[ ]` | A chronik TransactionalTimerStore over sqlx4k/SQLite, green against the conformance kit | P0 | L | B-02 |
 | [B-20](docs/backlog/B-20-criterion-throughput.md) `[~]` | Criterion: 2 000 rps over 200 connections with no slow state, in three columns | P0 | L | B-06, B-16 |
 | [B-21](docs/backlog/B-21-criterion-memory.md) `[~]` | Criterion: 64 MiB limit, ten runs out of ten survive | P0 | L | B-06, B-17 |
 | [B-10](docs/backlog/B-10-delivery-sink.md) `[ ]` | The delivery sink: one POST, one timeout, one attempt row | P1 | M | B-03 |
 | [B-11](docs/backlog/B-11-delivery-workers.md) `[ ]` | Delivery workers: owners, lifecycle, and a readiness check that counts ticks | P1 | S | B-10 |
 | [B-22](docs/backlog/B-22-criterion-cold-start.md) `[ ]` | Criterion: cold start to the first 200 under a second on a k0s node | P1 | M | B-17 |
-| [B-23](docs/backlog/B-23-criterion-image-size.md) `[ ]` | Criterion: the image is at most 10 MB | P1 | S | B-17 |
 | [B-24](docs/backlog/B-24-soak-wal.md) `[~]` | The soak: the journal page reading while ingest writes, long enough to find the cliff | P1 | M | B-04, B-12 |
 | [B-25](docs/backlog/B-25-journal-page-collapses-under-concurrency.md) `[ ]` | The journal page collapses under fifty concurrent readers | P1 | M | - |
 | [B-14](docs/backlog/B-14-delivery-worker-count.md) `[?]` | How many delivery workers, and is the curl dispatcher the real ceiling? | P2 | S | B-11 |
 | [B-19](docs/backlog/B-19-secret-handling.md) `[?]` | Secrets at rest, and how long payloads are kept | P2 | M | B-07 |
 
-## Closed (13)
+## Closed (16)
 
 **Does this work at all**
 
 - [B-01](docs/backlog/B-01-gradle-skeleton-and-lifecycle.md) `[x]` - A binary that starts, migrates, answers /health and stops in order
+- [B-02](docs/backlog/B-02-chronik-native-targets.md) `[x]` - Upstream: chronik-core and chronik-conformance publish native targets
+- [B-03](docs/backlog/B-03-chronik-sqlite-store.md) `[x]` - chronik's sqlx4k/SQLite store adopted and green against the conformance kit
 - [B-04](docs/backlog/B-04-database-pool-and-journal.md) `[x]` - Migrations, a pool of two, WAL truncation and walBytes in the health response
 - [B-05](docs/backlog/B-05-static-link-probe.md) `[x]` - The static-link probe: does the curl engine make a static link impossible?
 - [B-06](docs/backlog/B-06-ingest-skeleton.md) `[x]` - One endpoint, end to end: verified, stored with its timers, answered 200
@@ -104,6 +103,7 @@ re-prioritising one must never move its file.
 
 - [B-15](docs/backlog/B-15-go-twin.md) `[x]` - The Go twin of the ingest path
 - [B-16](docs/backlog/B-16-twin-parity-gate.md) `[x]` - A parity gate: the twin and xyk answer the same things before anything is timed
+- [B-23](docs/backlog/B-23-criterion-image-size.md) `[x]` - Criterion: the image is at most 10 MB
 
 <!-- END INDEX -->
 

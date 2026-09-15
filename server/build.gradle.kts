@@ -53,6 +53,11 @@ kotlin {
     // linuxX64; macosArm64 exists so the suite runs where the editor is.
     val hostOs = System.getProperty("os.name")
     val arch = System.getProperty("os.arch")
+
+    // chronik's native variant is `linuxX64` ONLY. Naming that here, once, keeps the reason next to
+    // the consequence: on the Mac the native suite compiles without the delivery half rather than
+    // failing to resolve, and the loss is stated rather than discovered.
+    val chronikOnThisHost = hostOs == "Linux" && (arch == "x86_64" || arch == "amd64")
     val nativeTarget =
         when {
             hostOs == "Mac OS X" && arch == "aarch64" -> macosArm64("native")
@@ -159,6 +164,32 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.koin.test)
+        }
+
+        // CHRONIK IS A TEST DEPENDENCY HERE AND NOTHING MORE, until the delivery half lands.
+        // It publishes `jvm` and `linuxX64` and no `macosArm64`, so where it is declared decides
+        // which hosts can still build this repository at all.
+        jvmTest.dependencies {
+            // The jvm variant resolves on every host, which is why the check that xyk's copy of
+            // chronik's DDL still matches chronik's own lives in the JVM suite: it is the one
+            // place that guard can run on the Mac as well as on the Linux box.
+            implementation(libs.chronik.core)
+            implementation(libs.chronik.sqlx4k.sqlite)
+        }
+
+        // The conformance kit runs against the driver that SHIPS, which is the Rust one — sqlx4k is
+        // two drivers, and a kit green on Xerial says nothing about the binary in the image
+        // (research §1.11). So it is declared on the native suite, and only where chronik has a
+        // variant for it.
+        if (chronikOnThisHost) {
+            getByName("nativeTest") {
+                kotlin.srcDir("src/variants/with-chronik/kotlin")
+                dependencies {
+                    implementation(libs.chronik.core)
+                    implementation(libs.chronik.sqlx4k.sqlite)
+                    implementation(libs.chronik.conformance)
+                }
+            }
         }
     }
 }

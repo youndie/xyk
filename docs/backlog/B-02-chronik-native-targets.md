@@ -1,7 +1,7 @@
 ---
 id: B-02
 title: "Upstream: chronik-core and chronik-conformance publish native targets"
-status: wip
+status: done
 priority: P0
 size: S
 stage: stage-0-foundations
@@ -47,6 +47,34 @@ What remains: merge, and a publish that is verified **by reading the coordinate 
 green workflow. A publish that fails halfway leaves artifacts behind and poisons its own version
 number.
 
+## Published, and it carries more than was asked for (2026-09-15)
+
+`io.github.youndie.chronik:*:0.1.0.16` on the reposilite snapshot repository, read back off the
+coordinate rather than off a green workflow:
+
+| module | variants published |
+|---|---|
+| `chronik-core` | metadata, `jvm`, **`linuxX64`** |
+| `chronik-conformance` | metadata, `jvm`, **`linuxX64`** |
+| `chronik-sqlx4k-sqlite` | metadata, `jvm`, **`linuxX64`** |
+
+Verified by fetching each `.module` and listing its variants, and by unpacking the sources jar of the
+third one.
+
+**The third module was not in this item's plan, and it changes [B-03](B-03-chronik-sqlite-store.md)
+from writing a store to adopting one.** `chronik-sqlx4k-sqlite` ships
+`SqliteTimerStore : TransactionalTimerStore` over a sqlx4k `Driver` the application opens, with
+`Transaction.asTimerTransaction()` for handing it the caller's transaction, and
+`chronikTimersSchema(table)` returning the DDL as text to append to an existing migration list —
+chronik still executes no DDL and owns no schema lifecycle.
+
+**One limit to know before it is discovered by a red build:** the native variant is `linuxX64`
+**only**. There is no `macosArm64`, so anything in xyk that touches chronik will not resolve on the
+Mac. That costs nothing here — this repository builds on the Linux box by policy — but it means the
+delivery half cannot be compiled locally at all, where the ingest half can.
+
+- AC: **met.** The release exists, xyk pins `0.1.0.16` from the catalog, and the coordinate was read
+  back.
 - AC: an issue and a pull request on `youndie/chronik`; a released version on Maven Central whose
   group directory contains `chronik-core-linuxx64`.
 - AC: xyk's version catalog pins that released version — never a snapshot, never a project

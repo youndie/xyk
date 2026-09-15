@@ -88,6 +88,39 @@ released version is therefore its own acceptance criterion rather than a follow-
 And a chronik SQLite store is **not** coming from upstream: the released module set is still
 `core`, `conformance` and `postgres`. Writing one here was the plan in D1 and remains it.
 
+**Second correction, later the same day: published, and the last sentence above is wrong.**
+`io.github.youndie.chronik:*:0.1.0.16` resolves from the reposilite snapshot repository, and the
+module set grew by one.
+
+| Fact | Where verified |
+|---|---|
+| `chronik-core` publishes metadata, `jvm` and **`linuxX64`** | its `.module`, variants listed |
+| `chronik-conformance` the same three | its `.module` |
+| **`chronik-sqlx4k-sqlite` exists** and publishes the same three | its `.module` |
+| That module ships `SqliteTimerStore : TransactionalTimerStore` over a sqlx4k `Driver`, with `Transaction.asTimerTransaction()` to pass the caller's transaction in | its sources jar, unpacked: `commonMain/SqliteTimerStore.kt` |
+| It ships **no DDL and opens no connection** — `chronikTimersSchema(table)` returns the statements as text for the application's own migration list | `commonMain/Schema.kt` |
+| The native variant is `linuxX64` **only** — there is no `macosArm64` | the same `.module` files |
+
+**Consequence 1 — D1's "write the store here" is withdrawn.** The store xyk was going to write now
+ships upstream, implementing the contract §1.2 describes and carrying the transactional handle §1.3's
+design depends on. [B-03](../backlog/B-03-chronik-sqlite-store.md) becomes adoption plus a
+conformance run, which is a different size of task and a different risk: what has to be checked is
+that *our* driver, pool and migration order satisfy it, not that the SQL is right.
+
+**Consequence 2 — the schema stays ours, deliberately.** `chronikTimersSchema()` hands back text;
+the migration list, its version number and its ordering remain xyk's. So the timers table becomes
+migration v5 next to the existing four, and chronik never executes DDL — which is also what keeps
+"migrations before the engine" (§ step 4 of the bootstrap skill) true.
+
+**Consequence 3 — the delivery half cannot be compiled on the Mac at all.** With no `macosArm64`
+variant, any module that touches chronik resolves only on Linux. This repository builds on the Linux
+box by policy, so the cost is zero in CI and in the loop; it is not zero for anyone reading this who
+expects `./gradlew build` to work locally, which is why it is written here rather than discovered.
+
+**Consequence 4 — Consequence 4 above still binds, with one word changed.** The coordinate is on a
+snapshot repository rather than Central. That is the repository this portfolio's other consumers
+already use, and the pin is an exact version (`0.1.0.16`), not a moving `+`.
+
 ### 1.2 What chronik's contract actually demands of a store
 
 Read in `chronik/chronik-core/src/commonMain/kotlin/TimerStore.kt` and `Chronik.kt`.
@@ -697,6 +730,28 @@ picked as "obviously too small"; the harness refused to proceed both times, whic
 positive control is for. The lesson is not about the numbers: **a control has to be found by
 measurement like anything else**, and a harness that stops when its control survives is worth more
 than one that produces a table.
+
+### 1.21 A build broken by an ignore file, hidden by the image it already built (B-03, 2026-09-15)
+
+| Fact | Where verified |
+|---|---|
+| `.dockerignore` excludes `build` and `*/build` — added for the scratch image, which builds its binary **inside** itself and must not be handed a stale one | `.dockerignore`, and the comment that explains why |
+| `docker/native.Dockerfile` copies the binary **out of** `server/build/bin/native/releaseExecutable/` | that file's single `COPY` |
+| So `make build` fails with `"/server/build/bin/native/releaseExecutable/server.kexe": not found`, and had been failing since the exclusion was added | reproduced by running it |
+| Nothing noticed, because the `xyk:dev` tag from **before** the exclusion was still in the local daemon and every script downstream takes a tag rather than building one | `docker images` |
+
+**Consequence 1 — two files with opposite needs, and the second one was written without re-reading
+the first.** The scratch image needs the tree *without* `build/`; the runtime image is made *of* one
+file inside it. Docker evaluates ignore patterns in order and the last match wins, so a single
+exception resolves it — `!server/build/bin/native/releaseExecutable/server.kexe` — and the reason now
+sits next to the rule.
+
+**Consequence 2 — a stale local tag is an alibi.** Every downstream check here (`bench/parity.sh`,
+`dev/image-smoke.sh`, the soak) takes an image *tag*, and a tag that resolves proves nothing about
+whether it can still be produced. The same shape as §1.16, where a gate compared two stale images
+and passed: **a check that consumes an artefact does not test the pipeline that makes it.** The
+cheap guard is that the one target which builds (`make build`) is run on a schedule rather than only
+when somebody happens to need a fresh image.
 
 ### 1.20 A load generator that fails to start is indistinguishable from a subject that copes (B-21/B-24, 2026-09-15)
 

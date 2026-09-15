@@ -1,7 +1,7 @@
 ---
 id: B-03
-title: "A chronik TransactionalTimerStore over sqlx4k/SQLite, green against the conformance kit"
-status: open
+title: "chronik's sqlx4k/SQLite store adopted and green against the conformance kit"
+status: done
 priority: P0
 size: L
 stage: stage-0-foundations
@@ -25,6 +25,41 @@ SQLite transaction as the event row — which is the reason chronik is in this d
   them rather than throwing, so one run reports everything wrong instead of the first thing.
 - **Rejected: hand-written unit tests as the primary check.** They mostly prove that the author
   agrees with the author.
+## The store came from upstream instead (2026-09-15)
+
+**This item planned to write a `TransactionalTimerStore`. chronik 0.1.0.16 ships one**, so what was
+done is adoption, and the remaining risk moved: the SQL is no longer ours to get wrong, and what had
+to be shown is that *our* driver, pool, migration order and table satisfy it.
+
+What was added here:
+
+* **`chronik = "0.1.0.16"` in the catalogue**, with `sqlx4k` moved 1.13.0 → 1.13.1 to match what
+  `chronik-sqlx4k-sqlite` is built against — two halves of one driver on different versions is the
+  kind of skew that surfaces as a link error rather than a resolution failure.
+* **Migration v5: the timers table**, as xyk's own SQL. chronik executes no DDL; `chronikTimersSchema()`
+  hands the statements back as text for the application's list, so the version number and the
+  ordering stay here.
+* **`ChronikSchemaParityTest` (jvm suite)** — the copy held against `chronikTimersSchema()`,
+  statement for statement. It runs on the JVM because chronik's `jvm` variant resolves on every host
+  including the Mac, where its `linuxX64` one does not. **Checked by mutation:** one `NOT NULL` added
+  to the copy turns the suite red at that line.
+* **`ChronikConformanceTest` (native suite)** — `ConformanceKit().run(subject)` against
+  `SqliteTimerStore` on xyk's own driver and pool. **17 cases, 0 findings.** It is in the *native*
+  suite deliberately: sqlx4k is two drivers, and a corpus green on Xerial says nothing about the Rust
+  one in the image. It also asserts `kit.cases.isNotEmpty()`, because an empty findings list from a
+  kit that ran nothing is the same green as one from a store that passed.
+
+**Verified end to end rather than by compilation:** a container built from `docker/native.Dockerfile`
+with `/data` bind-mounted reports `user_version = 5`, and the database holds `chronik_timers` with
+`idx_chronik_timers_state_due_at`.
+
+**Why the DDL is duplicated rather than called.** `chronik-sqlx4k-sqlite` has no `macosArm64`
+variant. Calling `chronikTimersSchema()` from `commonMain` would make the migration list itself
+Linux-only, and a list that is shorter on one host means `user_version = 5` names two different
+schemas depending on where the binary was built. A copy with a test against its source is a different
+thing from a copy.
+
+- AC: **met** — the corpus runs, on the driver that ships, and reports nothing.
 - Not covered: publishing this module. It may move upstream later; that is a separate decision taken
   once it has run in production.
 

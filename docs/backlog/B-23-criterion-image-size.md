@@ -1,7 +1,7 @@
 ---
 id: B-23
 title: "Criterion: the image is at most 10 MB"
-status: open
+status: done
 priority: P1
 size: S
 stage: stage-3-verdict
@@ -81,3 +81,32 @@ afterwards" to "the only route", and it moves [B-05](B-05-static-link-probe.md) 
 - AC: a CI step fails the build when the published image crosses the line, so the criterion is a gate
   and not a memory.
 - Anchors: `docker/native.Dockerfile`, `docker/scratch.Dockerfile`, `.github/workflows/build.yaml`
+
+## Answered by the owner, 2026-09-15: gconv stays, and the criterion is missed on purpose
+
+The decision asked for in this item was taken: **keep the gconv tree, and mark the miss.**
+
+| arm | bytes to pull | against 10 MB |
+|---|---:|---|
+| `scratch` + curl, **with gconv — what ships** | **11 822 592** | **over by 1 822 592** |
+| `scratch` + curl, without gconv | 8 990 720 | under by 1 009 280 |
+
+**So the declared criterion "the image is at most 10 MB" is NOT met, by 1.74 MiB, and this is a
+choice rather than a shortfall.** What the 2.8 MB buys is the failure it prevents: a static glibc
+loads its charset converters with `dlopen`, and an image without them serves static files and `401`
+perfectly well, then returns `500` on the first rendered page — `Failed to open iconv for charset
+UTF-8 with error code 22`. A journal page is a rendered page. An image that is 1 MB under the line
+and cannot show the journal is not a better answer to this criterion; it is a different product.
+
+**The honest form of the result is the pair, not the winner.** Both numbers are measured, the
+difference between them is one directory, and the criterion is quoted with the arm that ships:
+**11 822 592 bytes, over the declared 10 MB.** A criterion quietly relaxed after the run measures
+nothing — which is why this item stays as a miss rather than being restated as "10 MB of code plus
+charset data".
+
+Left open deliberately: **curating gconv down to the modules actually loaded.** The control that
+would justify it did not fire — glibc reached for `UTF-16.so` to convert UTF-8, so the set is not the
+one a reader would guess ([B-18](B-18-scratch-image.md)). Shipping a curated subset means shipping a
+list that is right until the first locale nobody tested, and the saving is at most 2.8 MB.
+
+- AC: **met as a measurement, missed as a target, and both are written down.**

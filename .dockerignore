@@ -9,6 +9,14 @@
 .github
 build
 */build
+# ...EXCEPT the one artefact the runtime image is made of. `docker/native.Dockerfile` copies the
+# linked binary out of `server/build/`, and the two lines above — added for the scratch image, which
+# builds its binary inside itself and must not be handed a stale one — silently made that COPY fail
+# with "not found". Docker evaluates these in order and the last match wins, so the exception below
+# re-includes a single file out of an excluded directory. Nothing noticed for a day because the
+# `xyk:dev` tag from before the exclusion was still in the local daemon: a broken build and a
+# working image look identical until something rebuilds.
+!server/build/bin/native/releaseExecutable/server.kexe
 .gradle
 .kotlin
 .idea
