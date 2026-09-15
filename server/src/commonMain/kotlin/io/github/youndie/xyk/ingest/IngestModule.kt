@@ -1,6 +1,7 @@
 package io.github.youndie.xyk.ingest
 
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
+import io.github.youndie.xyk.delivery.TimerScheduler
 import io.github.youndie.xyk.ingest.data.Sqlx4kEventRepository
 import io.github.youndie.xyk.ingest.domain.AcceptEventUseCase
 import io.github.youndie.xyk.ingest.domain.EventRepository
@@ -30,9 +31,10 @@ import org.koin.dsl.module
 fun ingestModule(
     db: ISQLite,
     stripeToleranceSeconds: Long,
+    scheduler: TimerScheduler?,
 ): Module =
     module {
-        single<EventRepository> { Sqlx4kEventRepository(db) }
+        single<EventRepository> { Sqlx4kEventRepository(db, scheduler) }
         single { RejectionCounters() }
         single<List<Verifier>> {
             listOf(

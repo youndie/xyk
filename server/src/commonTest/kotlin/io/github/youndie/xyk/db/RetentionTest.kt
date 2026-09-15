@@ -2,6 +2,7 @@ package io.github.youndie.xyk.db
 
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.BootstrapEndpoint
+import io.github.youndie.xyk.delivery.TestTimerScheduler
 import io.github.youndie.xyk.ingest.data.Sqlx4kEventRepository
 import io.github.youndie.xyk.journal.data.Sqlx4kJournalRepository
 import io.github.youndie.xyk.journal.domain.JournalFilter
@@ -27,14 +28,14 @@ class RetentionTest {
             BootstrapEndpoint("retention-endpoint", "github", "s", emptyList()),
             nowEpochSeconds = 0,
         )
-        return Triple(Sqlx4kJournalRepository(db), Retention(db), db)
+        return Triple(Sqlx4kJournalRepository(db, TestTimerScheduler()), Retention(db), db)
     }
 
     private suspend fun store(
         db: ISQLite,
         at: Long,
     ): String {
-        val events = Sqlx4kEventRepository(db)
+        val events = Sqlx4kEventRepository(db, TestTimerScheduler())
         val endpoint = assertNotNull(events.findEndpoint("retention-endpoint"))
         return events
             .accept(endpoint, at, "github", "fp", "application/json", "{\"body\":\"secret-ish\"}".encodeToByteArray())

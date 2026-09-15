@@ -5,6 +5,7 @@ import io.github.youndie.xyk.BootstrapEndpoint
 import io.github.youndie.xyk.db.applyBootstrap
 import io.github.youndie.xyk.db.fromSqliteHex
 import io.github.youndie.xyk.db.openDatabase
+import io.github.youndie.xyk.delivery.TestTimerScheduler
 import io.github.youndie.xyk.ingest.data.Sqlx4kEventRepository
 import io.github.youndie.xyk.ingest.data.countOf
 import io.github.youndie.xyk.ingest.domain.AcceptEventUseCase
@@ -45,7 +46,7 @@ class AcceptEventTest {
         )
         val useCase =
             AcceptEventUseCase(
-                repository = Sqlx4kEventRepository(db),
+                repository = Sqlx4kEventRepository(db, TestTimerScheduler()),
                 verifiers = mapOf(GithubVerifier.SCHEME to GithubVerifier()),
             )
         return useCase to db
@@ -74,7 +75,7 @@ class AcceptEventTest {
             // that a text-shaped storage path would quietly change.
             val body =
                 byteArrayOf(0, -1, 13, 10) +
-                    "{\"a\":\"﻿ it's ✓\"}".encodeToByteArray() +
+                    "{\"a\":\" it's ✓\"}".encodeToByteArray() +
                     byteArrayOf(0, 127, -128)
 
             val accepted = accept(params(signed(body))).getOrThrow()

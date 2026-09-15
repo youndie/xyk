@@ -16,6 +16,7 @@ import io.github.youndie.xyk.delivery.DeliverySink
 import io.github.youndie.xyk.delivery.data.Sqlx4kDeliveryRepository
 import io.github.youndie.xyk.delivery.deliveryWorkers
 import io.github.youndie.xyk.delivery.outboundPost
+import io.github.youndie.xyk.delivery.timerScheduler
 import io.github.youndie.xyk.health.XykProbes
 import io.github.youndie.xyk.ingest.RejectionCounters
 import io.github.youndie.xyk.ingest.RejectionFlush
@@ -104,6 +105,7 @@ fun main() {
     // way to schedule. What must not happen is a service that accepts webhooks and silently never
     // delivers them, so whichever is missing is said out loud, once, at start-up.
     val outbound = outboundPost()
+    val scheduler = timerScheduler(db)
     val workers =
         outbound?.let { post ->
             deliveryWorkers(
@@ -129,6 +131,12 @@ fun main() {
             )
         }
     when {
+        scheduler == null -> {
+            println(
+                "xyk: delivery is OFF — this build has no chronik variant for its target; events are journalled only",
+            )
+        }
+
         workers != null -> {
             println(
                 "xyk: delivery is on — ${workers.count} worker(s), " +
@@ -158,9 +166,9 @@ fun main() {
             modules(
                 configModule(config),
                 storageModule(db),
-                ingestModule(db, config.stripeToleranceSeconds),
+                ingestModule(db, config.stripeToleranceSeconds, scheduler),
                 registryModule(db, config.allowUnverified),
-                journalModule(db),
+                journalModule(db, scheduler),
             )
         }
     val acceptEvent = koin.koin.get<AcceptEventUseCase>()

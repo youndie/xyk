@@ -5,6 +5,7 @@ import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLongOrNull
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.db.fromSqliteHex
+import io.github.youndie.xyk.delivery.TimerScheduler
 import io.github.youndie.xyk.journal.domain.DeliveryLine
 import io.github.youndie.xyk.journal.domain.EventDetail
 import io.github.youndie.xyk.journal.domain.EventLine
@@ -22,6 +23,8 @@ import io.github.youndie.xyk.newId
  */
 class Sqlx4kJournalRepository(
     private val db: ISQLite,
+    /** The same writer the ingest path uses; `null` in a build that cannot deliver. */
+    private val scheduler: TimerScheduler? = null,
 ) : JournalRepository {
     override suspend fun recent(filter: JournalFilter): List<EventLine> {
         val conditions = mutableListOf<String>()
@@ -178,15 +181,22 @@ class Sqlx4kJournalRepository(
                 .map { it.get(0).asString() }
         if (subscribers.isEmpty()) return 0
 
+        // A build that cannot deliver must not pretend to redeliver: rows written with no timer
+        // would sit `pending` for ever and the page would report a redelivery that never happens.
+        if (scheduler == null) return 0
+
         db.transaction {
             for (subscriberId in subscribers) {
+                val deliveryId = newId()
                 execute(
                     "INSERT INTO deliveries (id, event_id, subscriber_id, state, attempts, created_at) " +
-                        "VALUES (${newId().quoted()}, ${eventId.quoted()}, ${subscriberId.quoted()}, " +
+                        "VALUES (${deliveryId.quoted()}, ${eventId.quoted()}, ${subscriberId.quoted()}, " +
                         "'pending', 0, $nowEpochSeconds);",
                 ).getOrThrow()
+                // In the same transaction, for the same reason as the ingest path: the row and its
+                // timer commit together or neither does.
+                scheduler.schedule(this, deliveryId, nowEpochSeconds)
             }
-            // B-03 schedules one chronik timer per row here, in this same transaction.
         }
         return subscribers.size
     }

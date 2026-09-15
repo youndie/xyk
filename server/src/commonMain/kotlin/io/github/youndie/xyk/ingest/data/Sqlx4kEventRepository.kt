@@ -3,6 +3,7 @@ package io.github.youndie.xyk.ingest.data
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.db.toSqliteBlobLiteral
+import io.github.youndie.xyk.delivery.TimerScheduler
 import io.github.youndie.xyk.ingest.domain.AcceptedEvent
 import io.github.youndie.xyk.ingest.domain.EventRepository
 import io.github.youndie.xyk.ingest.domain.IngestEndpoint
@@ -13,6 +14,15 @@ import io.github.youndie.xyk.verify.SchemeConfig
 /** SQLite behind the ingest port. The only file in this feature that knows any SQL. */
 class Sqlx4kEventRepository(
     private val db: ISQLite,
+    /**
+     * The timer writer, or `null` in a build that cannot deliver.
+     *
+     * When it is `null` **no delivery rows are written either**, and that is deliberate rather than
+     * tidy: a `deliveries` row with no timer is a row nothing will ever claim, shown as `pending`
+     * in the journal for ever. A build that does not deliver should record that it received the
+     * event and stop there — an honest empty column beats a queue that never moves.
+     */
+    private val scheduler: TimerScheduler? = null,
 ) : EventRepository {
     override suspend fun findEndpoint(endpointId: String): IngestEndpoint? {
         val quoted = endpointId.quoted()
@@ -72,19 +82,32 @@ class Sqlx4kEventRepository(
                     "${body.toSqliteBlobLiteral()}, ${body.size});",
             ).getOrThrow()
 
-            for (subscriberId in endpoint.subscriberIds) {
-                execute(
-                    "INSERT INTO deliveries (id, event_id, subscriber_id, state, attempts, created_at) " +
-                        "VALUES (${newId().quoted()}, ${eventId.quoted()}, ${subscriberId.quoted()}, " +
-                        "'pending', 0, $receivedAt);",
-                ).getOrThrow()
+            // ONE TIMER PER DELIVERY ROW, IN THIS TRANSACTION. The pair must commit together or
+            // not at all: a delivery row without its timer is a webhook answered `200` that will
+            // never be sent, and nothing anywhere would say so — the journal shows it pending, no
+            // probe fails, no line is logged. That is the failure chronik's transactional store
+            // exists for, and this loop is where it is spent.
+            if (scheduler != null) {
+                for (subscriberId in endpoint.subscriberIds) {
+                    val deliveryId = newId()
+                    execute(
+                        "INSERT INTO deliveries (id, event_id, subscriber_id, state, attempts, created_at) " +
+                            "VALUES (${deliveryId.quoted()}, ${eventId.quoted()}, ${subscriberId.quoted()}, " +
+                            "'pending', 0, $receivedAt);",
+                    ).getOrThrow()
+                    // Due now. The first attempt should happen as soon as a worker looks, and the
+                    // backoff for everything after it is chronik's — starting a fresh delivery in
+                    // the future would be a second retry policy next to the real one.
+                    scheduler.schedule(this, deliveryId, receivedAt)
+                }
             }
-
-            // B-03 puts `chronik.schedule(tx, ...)` here, in this same transaction — one timer per
-            // delivery. Until chronik publishes a native artifact the delivery rows are written and
-            // nothing claims them, which is why B-10 cannot start before B-03 either.
         }
-        return AcceptedEvent(id = eventId, deliveries = endpoint.subscriberIds.size)
+        return AcceptedEvent(
+            id = eventId,
+            // What was actually written, not what could have been: a build that cannot deliver
+            // reports zero rather than a number that describes another build's behaviour.
+            deliveries = if (scheduler == null) 0 else endpoint.subscriberIds.size,
+        )
     }
 
     /**

@@ -4,6 +4,7 @@ import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.BootstrapEndpoint
 import io.github.youndie.xyk.db.applyBootstrap
 import io.github.youndie.xyk.db.openDatabase
+import io.github.youndie.xyk.delivery.TestTimerScheduler
 import io.github.youndie.xyk.ingest.data.Sqlx4kEventRepository
 import io.github.youndie.xyk.ingest.data.countOf
 import io.github.youndie.xyk.journal.data.Sqlx4kJournalRepository
@@ -32,7 +33,7 @@ class JournalRepositoryTest {
             ),
             nowEpochSeconds = 1_000,
         )
-        return Sqlx4kJournalRepository(db) to db
+        return Sqlx4kJournalRepository(db, TestTimerScheduler()) to db
     }
 
     private suspend fun store(
@@ -40,7 +41,7 @@ class JournalRepositoryTest {
         body: ByteArray,
         at: Long,
     ): String {
-        val events = Sqlx4kEventRepository(db)
+        val events = Sqlx4kEventRepository(db, TestTimerScheduler())
         val endpoint = assertNotNull(events.findEndpoint(endpointId))
         return events
             .accept(
