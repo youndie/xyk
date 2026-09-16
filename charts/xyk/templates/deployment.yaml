@@ -31,19 +31,31 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          # `int64` BEFORE `quote` ON EVERY NUMBER, and it is not decoration. Helm renders a large
+          # unquoted YAML number in scientific notation — `heapBytes: 33554432` comes out as
+          # `3.3554432e+07` — and the service's environment is strings. This bit once already, on
+          # `maxBodyBytes`, where the service took its default instead and said nothing; the config
+          # parser is strict now and would refuse to start, which is better and still a trap. `int64`
+          # renders the integer whether the value arrived quoted or not.
           env:
             - name: XYK_DB_PATH
               value: /data/xyk.db
             - name: XYK_RETENTION_DAYS
-              value: {{ .Values.config.retentionDays | quote }}
+              value: {{ .Values.config.retentionDays | int64 | quote }}
             - name: XYK_DELIVERY_WORKERS
-              value: {{ .Values.config.deliveryWorkers | quote }}
+              value: {{ .Values.config.deliveryWorkers | int64 | quote }}
             - name: XYK_DELIVERY_TIMEOUT_MS
-              value: {{ .Values.config.deliveryTimeoutMs | quote }}
+              value: {{ .Values.config.deliveryTimeoutMs | int64 | quote }}
+            - name: XYK_DELIVERY_MAX_ATTEMPTS
+              value: {{ .Values.config.deliveryMaxAttempts | int64 | quote }}
+            {{- if .Values.config.heapBytes }}
+            - name: XYK_HEAP_BYTES
+              value: {{ .Values.config.heapBytes | int64 | quote }}
+            {{- end }}
             - name: XYK_STRIPE_TOLERANCE_SECONDS
-              value: {{ .Values.config.stripeToleranceSeconds | quote }}
+              value: {{ .Values.config.stripeToleranceSeconds | int64 | quote }}
             - name: XYK_MAX_BODY_BYTES
-              value: {{ .Values.config.maxBodyBytes | quote }}
+              value: {{ .Values.config.maxBodyBytes | int64 | quote }}
             {{- with .Values.config.publicBaseUrl }}
             - name: XYK_PUBLIC_BASE_URL
               value: {{ . | quote }}

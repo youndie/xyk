@@ -18,14 +18,46 @@ config:
   # Payload bodies are purged after this many days. `0` keeps them for ever — see the chart's README
   # and `services/xyk-server.md` on why the default is seven and not zero.
   retentionDays: 7
+  # FOUR, AND ON THE MEASURED STAND THAT IS ABOUT ONE INGEST RATE OF CAPACITY. Delivery ran at
+  # 54-59 /s against an ingest of the same, which means a queue that builds during an outage does
+  # not drain afterwards — two minutes after a five-second outage the queue was still 458 against a
+  # healthy 220 (B-31). More workers buy more capacity (B-14 found the curve still linear at eight);
+  # what bounds it in a deployment is what the subscribers tolerate, which is not ours to pick.
   deliveryWorkers: 4
+  # HOW LONG ONE ATTEMPT MAY TAKE, and against a subscriber that is silent rather than refusing it is
+  # also how long a worker is occupied. Four workers at 2 s make about two attempts a second, so a
+  # black-holed subscriber backs the queue up at ingest rate whatever the memory limit is
+  # (B-31). Lowering it frees workers and gives a slow-but-alive subscriber less time to answer.
   deliveryTimeoutMs: 2000
+  # HOW LONG AN OUTAGE MAY LAST BEFORE EVENTS ARE LOST, and that is what this number really sets.
+  #
+  # The delays between attempts double from one second — 1, 2, 4, 8 — so five attempts span fifteen
+  # seconds from the first, and an event whose subscriber has been down for fifteen seconds is
+  # `dead`. Measured: nothing dies at a 15-second outage, 90-143 events die at a 20-second one, and
+  # about 1 600 die in a minute (B-31). Dead is final — `POST /api/events/{eventId}/redeliver` is by
+  # hand, one event at a time, and there is no sweep.
+  #
+  # Each extra attempt doubles the window: 6 gives ~31 s, 7 ~63 s, 8 ~127 s. It is not free — a
+  # failed attempt costs more memory than a delivered one (~14 kB refused, ~60 kB timed out against
+  # ~2 kB, B-30/B-31), so raising this raises what an outage spends as well as what it survives.
+  deliveryMaxAttempts: 5
+  # A HARD CEILING FOR THE GC, in bytes; empty leaves the runtime unbounded.
+  #
+  # A Kotlin/Native process cannot read its own cgroup limit, so nothing tells the GC what the
+  # kernel will kill it for. This is the place that knows the limit, which is why the knob is here —
+  # but no run has measured what fraction of a limit should be heap, and a guess trades a kernel
+  # kill for an `OutOfMemory`. The measurements used half: `33554432` under a 64Mi limit. Off by
+  # default until there is a number.
+  heapBytes: ""
   # `0` disables the Stripe timestamp check rather than tightening it.
   stripeToleranceSeconds: 300
-  # A STRING, AND THE QUOTES ARE load-bearing. Written as a bare integer, Helm parses it as a float
-  # and `| quote` renders `1.048576e+07`, which the service cannot read — so it silently used its
-  # default and the limit configured here did nothing. Found by rendering the chart and reading the
-  # environment it produces, not by reading the template.
+  # Quoted out of habit rather than necessity now. It used to be load-bearing: written as a bare
+  # integer, Helm parses it as a float and `| quote` rendered `1.048576e+07`, which the service could
+  # not read, so it silently used its default and the limit set here did nothing. The template pipes
+  # every number through `int64` since, so an override written either way renders the integer — and
+  # the config parser refuses to start on an unreadable number rather than falling back. Found by
+  # rendering the chart and reading the environment it produces, not by reading the template, which
+  # is still the only way to catch this class.
   maxBodyBytes: "10485760"
   publicBaseUrl: ""
 

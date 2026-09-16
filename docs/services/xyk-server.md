@@ -177,6 +177,18 @@ batches.
   k0s API server in both shapes, and the container run with exactly the environment the chart renders
   — all three probes `200`, a signed webhook accepted. A full install was not completed because the
   test node's CNI could not give pods an address.
+* **The chart carries what the delivery measurements made operational** (B-30, B-31), because the
+  numbers that decide those outcomes were not settable from it. `deliveryMaxAttempts` is the length
+  of subscriber outage the service survives without losing events — five attempts span fifteen
+  seconds, each further one doubles that — and `heapBytes` is the GC ceiling the runtime cannot
+  derive for itself. The memory limit is commented where it is chosen, because with delivery on it
+  decides how long a pod lives rather than whether it fits.
+* **Every number in the template goes through `int64` before `quote`.** Helm renders a large
+  unquoted YAML number in scientific notation — `33554432` becomes `3.3554432e+07` — and the
+  environment is strings. It cost a silently ignored `maxBodyBytes` once; the config parser refuses
+  to start on an unreadable number now, and the template renders the integer either way. The check
+  that catches this class is rendering the chart and reading the environment, not reading the
+  template.
 
 ## 6. Local setup
 
