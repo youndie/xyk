@@ -61,9 +61,11 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (0)
+## Open (1)
 
-No open tasks.
+| Task | | Priority | Size | Blocked by |
+|---|---|---|---|---|
+| [B-30](docs/backlog/B-30-delivery-memory-growth.md) `[ ]` | The delivery half grows without bound, and the memory criterion cannot see it | P0 | L | - |
 
 ## Closed (29)
 

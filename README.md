@@ -21,7 +21,7 @@ against a Go twin of the ingest path.
 | Criterion | Answer | Where |
 |---|---|---|
 | 2 000 rps on ingest over 200 connections, no slow state | **No.** 437 rps on four visible cores; nothing failed, the latency is 300–460 ms where 100 is needed. The Go twin misses it too, at 601 | [three columns](docs/research/measurements-2026-09-16/throughput-three-columns.md) |
-| 64 MiB limit, ten runs out of ten | **Yes**, on the shipping configuration — and by reclaim rather than headroom | [memory](docs/research/measurements-2026-09-16/memory-shipping-config.md) |
+| 64 MiB limit, ten runs out of ten | **Yes for thirty seconds at a time, and no longer** — that is the round length the answer was measured on. A soak at 60 rps kills the same image at 90 s: [B-30](docs/backlog/B-30-delivery-memory-growth.md) | [memory](docs/research/measurements-2026-09-16/memory-shipping-config.md), [growth](docs/research/measurements-2026-09-16/delivery-memory-growth.md) |
 | image at most 10 MB | **No**, by 1.74 MiB, on purpose — the excess is the charset converters without which the journal page returns `500` | [B-23](docs/backlog/B-23-criterion-image-size.md) |
 | cold start to the first `200` under a second on a k0s node | **Yes**, 0.394 s — and indistinguishable from the Go twin's 0.395 | [cold start](docs/research/measurements-2026-09-16/cold-start.md) |
 | the kill condition: *if curl makes a static link impossible, that is a result* | Not triggered — all four link modes link; curl costs 8.8 MB | [B-05](docs/backlog/B-05-static-link-probe.md) |

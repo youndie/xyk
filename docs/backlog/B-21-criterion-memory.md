@@ -191,3 +191,17 @@ reports a *higher* rate than a live one.
 re-measured on the configuration that actually deploys, with the engine linked and four workers
 running ([B-29](B-29-memory-with-delivery-on.md)): **10/10 again**, at 60 928 – 66 108 kB. It is met
 by reclaim rather than by headroom, which is the phrasing to quote.
+
+## Bounded at thirty seconds, 2026-09-16
+
+**The answer above holds for the length of a round and says nothing past it.**
+`bench/memory-declared.sh` runs `DURATION=30s`, and the first soak against the shipping image with
+the outbound half linked kills the same binary at **87–121 seconds** at the same limit, memory
+rising ~440 kB/s with the journal flat and the thread count still —
+[B-30](B-30-delivery-memory-growth.md),
+[the measurement](../research/measurements-2026-09-16/delivery-memory-growth.md).
+
+Nothing here is withdrawn: ten rounds did survive, the arms did differ, and the allocator ranking
+stands. What is withdrawn is the reading of "10/10" as a statement about a service that runs. This
+item measured a start-up and a burst; it could not have seen a slope, and it did not claim to.
+

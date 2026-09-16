@@ -48,4 +48,7 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-ThreadingHTTPServer(("0.0.0.0", 9100), Handler).serve_forever()
+# The port is a parameter because two harnesses run this on one host: a delivery sweep and a
+# soak. Sharing a port would make one of them read the other's counter and call it a result.
+PORT = int(os.environ.get("SINK_PORT", "9100"))
+ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
