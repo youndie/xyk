@@ -75,15 +75,20 @@ data class ServerConfig(
         const val DEFAULT_DELIVERY_MAX_ATTEMPTS: Int = 5
 
         /**
-         * Two workers, and the number is a placeholder with a measurement behind it pending.
+         * Four workers, measured rather than guessed
+         * ([delivery-workers.md](../../../../../../../../docs/research/measurements-2026-09-16/delivery-workers.md)).
          *
-         * Fan-out comes from several claimants rather than from a concurrent sink, so this is the
-         * only knob that buys parallel deliveries — and the right value depends on where the ceiling
-         * is, which [B-14](../../../../../../../../docs/backlog/B-14-delivery-worker-count.md)
-         * measures. Two is small enough to be safe under the pool of two and large enough that the
-         * lease is exercised at all.
+         * Against a subscriber answering in 100 ms, delivery throughput is **6.3, 12.8, 27.2 and
+         * 46.7 per second at 1, 2, 4 and 8 workers** — near-linear, with resident memory flat at
+         * 29–33 MB throughout. The hypothesis this replaces said the curl engine's single-threaded
+         * dispatcher would cap it at two; it does not, because a single-threaded event loop
+         * multiplexes rather than serialising.
+         *
+         * Four rather than eight because the curve was still linear at eight: the last point
+         * measured is a poor place to sit, and nothing here bounds what a subscriber will tolerate —
+         * that number belongs to them. `XYK_DELIVERY_WORKERS` moves it.
          */
-        const val DEFAULT_DELIVERY_WORKERS: Int = 2
+        const val DEFAULT_DELIVERY_WORKERS: Int = 4
 
         /** Two minutes: past the worst case of a full batch at the default timeout, with room. */
         const val DEFAULT_DELIVERY_STALL_SECONDS: Long = 120

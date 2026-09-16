@@ -68,3 +68,32 @@ changes no verdict. One criterion distinguishes them and one does not; the one t
 - Left in place deliberately: the other arms, and the inherited warning in research §1.8. The
   decision is re-runnable on a host where throughput is reachable, and the warning was true where it
   was measured.
+
+## The shipped spelling is deprecated, and was replaced the same day
+
+`-Xallocator=std` makes the compiler say:
+
+```
+w: Std allocator is deprecated in Kotlin/Native compiler and will be removed in the future.
+   Please consider using -Xbinary=pagedAllocator=false compiler flag instead.
+```
+
+**The warning had been in the build output all along and was not read**, because the build was
+grepped for `^e:` and `BUILD`. A filter over output hides what it was not asked for — which this
+repository has paid for before, in a harness that read a run's result by grepping for the lines it
+expected.
+
+Shipping a flag scheduled for removal is a build that breaks on a Kotlin upgrade, in the one place
+this service cannot afford it. So the replacement was verified rather than assumed: the binaries
+differ by md5, which proves nothing either way since a build stamp differs too, and the memory arm
+was re-run — five interleaved rounds at 64 MiB under the declared load, control dead twice of two:
+
+| spelling | survived | peak, kB | threads |
+|---|---|---:|---:|
+| `-Xallocator=std` | 5/5 | 56 760 – 65 348 | 57 – 81 |
+| `-Xbinary=pagedAllocator=false` | 5/5 | 60 904 – 65 852 | 85 – 121 |
+
+**Both meet the criterion, and they are not identical** — the replacement sits closer to the limit
+and runs more threads. `paged-off` is the default because the alternative is scheduled for removal;
+the deprecated spelling stays selectable rather than deleted, because a difference that small is one
+somebody may need to re-measure.

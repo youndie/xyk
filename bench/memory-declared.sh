@@ -155,7 +155,8 @@ ROUND_SEQ=0
 echo "arm,limit,round,killed,peak_kb,threads,events,state" > "$OUT/memory.csv"
 
 echo "=== the positive control: the shipping arm at $CONTROL_LIMIT must be killed ==="
-for round in 1 2; do run_round fixed16 "$CONTROL_LIMIT" "c$round"; done
+CONTROL_ARM=${CONTROL_ARM:-fixed16}
+for round in 1 2; do run_round "$CONTROL_ARM" "$CONTROL_LIMIT" "c$round"; done
 if ! grep -qE ",$CONTROL_LIMIT,c[12],(true|died-before-serving)" "$OUT/memory.csv"; then
   echo "VOID: nothing died at $CONTROL_LIMIT, so this harness cannot detect a death." >&2
   echo "      Results are in $OUT/memory.csv and must not be quoted." >&2
@@ -165,7 +166,7 @@ echo "control died as it must"
 
 echo "=== $ROUNDS rounds per arm at $LIMIT, $RATE rps over $CONNECTIONS connections, interleaved ==="
 for round in $(seq 1 "$ROUNDS"); do
-  for arm in fixed16 std; do
+  for arm in ${ARMS:-fixed16 std}; do
     run_round "$arm" "$LIMIT" "$round"
   done
   echo "  round $round done"

@@ -34,13 +34,14 @@ val staticLinkRequested = (project.findProperty("xyk.staticLink") as String?)?.t
 // numbers are at the `when` below, and the arms stay so the decision can be re-run rather than
 // re-argued.
 //
-//   -Pxyk.allocator=std       -Xallocator=std                            (default here)
+//   -Pxyk.allocator=paged-off -Xbinary=pagedAllocator=false                  (default here)
+//   -Pxyk.allocator=std       -Xallocator=std            — the same allocator, deprecated spelling
 //   -Pxyk.allocator=fixed16   binaryOption("fixedBlockPageSize", "16")
 //   -Pxyk.allocator=default   the Kotlin/Native default, 256 KiB pages
 //
 // The fourth arm, `MALLOC_ARENA_MAX=2`, is an environment variable on the runtime image and needs no
 // build of its own.
-val allocator = (project.findProperty("xyk.allocator") as String?) ?: "std"
+val allocator = (project.findProperty("xyk.allocator") as String?) ?: "paged-off"
 
 // Printed at configuration time, and it stays: the variant a binary was linked with is the one fact
 // a size measurement of it cannot be read without, and it is not visible in the artefact.
@@ -118,9 +119,32 @@ kotlin {
                 // inherit it again and should inherit the correction with it.
                 when (allocator) {
                     "fixed16" -> binaryOption("fixedBlockPageSize", "16")
+
+                    // `-Xallocator=std` IS DEPRECATED AND THE COMPILER NAMES ITS REPLACEMENT:
+                    // "Std allocator is deprecated in Kotlin/Native compiler and will be removed in
+                    // the future. Please consider using -Xbinary=pagedAllocator=false compiler flag
+                    // instead." Shipping a flag that is scheduled for removal is a build that breaks
+                    // on a Kotlin upgrade, and it breaks in the one place this service cannot afford
+                    // it — the allocator its memory criterion depends on.
+                    //
+                    // Both spellings are kept, and the swap was verified rather than assumed. The
+                    // binaries differ by md5 — which proves nothing either way, since a build stamp
+                    // differs too — so the memory arm was re-run, five interleaved rounds at 64 MiB
+                    // under the declared load with the control dead twice out of two:
+                    //
+                    //   -Xallocator=std                5/5 survived, 56 760–65 348 kB, 57–81 threads
+                    //   -Xbinary=pagedAllocator=false  5/5 survived, 60 904–65 852 kB, 85–121 threads
+                    //
+                    // Both meet the criterion. They are not identical — the replacement sits closer
+                    // to the limit and runs more threads — so the deprecated spelling stays
+                    // available rather than being deleted.
                     "std" -> freeCompilerArgs += "-Xallocator=std"
+
+                    "paged-off" -> freeCompilerArgs += "-Xbinary=pagedAllocator=false"
+
                     "default" -> Unit
-                    else -> throw GradleException("xyk.allocator must be fixed16, std or default")
+
+                    else -> throw GradleException("xyk.allocator must be fixed16, std, paged-off or default")
                 }
 
                 if (staticLinux) {
