@@ -2,7 +2,7 @@
 id: feature-delivery
 title: Delivering to subscribers, with retries and timeouts
 type: feature
-status: draft
+status: active
 owner: unassigned
 involved_services:
   - xyk-server
@@ -76,8 +76,9 @@ nothing here can be built until [B-02](../backlog/B-02-chronik-native-targets.md
 
 ## 5. Scenarios (BDD / test cases)
 
-**Every scenario below is a *target*.** The subscriber in these is a local server the harness can
-instruct to be slow, to fail, or to succeed on the third try.
+The subscriber in these is a local server the harness can instruct to be slow, to fail, or to
+succeed on the third try. **An `Automated:` line means a test runs it; its absence means the
+scenario is checked by hand or not yet at all, and that asymmetry is the point of showing it.**
 
 ### Scenario: a delivery reaches the subscriber and is recorded
 
@@ -87,6 +88,8 @@ instruct to be slow, to fail, or to succeed on the third try.
   `X-Xyk-Attempt: 1`
 * **And:** the journal shows the delivery as `delivered` with one attempt
 
+**Automated:** `DeliverySinkTest.a 200 delivers the stored bytes unchanged with the promised headers`, and end to end against the released image in [B-26](../backlog/B-26-schedule-timers-on-ingest.md).
+
 ### Scenario: a failing subscriber is retried with growing gaps
 
 * **Given:** a subscriber answering `500`, base backoff 1 s, cap 300 s
@@ -94,12 +97,16 @@ instruct to be slow, to fail, or to succeed on the third try.
 * **Then:** attempts are scheduled 1, 2, 4, 8 seconds apart
 * **And:** each attempt has its own row with its status and duration
 
+**Not automated.** The sink's half is covered (`DeliverySinkTest.a 500 throws so the worker retries — and the row is written first`); the *gaps* are chronik's scheduling and are covered by its own conformance corpus, which this repository runs against its driver in `ChronikConformanceTest` rather than re-asserting here.
+
 ### Scenario: the fifth failure dead-letters instead of retrying
 
 * **Given:** the same subscriber and `maxAttempts = 5`
 * **When:** the fifth attempt fails
 * **Then:** the delivery state is `dead` and no further timer exists
 * **And:** the event is still in the journal, with all five attempts
+
+**Automated:** `DeliverySinkTest.the last attempt dead-letters rather than staying pending` covers the state written at `maxAttempts`. That no further timer exists is chronik's, and is in its corpus.
 
 ### Scenario: a hung subscriber does not block the others *(this is why the timeout exists)*
 
@@ -109,12 +116,16 @@ instruct to be slow, to fail, or to succeed on the third try.
 * **Then:** the tick completes in under `50 × 2 s` and every other delivery is attempted
 * **And:** the hung one is recorded as a timeout, not as a `5xx`
 
+**Automated:** `DeliverySinkTest.a subscriber that never answers is bounded by the timeout and named as such`. The batch-level claim — that the other 49 are still attempted — is **not** automated: it needs 50 due timers and a real tick, which is an integration harness this repository does not have.
+
 ### Scenario: a redirect is a failure, not a hop
 
 * **Given:** a subscriber answering `302` with a `Location`
 * **When:** the delivery is attempted
 * **Then:** the attempt is recorded as failed with status `302`
 * **And:** nothing was sent to the address in `Location`
+
+**Automated:** `DeliverySinkTest.a 302 is a failure rather than a hop`, which also asserts the sink posted exactly once. That the *engine* does not follow the redirect is set on the client (`followRedirects = false`) and is not separately tested.
 
 ### Scenario: a crash between the POST and the mark re-delivers
 
@@ -124,6 +135,8 @@ instruct to be slow, to fail, or to succeed on the third try.
 * **Then:** the subscriber receives the same event a second time, with `X-Xyk-Attempt: 1`
 * **And:** the journal shows two attempts against one delivery
 
+**Not automated.** Killing a process between two statements needs a harness that can stop it there; the guarantee it rests on — that `markFired` runs after `deliver` returns — is read in chronik's source ([research §1.3](../research/research-architecture.md)).
+
 ### Scenario: a killed worker's claimed timers are picked up again
 
 * **Given:** two workers and a batch claimed by the first
@@ -131,12 +144,16 @@ instruct to be slow, to fail, or to succeed on the third try.
 * **Then:** after the lease expires, the second claims the unfinished timers and delivers them
 * **And:** nothing is delivered twice **before** the lease expires
 
+**Not automated here.** The lease is chronik's and its corpus covers it; what is not covered anywhere is two *xyk processes* racing, which needs two containers and a shared volume.
+
 ### Scenario: HTTPS to an external subscriber works from inside the image
 
 * **Given:** the released image and a subscriber at a public https URL
 * **When:** a delivery is attempted from inside the container
 * **Then:** it succeeds — the check is run in the image, because certificates exist on every
   developer machine and in no minimal base image
+
+**Automated by hand, and recorded:** `GET https://example.com -> 200` from inside the released image ([B-10](../backlog/B-10-delivery-sink.md)), and a full delivery to a local subscriber from the image in [B-26](../backlog/B-26-schedule-timers-on-ingest.md). No https *delivery* to a public subscriber has been run — that needs an endpoint somebody owns.
 
 ## 6. Out of scope
 

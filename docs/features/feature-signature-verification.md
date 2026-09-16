@@ -2,7 +2,7 @@
 id: feature-signature-verification
 title: Proving the webhook is genuine
 type: feature
-status: draft
+status: active
 owner: unassigned
 involved_services:
   - xyk-server
@@ -15,8 +15,11 @@ tags: [security, ingest]
 
 # Proving the webhook is genuine
 
-> **Built at B-09 (2026-09-15).** All five schemes exist, with their vectors recorded from
-> `openssl`. The per-endpoint tolerance can be set at creation and not yet changed by `PATCH`.
+> **Built.** All five schemes exist, with their vectors recorded from `openssl` rather than computed
+> by this codebase — a scheme checked only against signatures our own HMAC produced proves that the
+> code agrees with itself, which it would do just as convincingly with the concatenation the wrong
+> way round. **Still narrower than written:** the per-endpoint tolerance can be set at creation and
+> not changed by `PATCH`.
 
 ## 1. Overview
 
@@ -73,7 +76,7 @@ a prefix, a separator, an order of concatenation — and the failure is a `401` 
 
 ## 5. Scenarios (BDD / test cases)
 
-**Every scenario below is a *target*.** The vectors they run against are recorded requests, captured
+**An `Automated:` line means a test runs the scenario.** The vectors they run against are recorded requests, captured
 once and checked in — a scheme verified only against signatures this codebase produced itself proves
 that it agrees with itself.
 

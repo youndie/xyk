@@ -2,7 +2,7 @@
 id: feature-ingest
 title: Accepting a webhook
 type: feature
-status: draft
+status: active
 owner: unassigned
 involved_services:
   - xyk-server
@@ -15,13 +15,14 @@ tags: [ingest, throughput]
 
 # Accepting a webhook
 
-> **Built as of B-06 (2026-09-15), except the timers.** The route, the verification, the single
-> transaction and the storage exist and answer exactly the statuses below — checked through real
-> HTTP with a signature computed by `openssl`, not by our own HMAC agreeing with itself. What the
-> transaction writes today is the event row and one **delivery** row per enabled subscriber; the
-> chronik timer joins them inside the same transaction at B-03, which waits on an upstream release.
-> One scheme (`github`) is implemented; the rest are B-09, and the endpoint is configuration until
-> the registry of B-07.
+> **Built.** The route, the verification, the single transaction and the storage answer exactly the
+> statuses below — checked through real HTTP with a signature computed by `openssl` rather than by
+> our own HMAC agreeing with itself. The transaction writes the event row, one **delivery** row per
+> enabled subscriber **and one chronik timer per delivery row**, which is what makes a delivery
+> happen at all ([B-26](../backlog/B-26-schedule-timers-on-ingest.md)); a row committed without its
+> timer would be a webhook answered `200` that nobody will ever send. All five schemes exist
+> ([B-09](../backlog/B-09-signature-verifiers.md)) and endpoints are rows rather than configuration
+> ([B-07](../backlog/B-07-endpoint-registry.md)).
 
 ## 1. Overview
 
@@ -77,7 +78,8 @@ There are no cross-service calls: the whole path is in one process, against one 
 
 ## 5. Scenarios (BDD / test cases)
 
-**Every scenario below is a *target*.** Nothing is built, so none of them has been observed; the
+**An `Automated:` line means a test runs the scenario; its absence means it is checked by hand or
+not at all, and that asymmetry is worth seeing.** The
 `**Automated:**` line is added to each as the test that covers it appears.
 
 ### Scenario: a genuine webhook is accepted and stored

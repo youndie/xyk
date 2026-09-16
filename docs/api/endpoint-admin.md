@@ -2,7 +2,7 @@
 id: endpoint-admin
 title: Admin — endpoints, secrets and subscribers
 type: api_endpoints
-status: draft
+status: active
 services:
   - xyk-server
 contract_source:
@@ -14,9 +14,9 @@ parent_feature: feature-endpoint-registry
 
 > The **complete** route reference for configuring what xyk accepts and where it forwards.
 >
-> **Status `draft`, but every route exists as of B-07 (2026-09-15)** and answers the statuses below,
-> checked through HTTP. It stays `draft` while the feature set around it is incomplete — see the
-> note on schemes under the error table.
+> **Every route exists** and answers the statuses below, checked through HTTP. One thing is narrower
+> than this document: secret *retirement* is a column nothing writes, so a rotated secret stays valid
+> until it is removed ([feature-endpoint-registry](../features/feature-endpoint-registry.md)).
 
 ## Routes — all of them, no exceptions
 

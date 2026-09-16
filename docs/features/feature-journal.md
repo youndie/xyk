@@ -2,7 +2,7 @@
 id: feature-journal
 title: The journal — what arrived and what happened to it
 type: feature
-status: draft
+status: active
 owner: unassigned
 involved_services:
   - xyk-server
@@ -14,10 +14,15 @@ tags: [operator, ui]
 
 # The journal — what arrived and what happened to it
 
-> **The page is built (B-12, 2026-09-15); the JSON routes and redelivery are B-13.** Two states are
-> rendered but not yet reachable from data: **Purged** waits on retention (B-19) and **Degraded** on
-> the delivery worker (B-11). Until a worker exists the page shows the unconfigured banner, which is
-> the honest reading rather than a state nothing maintains.
+> **Built** — the page, the JSON routes and redelivery. All five states are reachable from data:
+> **Purged** since retention ships on by default at seven days
+> ([B-19](../backlog/B-19-secret-handling.md)) and **Degraded** since the delivery workers and the
+> readiness check that counts their ticks ([B-11](../backlog/B-11-delivery-workers.md)).
+>
+> **The page's cost was a defect and is fixed:** two of its subqueries were using the wrong index, so
+> one page took 1 568 ms over 28 781 events and fifty concurrent readers completed nothing in twenty
+> seconds. With `deliveries(event_id, state)` the same page costs 1.7 ms and the same load runs at
+> 1 053 rps, median 47 ms, no failures ([B-25](../backlog/B-25-journal-page-collapses-under-concurrency.md)).
 
 ## 1. Overview
 
@@ -77,7 +82,7 @@ Listed here because there is no screen document; the names are the ones the rend
 
 ## 5. Scenarios (BDD / test cases)
 
-**Every scenario below is a *target*.**
+**An `Automated:` line means a test runs the scenario.**
 
 ### Scenario: an event and its attempts are on one page
 

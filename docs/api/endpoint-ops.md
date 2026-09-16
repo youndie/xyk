@@ -2,7 +2,7 @@
 id: endpoint-ops
 title: Operational routes — probes and version
 type: api_endpoints
-status: draft
+status: active
 services:
   - xyk-server
 contract_source:
@@ -12,7 +12,12 @@ contract_source:
 # API: operational routes
 
 > The routes nobody designs and everybody depends on. They have no parent feature: they belong to
-> the process, not to the product. **Status `draft`: none of it is built.**
+> the process, not to the product. **All four exist**, through kore, and the shutdown order they
+> participate in is asserted against the released image on every check
+> ([`dev/shutdown-check.sh`](../../dev/shutdown-check.sh)): `SIGNAL ANNOUNCE DRAIN RELEASE_CONSUMERS
+> RELEASE_POOLS EXIT`, each `COMPLETED`. `/health/ready` also carries the delivery half's tick
+> counter, which is the only thing in the system that can tell a stalled worker from an idle one
+> ([B-11](../backlog/B-11-delivery-workers.md)).
 
 ## Routes — all of them, no exceptions
 

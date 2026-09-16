@@ -2,7 +2,7 @@
 id: feature-endpoint-registry
 title: Endpoints, secrets and subscribers
 type: feature
-status: draft
+status: active
 owner: unassigned
 involved_services:
   - xyk-server
@@ -14,10 +14,9 @@ tags: [configuration, security]
 
 # Endpoints, secrets and subscribers
 
-> **Built at B-07 (2026-09-15).** Every route below exists and answers what this document says, in
-> the code and through HTTP. Two things are narrower than written: the accepted scheme set is what is
-> implemented rather than the documented five (see [B-07](../backlog/B-07-endpoint-registry.md)), and
-> secret *retirement* — the end of the rotation window — is a column nothing writes yet.
+> **Built.** Every route below exists and answers what this document says, in the code and through
+> HTTP. **One thing is still narrower than written:** secret *retirement* — the end of the rotation
+> window — is a column nothing writes yet, so a rotated secret stays valid until it is removed.
 
 ## 1. Overview
 
@@ -65,7 +64,7 @@ handful of endpoints, and running a second one costs a container.
 
 ## 5. Scenarios (BDD / test cases)
 
-**Every scenario below is a *target*.**
+**An `Automated:` line means a test runs the scenario.**
 
 ### Scenario: creating an endpoint returns a usable URL and never the secret again
 

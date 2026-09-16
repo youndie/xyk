@@ -2,7 +2,7 @@
 id: endpoint-journal
 title: Journal — what arrived and what happened to it
 type: api_endpoints
-status: draft
+status: active
 services:
   - xyk-server
 contract_source:
@@ -15,9 +15,11 @@ parent_feature: feature-journal
 > The **complete** route reference for the operator-facing half: the rendered pages and the JSON
 > behind them.
 >
-> **Status `draft`, but every route exists** — the pages at B-12 and the JSON at B-13 (2026-09-15),
-> both checked through HTTP. It stays `draft` while two of its answers cannot yet be produced: `410`
-> needs retention (B-19), and delivery attempts need a worker (B-10).
+> **Every route exists**, both checked through HTTP, and every answer in the tables below can now be
+> produced: `410` since retention ships on at seven days
+> ([B-19](../backlog/B-19-secret-handling.md)), and delivery attempts since the workers and the
+> `delivery_attempts` table ([B-10](../backlog/B-10-delivery-sink.md),
+> [B-11](../backlog/B-11-delivery-workers.md)).
 
 ## Routes — all of them, no exceptions
 

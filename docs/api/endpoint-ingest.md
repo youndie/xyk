@@ -2,7 +2,7 @@
 id: endpoint-ingest
 title: Ingest — receiving a webhook
 type: api_endpoints
-status: draft
+status: active
 services:
   - xyk-server
 contract_source:
@@ -16,7 +16,7 @@ parent_feature: feature-ingest
 > repository and none planned, so this document is the reference — which is why it lists the shapes
 > of the error bodies as well as the happy path.
 >
-> **Status `draft`, but the route exists (B-06, 2026-09-15).** Every status in the table below was
+> **The route exists and every status in the table below was
 > observed through real HTTP against the running binary — `200`, `401 signature invalid`,
 > `401 signature missing`, `404 unknown endpoint`, `413 body too large`. It stays `draft` because the
 > feature is not finished: one scheme of five, and the endpoint is configuration until the registry
