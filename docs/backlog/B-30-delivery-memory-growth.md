@@ -44,11 +44,18 @@ seconds.
   sampled until the curve either plateaus or reaches the limit. "Grows without bound" is currently
   an extrapolation from five minutes and deserves to be one measurement rather than three.
 - AC: the mechanism named with the evidence that names it, and separated from the Kotlin/Native
-  runtime's own behaviour — a heap ceiling through kore's `applyHeapCeiling()` is one arm, an
-  outbound that does no HTTP is another.
+  runtime's own behaviour. **Half done, 2026-09-16:** with `GC.maxHeapBytes` pinned at 32 MiB and
+  confirmed applied, the process still climbs to 102 MB — so the growing part is **not the managed
+  heap**, and "the GC could not see the limit" is excluded. What remains to separate is native
+  allocation on the delivery path: the curl engine, the Rust half of sqlx4k, thread stacks. The arm
+  for that is an outbound that does no HTTP.
 - AC: whatever is found, `README.md` and [B-21](B-21-criterion-memory.md) stop claiming a memory
   answer that no run longer than thirty seconds supports.
-- Anchors: `bench/soak.sh`,
+- AC: **met** — both missing memory recipes are applied (`MALLOC_ARENA_MAX=2` in both images, the
+  ceiling as `XYK_HEAP_BYTES`) and re-measured rather than assumed. They buy time — 87 s → 123 s →
+  223 s at the same limit — and do not remove the growth.
+- Anchors: `bench/soak.sh`, `server/src/nativeMain/kotlin/io/github/youndie/xyk/HeapCeiling.native.kt`,
+  `docker/scratch.Dockerfile`,
   `server/src/variants/with-curl/kotlin/io/github/youndie/xyk/delivery/OutboundEngine.native.kt`,
   `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliverySink.kt`
 

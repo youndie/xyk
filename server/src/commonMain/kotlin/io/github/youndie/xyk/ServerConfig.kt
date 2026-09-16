@@ -17,6 +17,8 @@ data class ServerConfig(
     val walCheckpointSeconds: Long,
     /** The size at which the sweep stops waiting for the clock. */
     val walMaxBytes: Long,
+    /** Hard ceiling offered to the GC, in bytes; 0 leaves the runtime unbounded. */
+    val heapBytes: Long,
     /** Bodies above this are refused with `413`, and refused before they are read. */
     val maxBodyBytes: Long,
     /**
@@ -67,6 +69,16 @@ data class ServerConfig(
          * it is the soak in B-24, and the number here moves when that runs.
          */
         const val DEFAULT_WAL_CHECKPOINT_SECONDS: Long = 60
+
+        /**
+         * **Off by default, and that is the honest state rather than a chosen one.** What a heap
+         * ceiling should be depends on how much of this process is *not* heap — the allocator's
+         * per-thread pages, the Rust half of sqlx4k, glibc's arenas — and on this platform that
+         * remainder is usually the larger term. No run has measured it here yet; B-30 is where it
+         * gets a number. Until then a service that set one by guess would trade a kernel kill for
+         * an `OutOfMemory` and call it an improvement.
+         */
+        const val DEFAULT_HEAP_BYTES: Long = 0
 
         /** Seven days of payloads, the owner's answer of 2026-09-16. `0` means never purge. */
         const val DEFAULT_RETENTION_DAYS: Long = 7
@@ -162,6 +174,7 @@ fun getServerConfig(): ServerConfig {
         allowUnverified = readEnv("XYK_ALLOW_UNVERIFIED")?.toBooleanStrictOrNull() ?: false,
         walCheckpointSeconds =
             envLong("XYK_WAL_CHECKPOINT_SECONDS", ServerConfig.DEFAULT_WAL_CHECKPOINT_SECONDS),
+        heapBytes = envLong("XYK_HEAP_BYTES", ServerConfig.DEFAULT_HEAP_BYTES),
         walMaxBytes =
             envLong("XYK_WAL_MAX_BYTES", ServerConfig.DEFAULT_WAL_MAX_BYTES),
         maxBodyBytes =

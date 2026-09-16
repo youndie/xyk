@@ -69,6 +69,14 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 
 COPY --from=build /app/server.kexe /app/server
 
+# `MALLOC_ARENA_MAX=2` because glibc counts the **host's** cores when it decides how many arenas to
+# allow, not the container's quota, and each arena is address space this process never asked for.
+# Measured on this service in B-21: peaks of 42 120 – 56 188 kB against 45 112 – 65 536 without it,
+# at the same limit and the same load. It was held back then pending that measurement; the
+# measurement is done and said take it. The hazard recorded beside it still stands and is not ours:
+# combined with `-Xallocator=std` it multiplied peak RSS tenfold elsewhere, and this image ships
+# `-Xbinary=pagedAllocator=false` (B-28), not that.
+ENV MALLOC_ARENA_MAX=2
 ENV XYK_DB_PATH=/data/xyk.db
 VOLUME ["/data"]
 EXPOSE 8080

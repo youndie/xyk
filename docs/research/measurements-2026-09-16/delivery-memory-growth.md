@@ -81,3 +81,37 @@ subscriber, thirty seconds in, whether anything has arrived — the first wiring
 at `127.0.0.1`, which inside a bridge container is the container, and an unreachable subscriber
 produced the same OOM at 64 MiB **and at 96 MiB**. That is worth its own look and it is not this
 finding; it is noted on the item.
+
+## Both memory recipes applied, same stand — and the growth is outside the heap
+
+Two portfolio recipes were missing from this service. `MALLOC_ARENA_MAX=2` was held back by a comment
+naming B-21 as the measurement that would settle it; B-21 measured it (42 120 – 56 188 kB against
+45 112 – 65 536) and closed without the setting being taken. A heap ceiling was absent entirely: a
+Kotlin/Native process cannot read its own cgroup limit, so unless something sets `GC.maxHeapBytes`
+the runtime grows on a schedule that ends in the kernel.
+
+Both are now applied — the arena limit in both Dockerfiles, the ceiling as `XYK_HEAP_BYTES`, set
+here to 32 MiB and **confirmed at start-up** (`GC.maxHeapBytes is now 33554432 B`) rather than
+assumed. Same host, same 60 rps, four readers, delivery on:
+
+| configuration | at 64 MiB | slope |
+|---|---|---|
+| neither | died at **87 / 91 s** | ~440 kB/s |
+| `MALLOC_ARENA_MAX=2` | died at **123 s** | idle footprint 40 MB → 29 MB |
+| both | died at **223 s** | |
+| both, at 256 MiB | survived 5 min, 27 632 → **102 184 kB** | **~256 kB/s** |
+
+Both recipes earn their place: the arena limit takes about 11 MB off the resting footprint, and the
+ceiling roughly doubles the time to death again. Together they nearly halve the slope.
+
+**And neither stops it, which is the finding.** With the managed heap hard-capped at 32 MiB the
+process still reaches 102 MB — so **the part that grows is not the Kotlin heap**. That removes the
+most comfortable explanation, which was that the GC simply did not know the limit. What is left is
+native allocation on the delivery path: the curl engine and the OpenSSL it carries, the Rust half of
+sqlx4k, or thread stacks. Which of those is not measured, and this document still does not guess.
+
+The ceiling ships **off** by default for the same reason: nothing here has measured what fraction of
+a limit should be heap, and a service that guessed one would trade a kernel kill for an
+`OutOfMemory` and call it an improvement. The chart knows the limit it declares and is the right
+place to derive the number from, once there is a number.
+

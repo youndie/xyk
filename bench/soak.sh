@@ -115,6 +115,7 @@ docker run -d --name "$NAME" --memory="$LIMIT" --memory-swap="$LIMIT" \
   -e XYK_BOOTSTRAP_ENDPOINT_ID="$ENDPOINT" -e XYK_BOOTSTRAP_SECRET="$SECRET" \
   -e XYK_BOOTSTRAP_SUBSCRIBERS="$SUBSCRIBER" \
   -e XYK_WAL_CHECKPOINT_SECONDS="$CHECKPOINT_SECONDS" \
+  -e XYK_HEAP_BYTES="${HEAP_BYTES:-0}" \
   "$IMAGE" >/dev/null || { echo "soak: could not start $IMAGE" >&2; exit 2; }
 
 for _ in $(seq 1 60); do
@@ -263,6 +264,7 @@ while [ $(( $(date +%s) - started )) -lt $(( MINUTES * 60 )) ]; do
 done
 {
   echo "arm=$ARM limit=$LIMIT minutes=$MINUTES rate=$RATE readers=$READERS checkpoint_seconds=$CHECKPOINT_SECONDS"
+  echo "image=$IMAGE delivery=$DELIVERY heap_bytes=${HEAP_BYTES:-0} arenas=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$IMAGE" 2>/dev/null | grep MALLOC_ARENA_MAX || echo unset)"
   # DOCKER'S FLAG FIRST, the cgroup counter second. `memory.events` is read on a ten-second sample and
   # the cgroup is gone the moment the container is, so at the one moment the number decides anything
   # it is up to ten seconds stale — it reported `oom_kill=0` beside `OOMKilled=true` on the run this

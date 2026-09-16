@@ -100,6 +100,8 @@ fun main() {
     // linked with, which is the one fact a size measurement of it cannot be read without.
     println("xyk: " + httpEngineMarker())
 
+    println("xyk: " + applyHeapCeiling(config.heapBytes))
+
     val wal = WalCheckpoint(db, config.sqlitePath)
     val sweep =
         WalSweep(
