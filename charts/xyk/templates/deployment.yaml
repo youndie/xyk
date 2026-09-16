@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "xyk.fullname" . }}
+  labels: {{- include "xyk.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # RECREATE, NOT ROLLING, AND THIS IS THE DATABASE TALKING. One SQLite file has one writer; a
+  # rolling update would start the new pod while the old one still holds the volume, and the second
+  # writer gets SQLITE_BUSY on everything it tries. A moment of downtime is the honest cost of a
+  # single-writer store, and a `ReadWriteOnce` volume would refuse the overlap anyway — as a
+  # scheduling failure rather than as a clear one.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {{- include "xyk.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "xyk.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      # The shutdown plan is checked against the number it is TOLD. kore's stages sum to less than
+      # this; raising one without the other is how a drain gets cut off mid-delivery.
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: xyk
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: XYK_DB_PATH
+              value: /data/xyk.db
+            - name: XYK_RETENTION_DAYS
+              value: {{ .Values.config.retentionDays | quote }}
+            - name: XYK_DELIVERY_WORKERS
+              value: {{ .Values.config.deliveryWorkers | quote }}
+            - name: XYK_DELIVERY_TIMEOUT_MS
+              value: {{ .Values.config.deliveryTimeoutMs | quote }}
+            - name: XYK_STRIPE_TOLERANCE_SECONDS
+              value: {{ .Values.config.stripeToleranceSeconds | quote }}
+            - name: XYK_MAX_BODY_BYTES
+              value: {{ .Values.config.maxBodyBytes | quote }}
+            {{- with .Values.config.publicBaseUrl }}
+            - name: XYK_PUBLIC_BASE_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.bootstrap.existingSecret }}
+            # From a Secret rather than from values: a secret in values.yaml is a secret in the
+            # repository and in `helm history`, and neither forgets.
+            - name: XYK_BOOTSTRAP_ENDPOINT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: endpointId
+            - name: XYK_BOOTSTRAP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: secret
+            {{- end }}
+            {{- with .Values.bootstrap.subscribers }}
+            - name: XYK_BOOTSTRAP_SUBSCRIBERS
+              value: {{ . | quote }}
+            {{- end }}
+
+          # THREE PROBES, NOT ONE ROUTE ANSWERING THREE QUESTIONS. `/health` would be a readiness
+          # probe that cannot fail while the process is alive, which is exactly what this service
+          # takes kore for: readiness carries the dependency checks and the shutdown latch, and
+          # liveness must NOT fail during a shutdown or the pod is restarted mid-drain.
+          startupProbe:
+            httpGet: { path: /health/startup, port: http }
+            periodSeconds: 1
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 10
+
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "xyk.fullname" . }}
+          {{- else }}
+          # EMPTYDIR IS A CHOICE WITH A CONSEQUENCE: every accepted-and-undelivered webhook is lost
+          # when the pod moves. It exists for trying the chart out, not for running it.
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -138,6 +138,16 @@ batches.
   build context has no `.git`)
 * **State:** one volume at `/data`; the database is the only state, and a pod without a volume loses
   every undelivered event when it moves.
+* **Chart:** `charts/xyk`. Three probes rather than one route answering three questions;
+  `strategy: Recreate` rather than a rolling update, because one SQLite file has one writer and a
+  rolling update would start the second one against a volume the first still holds; the PVC carries
+  `helm.sh/resource-policy: keep`, since `helm uninstall` is not a sentence anybody means as "delete
+  the payloads"; and the bootstrap endpoint comes from a `Secret` rather than from values, because a
+  secret in `values.yaml` is a secret in `helm history` too.
+  **Validated rather than deployed:** every manifest applied with `--dry-run=server` against a live
+  k0s API server in both shapes, and the container run with exactly the environment the chart renders
+  — all three probes `200`, a signed webhook accepted. A full install was not completed because the
+  test node's CNI could not give pods an address.
 
 ## 6. Local setup
 

@@ -49,22 +49,78 @@ A few of those facts, as an index of what is inside:
 - a failure that aborts the runtime cannot be caught downstream of itself (§1.24);
 - cold start does not separate Kotlin/Native from Go (§1.25).
 
-## Running it
+## Run it
+
+```bash
+docker run -d --name xyk -p 8080:8080 -v xyk-data:/data \
+  -e XYK_BOOTSTRAP_ENDPOINT_ID=hook-1 \
+  -e XYK_BOOTSTRAP_SECRET=a-secret-you-choose \
+  ghcr.io/youndie/xyk:main
+```
+
+Then send it a webhook the way GitHub does — a signature over the exact bytes:
+
+```bash
+BODY='{"zen":"Non-blocking is better than blocking."}'
+SIG=$(printf %s "$BODY" | openssl dgst -sha256 -hmac a-secret-you-choose -hex | sed 's/.*= //')
+curl -X POST http://localhost:8080/hooks/hook-1 \
+  -H "Content-Type: application/json" \
+  -H "X-Hub-Signature-256: sha256=$SIG" \
+  -d "$BODY"
+```
+
+`{"event":"c5aa186d…"}`, and the same request without the header is `401`. Open
+<http://localhost:8080/journal> to see what arrived and what happened to it; `GET /api/events` is
+the same thing as JSON.
+
+The commands above are the ones that were run against the published image, not a plausible-looking
+version of them. **Tags:** `main` moves, `sha-<commit>` does not — deploy the second.
+
+**`XYK_DB_PATH` is the only required variable** and the image sets it to `/data/xyk.db`; without a
+volume there, every accepted-and-undelivered webhook is lost when the container is replaced. The
+ones worth knowing next are `XYK_RETENTION_DAYS` (7 — payload bodies are purged after a week, `0`
+keeps them for ever) and `XYK_DELIVERY_WORKERS` (4, measured rather than guessed). The full table is
+in [services/xyk-server.md](docs/services/xyk-server.md), which also carries the sentence an operator
+most needs: **the volume is as sensitive as the secrets in it.**
+
+A value this service cannot read is a failure rather than a default: `XYK_MAX_BODY_BYTES=banana`
+prints one line naming the variable and exits `78`, instead of starting on a number nobody chose.
+
+### On Kubernetes
+
+```bash
+kubectl create secret generic xyk-bootstrap \
+  --from-literal=endpointId=hook-1 --from-literal=secret=a-secret-you-choose
+helm install xyk ./charts/xyk --set bootstrap.existingSecret=xyk-bootstrap
+```
+
+The secret is a `Secret` and not a value on purpose: a secret in `values.yaml` is a secret in the
+repository and in `helm history`, and neither forgets. Three probes rather than one route answering
+three questions, `Recreate` rather than a rolling update — one SQLite file has one writer — and the
+PVC is kept when the release is removed, because `helm uninstall` is not a sentence anybody means as
+"delete the payloads".
+
+**What was verified, and what was not.** Every manifest was applied with `--dry-run=server` against a
+live k0s API server in both shapes, and the container was run with exactly the environment the chart
+renders: all three probe paths answer `200` and a signed webhook is accepted. A full `helm install`
+was **not** completed — the test node's CNI could not give pods an address — so the chart is
+validated rather than deployed, and that distinction is kept here rather than rounded up.
+
+That check paid for itself: the chart rendered `XYK_MAX_BODY_BYTES` as `1.048576e+07`, because Helm
+parses a bare `10485760` as a float. The service read it as unset and used its default, so a
+configured limit did nothing and said nothing. Reading the environment a chart *produces* is not the
+same as reading the template.
+
+## Building it
 
 ```bash
 make check     # documents + ./gradlew check — what CI runs
 make build     # link, image, and the assertion that the process stops in order
 ```
 
-The service needs one variable, `XYK_DB_PATH`, and refuses to start without it. Everything else has
-a default; the ones worth knowing are `XYK_RETENTION_DAYS` (7 — payload bodies are purged after a
-week, `0` keeps them for ever) and `XYK_DELIVERY_WORKERS` (4, measured rather than guessed). The
-full table is in [services/xyk-server.md](docs/services/xyk-server.md), which also carries the
-sentence an operator most needs: **the volume is as sensitive as the secrets in it.**
-
-Outbound HTTPS is a build variant — `-Pxyk.httpClient=true` links `ktor-client-curl`, which is the
-only engine that speaks TLS on Kotlin/Native and costs 8.8 MB of image. A build without it accepts
-and journals webhooks and says at start-up that it will not deliver them.
+Outbound HTTPS is a build variant — `-Pxyk.httpClient=true` links `ktor-client-curl`, the only engine
+that speaks TLS on Kotlin/Native, and costs 8.8 MB of image. A build without it accepts and journals
+webhooks and says at start-up that it will not deliver them. The published image has it.
 
 ## License
 

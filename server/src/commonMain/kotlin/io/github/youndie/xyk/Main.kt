@@ -74,7 +74,20 @@ private val DEADLINES =
  * delivered.
  */
 fun main() {
-    val config = getServerConfig()
+    // A MISCONFIGURATION GETS A SENTENCE, NOT A CORE DUMP — the same lesson as the port (B-27),
+    // applied where it recurs rather than patched once. `getServerConfig()` throws on a required
+    // value that is missing, on a number out of range, and on a value that is present and
+    // unreadable; all three are things an operator typed, and none of them is a bug in this
+    // process. Uncaught, each one ends as `Uncaught Kotlin exception` over seven frames of stack
+    // and `Aborted (core dumped)`, which buries the one line that says what to change.
+    val config =
+        try {
+            getServerConfig()
+        } catch (invalid: IllegalArgumentException) {
+            println("xyk: ${invalid.message}")
+            println("xyk: nothing was started; fix the environment and try again")
+            exitProcess(BAD_CONFIG)
+        }
 
     // Here, before the engine: a server that opened its port ahead of a ready schema would answer
     // the first requests with errors, and those requests are webhooks nobody sends twice.
@@ -347,6 +360,15 @@ private fun hostNowEpochSeconds(): Long = Clock.System.now().epochSeconds
  * deserves a code that means something more specific than "it failed".
  */
 private const val BIND_FAILED: Int = 78
+
+/**
+ * The exit code for an environment this process cannot act on.
+ *
+ * The same `EX_CONFIG` as a port that is taken, and for the same reason: a supervisor that restarts
+ * on any non-zero code would restart this one for ever against a value that is not going to change
+ * by itself.
+ */
+private const val BAD_CONFIG: Int = 78
 
 /**
  * Takes the address for a moment, to find out whether it can be taken at all.

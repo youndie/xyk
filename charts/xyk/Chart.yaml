@@ -1,0 +1,14 @@
+apiVersion: v2
+name: xyk
+description: A durable webhook gateway in a very small container
+type: application
+
+# The chart's own version, and the default image tag, are different numbers on purpose: the chart can
+# change without the service changing, and the other way round. `appVersion` is the tag this chart
+# defaults to, and `values.yaml` can override it without a chart release.
+version: 0.1.0
+appVersion: "main"
+
+home: https://github.com/youndie/xyk
+sources:
+  - https://github.com/youndie/xyk

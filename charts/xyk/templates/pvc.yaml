@@ -1,0 +1,22 @@
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "xyk.fullname" . }}
+  labels: {{- include "xyk.labels" . | nindent 4 }}
+  annotations:
+    # Kept when the release is removed. The database holds webhooks somebody accepted; `helm
+    # uninstall` is not a sentence anybody means as "delete the payloads".
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    # ONE WRITER. Not a limitation of the chart but of the store: one SQLite file has one writer, and
+    # a mode that allowed two would let the scheduler create the failure rather than prevent it.
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+  {{- with .Values.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}

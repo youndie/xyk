@@ -154,21 +154,20 @@ fun getServerConfig(): ServerConfig {
     require(sqlitePath.isNotBlank()) { "XYK_DB_PATH is required" }
 
     return ServerConfig(
-        port = readEnv("XYK_PORT")?.toIntOrNull() ?: ServerConfig.DEFAULT_PORT,
+        port = envInt("XYK_PORT", ServerConfig.DEFAULT_PORT),
         host = readEnv("XYK_HOST") ?: ServerConfig.DEFAULT_HOST,
         sqlitePath = sqlitePath,
         // An endpoint that verifies nothing is a public write endpoint on somebody's database, so
         // creating one takes a deliberate act at start-up as well as at the route (endpoint-admin).
         allowUnverified = readEnv("XYK_ALLOW_UNVERIFIED")?.toBooleanStrictOrNull() ?: false,
         walCheckpointSeconds =
-            readEnv("XYK_WAL_CHECKPOINT_SECONDS")?.toLongOrNull()
-                ?: ServerConfig.DEFAULT_WAL_CHECKPOINT_SECONDS,
+            envLong("XYK_WAL_CHECKPOINT_SECONDS", ServerConfig.DEFAULT_WAL_CHECKPOINT_SECONDS),
         walMaxBytes =
-            readEnv("XYK_WAL_MAX_BYTES")?.toLongOrNull() ?: ServerConfig.DEFAULT_WAL_MAX_BYTES,
+            envLong("XYK_WAL_MAX_BYTES", ServerConfig.DEFAULT_WAL_MAX_BYTES),
         maxBodyBytes =
-            readEnv("XYK_MAX_BODY_BYTES")?.toLongOrNull() ?: ServerConfig.DEFAULT_MAX_BODY_BYTES,
+            envLong("XYK_MAX_BODY_BYTES", ServerConfig.DEFAULT_MAX_BODY_BYTES),
         stripeToleranceSeconds =
-            (readEnv("XYK_STRIPE_TOLERANCE_SECONDS")?.toLongOrNull() ?: DEFAULT_STRIPE_TOLERANCE)
+            (envLong("XYK_STRIPE_TOLERANCE_SECONDS", DEFAULT_STRIPE_TOLERANCE))
                 .also { require(it > 0) { "XYK_STRIPE_TOLERANCE_SECONDS must be above zero: 0 disables the check" } },
         // SEVEN DAYS, and it is a default rather than a setting somebody must choose. xyk stores raw
         // bodies by design, so every day nobody thinks about retention is a day the liability grows,
@@ -182,7 +181,7 @@ fun getServerConfig(): ServerConfig {
         // bodies older than a week, which is why the change is in the research document as a
         // decision (§3) and not only in a diff.
         retentionDays =
-            (readEnv("XYK_RETENTION_DAYS")?.toLongOrNull() ?: ServerConfig.DEFAULT_RETENTION_DAYS)
+            (envLong("XYK_RETENTION_DAYS", ServerConfig.DEFAULT_RETENTION_DAYS))
                 .also { require(it >= 0) { "XYK_RETENTION_DAYS cannot be negative" } },
         // THE TIMEOUT IS NOT A TUNING KNOB, it is what bounds a tick. chronik's `tick()` walks its
         // batch sequentially, so the worst case for one tick is `batchSize × this`, and a
@@ -190,20 +189,20 @@ fun getServerConfig(): ServerConfig {
         // other delivery's latency rather than all of it. Zero would mean unbounded, which is the
         // one value that must not be expressible.
         deliveryTimeoutMillis =
-            (readEnv("XYK_DELIVERY_TIMEOUT_MS")?.toLongOrNull() ?: ServerConfig.DEFAULT_DELIVERY_TIMEOUT_MS)
+            (envLong("XYK_DELIVERY_TIMEOUT_MS", ServerConfig.DEFAULT_DELIVERY_TIMEOUT_MS))
                 .also { require(it > 0) { "XYK_DELIVERY_TIMEOUT_MS must be positive" } },
         // The same number chronik is configured with. It is read here as well because the journal's
         // state depends on it — a delivery out of attempts must read `dead` rather than `pending` —
         // and two places reading one variable is better than this half inventing its own policy.
         deliveryMaxAttempts =
-            (readEnv("XYK_DELIVERY_MAX_ATTEMPTS")?.toIntOrNull() ?: ServerConfig.DEFAULT_DELIVERY_MAX_ATTEMPTS)
+            (envInt("XYK_DELIVERY_MAX_ATTEMPTS", ServerConfig.DEFAULT_DELIVERY_MAX_ATTEMPTS))
                 .also { require(it > 0) { "XYK_DELIVERY_MAX_ATTEMPTS must be positive" } },
         // ZERO IS LEGAL and it means "do not deliver from this process" — a deployment that only
         // receives and journals is a real one. It is not the default, because a service that
         // silently delivers nothing is the failure this whole half exists to avoid; opting out has
         // to be an act.
         deliveryWorkers =
-            (readEnv("XYK_DELIVERY_WORKERS")?.toIntOrNull() ?: ServerConfig.DEFAULT_DELIVERY_WORKERS)
+            (envInt("XYK_DELIVERY_WORKERS", ServerConfig.DEFAULT_DELIVERY_WORKERS))
                 .also { require(it >= 0) { "XYK_DELIVERY_WORKERS cannot be negative" } },
         // Configurable because the right value is arithmetic on the deployment's own numbers:
         // `batchSize × deliveryTimeout` plus a margin, and a batch of fifty at two seconds is a
@@ -216,10 +215,10 @@ fun getServerConfig(): ServerConfig {
         // Raising it in a deployment trades journal truncation for read concurrency — a decision
         // with a measurement behind it or not at all.
         sqlitePoolSize =
-            (readEnv("XYK_SQLITE_POOL")?.toIntOrNull() ?: SQLITE_POOL)
+            (envInt("XYK_SQLITE_POOL", SQLITE_POOL))
                 .also { require(it >= 1) { "XYK_SQLITE_POOL must be at least 1" } },
         deliveryStallSeconds =
-            (readEnv("XYK_DELIVERY_STALL_SECONDS")?.toLongOrNull() ?: ServerConfig.DEFAULT_DELIVERY_STALL_SECONDS)
+            (envLong("XYK_DELIVERY_STALL_SECONDS", ServerConfig.DEFAULT_DELIVERY_STALL_SECONDS))
                 .also { require(it > 0) { "XYK_DELIVERY_STALL_SECONDS must be positive" } },
         publicBaseUrl = (readEnv("XYK_PUBLIC_BASE_URL") ?: "http://localhost:8080").trimEnd('/'),
         bootstrapEndpoint = readBootstrapEndpoint(),
@@ -254,4 +253,31 @@ private fun readBootstrapEndpoint(): BootstrapEndpoint? {
                 .filter { it.isNotEmpty() },
         schemeConfig = readEnv("XYK_BOOTSTRAP_SCHEME_CONFIG")?.takeIf { it.isNotBlank() },
     )
+}
+
+/**
+ * A number from the environment, where **present-but-unreadable is a failure rather than absent**.
+ *
+ * `readEnv(name)?.toLongOrNull() ?: default` reads `XYK_MAX_BODY_BYTES=banana` as "not configured"
+ * and starts happily on the default. That is the silent half of a misconfiguration: the operator set
+ * something, the service ignored it, and nothing anywhere says so. It was found by rendering the
+ * Helm chart and reading the environment it actually produces — Helm turns a bare `10485760` into
+ * `1.048576e+07`, which this function now refuses instead of quietly replacing.
+ */
+private fun envLong(
+    name: String,
+    default: Long,
+): Long {
+    val raw = readEnv(name) ?: return default
+    return raw.toLongOrNull()
+        ?: throw IllegalArgumentException("$name is set to '$raw', which is not a number")
+}
+
+private fun envInt(
+    name: String,
+    default: Int,
+): Int {
+    val raw = readEnv(name) ?: return default
+    return raw.toIntOrNull()
+        ?: throw IllegalArgumentException("$name is set to '$raw', which is not a number")
 }

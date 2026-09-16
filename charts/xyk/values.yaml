@@ -1,0 +1,61 @@
+image:
+  repository: ghcr.io/youndie/xyk
+  # Empty means "use the chart's appVersion". A moving tag is convenient and a poor thing to deploy:
+  # `sha-<commit>` is the only tag here that names something immutable.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# THE ENDPOINT AND ITS SECRET ARE NOT SET HERE, and that is the one thing this file refuses to make
+# easy. A secret in values.yaml is a secret in the repository and in `helm history`. Point
+# `existingSecret` at a Secret you created, with keys `endpointId` and `secret`; leave it empty and
+# the service starts with no endpoint at all, which is a fine way to run it and then create endpoints
+# through the admin API.
+bootstrap:
+  existingSecret: ""
+  subscribers: ""
+
+config:
+  # Payload bodies are purged after this many days. `0` keeps them for ever — see the chart's README
+  # and `services/xyk-server.md` on why the default is seven and not zero.
+  retentionDays: 7
+  deliveryWorkers: 4
+  deliveryTimeoutMs: 2000
+  # `0` disables the Stripe timestamp check rather than tightening it.
+  stripeToleranceSeconds: 300
+  # A STRING, AND THE QUOTES ARE load-bearing. Written as a bare integer, Helm parses it as a float
+  # and `| quote` renders `1.048576e+07`, which the service cannot read — so it silently used its
+  # default and the limit configured here did nothing. Found by rendering the chart and reading the
+  # environment it produces, not by reading the template.
+  maxBodyBytes: "10485760"
+  publicBaseUrl: ""
+
+persistence:
+  # THE DATABASE IS THE ONLY STATE THERE IS. A pod without a volume loses every undelivered event the
+  # moment it moves, and the volume is as sensitive as the secrets in it.
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 100m
+  limits:
+    # 64 MiB is the criterion this service was measured against, and it meets it **by reclaim rather
+    # than by headroom** — four of ten runs peaked at or above the limit itself. 128Mi is the default
+    # here because a limit a service sits exactly on is a limit it fails the first time anything
+    # changes; set it to 64Mi to run at the measured edge on purpose.
+    memory: 128Mi
+
+# terminationGracePeriodSeconds is part of the contract rather than a default: the shutdown plan is
+# checked against the number it is told, and the plan's own deadlines sum to less than this.
+terminationGracePeriodSeconds: 30
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
