@@ -37,6 +37,12 @@ ENDPOINT=hook-1
 # does not help, so the engine would refuse it too. A memory harness that reuses one port spends its
 # rounds reporting a socket accident as a verdict about a limit.
 PORT_BASE=8400
+# THE DELIVERY HALF, because the criterion is about the container that ships and that container
+# delivers ([B-29](../docs/backlog/B-29-memory-with-delivery-on.md)). An unreachable subscriber would
+# leave the workers claiming and failing rather than holding deliveries in flight, which is the state
+# that costs memory — so the default here is a real sink on the subject host.
+SUBSCRIBER=${SUBSCRIBER:-https://sink.invalid/a}
+WORKERS=${WORKERS:-0}
 OUT=${OUT:-docs/research/measurements-$(date +%Y-%m-%d)}
 
 while [ $# -gt 0 ]; do
@@ -57,8 +63,12 @@ SIGNATURE=$(printf %s "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 
 
 scp -q bench/ingest.js "$GENERATOR:/tmp/xyk-ingest.js" || exit 2
 
-cat > /tmp/xyk-mem-start.sh <<'REMOTE'
+cat > /tmp/xyk-mem-start.sh <<REMOTE
 #!/bin/bash
+SUBSCRIBER="$SUBSCRIBER"
+WORKERS=$WORKERS
+REMOTE
+cat >> /tmp/xyk-mem-start.sh <<'REMOTE'
 # $1 = binary, $2 = limit, $3 = port
 systemctl stop xyk-mem.service 2>/dev/null
 systemctl reset-failed xyk-mem.service 2>/dev/null
@@ -67,7 +77,8 @@ systemd-run --unit=xyk-mem \
   --property=MemoryMax="$2" --property=MemorySwapMax=0 \
   --setenv=XYK_DB_PATH=/root/mem-run/x.db --setenv=XYK_PORT="$3" \
   --setenv=XYK_BOOTSTRAP_ENDPOINT_ID=hook-1 --setenv=XYK_BOOTSTRAP_SECRET=bench-secret \
-  --setenv=XYK_BOOTSTRAP_SUBSCRIBERS=https://sink.invalid/a \
+  --setenv=XYK_BOOTSTRAP_SUBSCRIBERS="$SUBSCRIBER" \
+  --setenv=XYK_DELIVERY_WORKERS="$WORKERS" \
   "/root/$1" >/dev/null 2>&1
 for i in $(seq 1 60); do
   sleep 0.5
@@ -130,6 +141,23 @@ run_round() {
   reading=$(ssh "$SUBJECT" "bash /tmp/xyk-mem-read.sh $port")
   IFS=, read -r peak oom threads alive events <<< "$reading"
 
+  # DID THE DELIVERY HALF DO ANYTHING? Asked of the subscriber, and only when workers were asked
+  # for. A round that links the engine, starts four workers and delivers nothing is the ingest-only
+  # measurement again with more code in the binary — which is the mistake B-29 exists to correct.
+  # ...and only of a round that is still alive. A subject the limit killed delivered nothing by
+  # definition, and the positive control is exactly such a round — the first version of this guard
+  # voided the control for dying, which is what the control is for.
+  if [ "${WORKERS:-0}" -gt 0 ] && [ "$alive" = active ]; then
+    local sunk_after; sunk_after=$(ssh "$SUBJECT" 'curl -s -m 5 http://127.0.0.1:9100/' 2>/dev/null)
+    if [ "${sunk_after:-0}" -le "${SUNK_BEFORE:-0}" ]; then
+      echo "  $arm $limit round $round: THE SUBSCRIBER RECEIVED NOTHING — void" >&2
+      printf '%s,%s,%s,no-delivery,,,,\n' "$arm" "$limit" "$round" >> "$OUT/memory.csv"
+      ssh "$SUBJECT" 'systemctl stop xyk-mem.service 2>/dev/null; systemctl reset-failed xyk-mem.service 2>/dev/null' >/dev/null 2>&1
+      return
+    fi
+    SUNK_BEFORE=$sunk_after
+  fi
+
   # DID THE LOAD ARRIVE? Asked of the subject, because a generator that failed to start looks
   # exactly like a service that is coping — and this repository has already published a table of
   # ten survivals taken with no load at all.
@@ -152,6 +180,7 @@ run_round() {
 }
 
 ROUND_SEQ=0
+SUNK_BEFORE=$(ssh "$SUBJECT" 'curl -s -m 5 http://127.0.0.1:9100/' 2>/dev/null || echo 0)
 echo "arm,limit,round,killed,peak_kb,threads,events,state" > "$OUT/memory.csv"
 
 echo "=== the positive control: the shipping arm at $CONTROL_LIMIT must be killed ==="

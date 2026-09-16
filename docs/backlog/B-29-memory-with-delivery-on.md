@@ -1,7 +1,7 @@
 ---
 id: B-29
 title: "The memory criterion has not been measured on the configuration that ships"
-status: open
+status: done
 priority: P0
 size: S
 stage: stage-3-verdict
@@ -40,3 +40,31 @@ out, and the claim now describes a configuration nobody deploys.
 - AC: if the shipping configuration misses the limit where the ingest-only build met it, the
   allocator decision of [B-28](B-28-allocator-decision.md) is re-opened rather than quietly kept.
 - Anchors: `bench/memory-declared.sh`, `docker/native.Dockerfile`
+
+## Measured, 2026-09-16 — [memory-shipping-config.md](../research/measurements-2026-09-16/memory-shipping-config.md)
+
+**10 / 10 survived**, with the engine linked, four workers running and **3 914 deliveries actually
+made** to a subscriber answering in 100 ms. Control killed twice of two at 6 MiB.
+
+| | ingest-only | shipping |
+|---|---|---|
+| survived | 10/10 | **10/10** |
+| peak, kB | 54 864 – 65 656 | **60 928 – 66 108** |
+| threads | 56 – 108 | **58 – 123** |
+
+**The criterion holds on the configuration that deploys**, so B-28's allocator decision stands — that
+item's acceptance line made re-opening conditional on this run missing, and it does not.
+
+**It holds without margin.** Four rounds of ten peaked at or above the 65 536 kB limit; a peak at the
+limit is the kernel reclaiming to fit. "Meets 64 MiB by reclaim" is the honest phrasing and it is not
+the same as "uses 60 of its 64".
+
+**The delivery half was asserted rather than assumed** — the harness asks the subscriber how many
+arrived and voids a round that received none. That guard voided the positive control on its first
+run, because a subject killed at 6 MiB delivers nothing by definition. A completeness guard without a
+scope condemns the round whose job is to fail; it now asks only of rounds that survived.
+
+- AC: **met** — ten rounds, shipping image, four workers, a subscriber at a named latency, control
+  that dies.
+- AC: **not triggered** — the shipping configuration did not miss where the ingest-only build met, so
+  B-28 is not re-opened.

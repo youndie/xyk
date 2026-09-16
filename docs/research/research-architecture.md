@@ -476,6 +476,17 @@ both. B-20 measured that this service absorbs ~437 rps whatever is offered, so r
 rate changes nothing; raising the connections from 50 to 200 changes the threads, and resident memory
 follows the threads.
 
+**And re-measured once more on the configuration that ships** — engine linked, four workers, 3 914
+real deliveries — because the run above used the build that cannot deliver at all: **10/10 again**,
+at 60 928 – 66 108 kB with 58–123 threads
+([memory-shipping-config.md](measurements-2026-09-16/memory-shipping-config.md)). Delivery costs
+1–6 MB of peak and up to fifteen threads.
+
+**Both runs meet the criterion by reclaim rather than by headroom.** Four of the ten shipping rounds
+peaked at or above the limit itself, which is the kernel fitting the process rather than the process
+fitting the limit. The claim this service can make is "survives 64 MiB, ten times out of ten, at the
+declared load" — and not "runs in 60 MB".
+
 **Consequence 3 — the SQLite settings are not tuning, they are survival.** Pool of 2 connections,
 `PRAGMA wal_checkpoint(TRUNCATE)` on a timer **and** on file size, and `walBytes` reported separately
 because `page_count * page_size` does not include the journal. The failure mode is a cliff, not a
