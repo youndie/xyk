@@ -30,9 +30,9 @@ val staticLinkRequested = (project.findProperty("xyk.staticLink") as String?)?.t
 
 // WHICH ALLOCATOR THE BINARY IS LINKED WITH, as a property rather than an edit, because the two
 // criteria had to compare arms and a measurement whose variants are produced by editing a file is a
-// measurement nobody can repeat. **`std` is what ships, since 2026-09-16** — the reasoning and the
-// numbers are at the `when` below, and the arms stay so the decision can be re-run rather than
-// re-argued.
+// measurement nobody can repeat. **`paged-off` is what ships** — B-28 took `-Xallocator=std` and then
+// found it deprecated in favour of the binary option, which measured 5/5 at the same limit. The
+// arms stay so the decision can be re-run rather than re-argued.
 //
 //   -Pxyk.allocator=paged-off -Xbinary=pagedAllocator=false                  (default here)
 //   -Pxyk.allocator=std       -Xallocator=std            — the same allocator, deprecated spelling
@@ -43,9 +43,23 @@ val staticLinkRequested = (project.findProperty("xyk.staticLink") as String?)?.t
 // build of its own.
 val allocator = (project.findProperty("xyk.allocator") as String?) ?: "paged-off"
 
+// WHETHER THE OUTBOUND HALF ACTUALLY SENDS. A measurement axis, not a deployment one: `noop` keeps
+// the engine linked and the whole delivery path running and removes the request alone, which is the
+// only way to tell curl apart from sqlx4k and the worker loop in a statically linked binary where
+// `smaps` shows one mapping for all three (B-30). It refuses to combine with a build that has no
+// engine, because then there is nothing to hold still.
+val outbound = (project.findProperty("xyk.outbound") as String?) ?: "real"
+require(outbound in setOf("real", "noop")) { "xyk.outbound is '$outbound'; it is 'real' or 'noop'" }
+require(outbound == "real" || withHttpClient) {
+    "xyk.outbound=noop needs -Pxyk.httpClient=true: without an engine there is no request to remove"
+}
+
 // Printed at configuration time, and it stays: the variant a binary was linked with is the one fact
 // a size measurement of it cannot be read without, and it is not visible in the artefact.
-logger.lifecycle("xyk build: httpClient=$withHttpClient staticLink=$staticLinkRequested allocator=$allocator")
+logger.lifecycle(
+    "xyk build: httpClient=$withHttpClient outbound=$outbound " +
+        "staticLink=$staticLinkRequested allocator=$allocator",
+)
 
 kotlin {
     jvm()
@@ -197,6 +211,11 @@ kotlin {
             kotlin.srcDir(
                 if (withHttpClient) "src/variants/with-curl/kotlin" else "src/variants/no-curl/kotlin",
             )
+            // A second axis, and separate on purpose: `with-curl` carries the engine marker and the
+            // TLS probe, which both arms below want unchanged.
+            if (withHttpClient) {
+                kotlin.srcDir("src/variants/outbound-$outbound/kotlin")
+            }
             if (withHttpClient) {
                 dependencies {
                     implementation(ktorLibs.client.curl)

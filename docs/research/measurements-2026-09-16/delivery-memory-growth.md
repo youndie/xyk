@@ -115,3 +115,41 @@ a limit should be heap, and a service that guessed one would trade a kernel kill
 `OutOfMemory` and call it an improvement. The chart knows the limit it declares and is the right
 place to derive the number from, once there is a number.
 
+## The term is the request itself — the no-op arm
+
+`smaps` could not name it. This binary is statically linked, so libcurl, its OpenSSL and the Rust
+half of sqlx4k have no mappings of their own: everything is `/app/server`, constant at 11 940 kB,
+and the growth is in unnamed `[anon]` (9 860 → 41 980 kB) and `[heap]` (7 812 → 15 784 kB). The
+cgroup's own breakdown says the same thing in kinds rather than names — over 280 s, **anon
++74 156 kB** against file cache +18 728, slab +795, kernel stacks +208, page tables +208.
+
+So the separation had to be built. `-Pxyk.outbound=noop` is a variant that keeps the engine linked
+and the whole path running — timer, lease, sink, attempt row, state update — and removes exactly one
+term, the request. The client is still constructed and kept for the life of the process, so the
+engine's dispatcher and buffers exist either way; an arm that skipped construction would be the
+`no-curl` variant, which is already a row above.
+
+At 256 MiB, 60 rps, four readers, heap pinned at 32 MiB, `MALLOC_ARENA_MAX=2`, five minutes:
+
+| arm | memory | database | memory above the file |
+|---|---:|---:|---:|
+| real, no recipes | +109 672 kB | +12 956 kB | **+96 716** |
+| real, both recipes | +74 552 kB | ~+13 700 kB | **+60 852** |
+| **no-op**, both recipes | +20 676 kB | +13 692 kB | **+6 984** |
+| **no-op**, both recipes, repeat | +14 544 kB | +13 812 kB | **+732** |
+
+**Removing the request removes the growth.** The no-op arm's memory tracks its database file, which
+is page cache; what is left over it is 0.7–7 MB in five minutes against 61–97 MB with the request in
+place. Both no-op runs agree and both real runs agree, in two different configurations.
+
+**What the arm removes is the request *and* the response handling** — `bodyAsBytes()` and the
+bounded prefix go with it — so "curl" is the honest name for the term only if that prefix is not the
+cost. It allocates 512 boxed bytes per response in the managed heap, and the managed heap is pinned
+at 32 MiB while the growth is anonymous memory outside it, so it is not; but the arm does not
+separate them and this says so rather than claiming it does.
+
+**Not yet repeated:** the real arm with both recipes has one run at this configuration (the second
+was lost when the build machine dropped its connection mid-run). The two real runs above are the
+same service under different settings rather than two of the same, which is weaker than the no-op
+side and is the gap to close first.
+

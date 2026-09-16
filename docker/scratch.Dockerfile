@@ -30,6 +30,9 @@ RUN apt-get update \
 # Which variant to link. `false` is the shipping build today; `true` adds the curl engine, which is
 # what the delivery half will need and what B-23 has to compare against.
 ARG XYK_HTTP_CLIENT=false
+# `noop` keeps the engine linked and removes the request alone — a B-30 measurement arm, never an
+# image to publish. `real` is the only value that ships and is the default here.
+ARG XYK_OUTBOUND=real
 
 WORKDIR /app
 COPY . .
@@ -39,7 +42,7 @@ COPY . .
 RUN --mount=type=cache,target=/root/.konan \
     --mount=type=cache,target=/root/.gradle \
     gradle :server:linkReleaseExecutableNative \
-      -Pxyk.staticLink=true -Pxyk.httpClient=${XYK_HTTP_CLIENT} --no-daemon \
+      -Pxyk.staticLink=true -Pxyk.httpClient=${XYK_HTTP_CLIENT} -Pxyk.outbound=${XYK_OUTBOUND} --no-daemon \
  && cp server/build/bin/native/releaseExecutable/server.kexe /app/server.kexe \
  && readelf -d /app/server.kexe | head -20
 

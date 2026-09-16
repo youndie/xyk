@@ -82,7 +82,7 @@ trap cleanup EXIT
 
 # The subscriber. On the generator's cores, because it is instrumentation and must not be paid for
 # out of the budget under measurement.
-if [ "$DELIVERY" = on ]; then
+if [ "$DELIVERY" = on ] || [ "$DELIVERY" = noop ]; then
   SINK_STAGE=$(mktemp -d); chmod 755 "$SINK_STAGE"
   cp bench/delivery-sink.py "$SINK_STAGE/sink.py"; chmod 644 "$SINK_STAGE/sink.py"
   docker rm -f "$SINK_NAME" >/dev/null 2>&1
@@ -126,7 +126,7 @@ done
 # ASK THE SUBJECT WHETHER IT CAN DELIVER. It says so itself, once, at start-up — and for two runs
 # nobody read the line. A build with no outbound engine under `--delivery on` is not a quieter
 # measurement, it is a measurement of something else with the same column headings.
-if [ "$DELIVERY" = on ]; then
+if [ "$DELIVERY" = on ] || [ "$DELIVERY" = noop ]; then
   if docker logs "$NAME" 2>&1 | grep -q "delivery is OFF"; then
     echo "soak: $IMAGE links no outbound HTTP engine, so --delivery on measures nothing." >&2
     docker logs "$NAME" 2>&1 | grep "delivery is OFF" >&2
@@ -187,7 +187,12 @@ echo "writer confirmed: events exist after 30 s"
 # retrying. This guard exists because the first wiring pointed the subject at `127.0.0.1`, which
 # inside a bridge container is the container, and the symptom was the subject OOM-killed in thirty
 # seconds at 64 MiB and again at 96 MiB. That is worth knowing (B-31), but it is not this soak.
-if [ "$DELIVERY" = on ]; then
+if [ "$DELIVERY" = noop ]; then
+  # The one arm where an empty subscriber is the point rather than a broken stand: the binary is
+  # built with `-Pxyk.outbound=noop`, so the whole delivery path runs and the request does not.
+  # The banner check above still applies — the engine must be linked — and this one cannot.
+  echo "subscriber check skipped: this build is the no-op outbound arm, nothing is meant to arrive"
+elif [ "$DELIVERY" = on ]; then
   delivered_at_30s=$(curl -s -m 10 "http://127.0.0.1:$SINK_PORT/")
   if [ "${delivered_at_30s:-0}" -eq 0 ]; then
     echo "soak: the subscriber has received nothing after 30 s — the subject cannot reach it." >&2
@@ -205,7 +210,7 @@ SQLITE=${SQLITE:-sqlite3}
 command -v "$SQLITE" >/dev/null || { echo "soak: no $SQLITE on PATH; the delivery columns would be empty" >&2; exit 2; }
 
 delivery_counts() {
-  [ "$DELIVERY" = on ] || { echo ",,"; return; }
+  [ "$DELIVERY" = on ] || [ "$DELIVERY" = noop ] || { echo ",,"; return; }
   local pending attempts sink
   pending=$("$SQLITE" "file:$DATA/xyk.db?mode=ro" "select count(*) from deliveries where state='pending';" 2>/dev/null)
   attempts=$("$SQLITE" "file:$DATA/xyk.db?mode=ro" "select count(*) from delivery_attempts;" 2>/dev/null)

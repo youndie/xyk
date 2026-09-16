@@ -48,7 +48,11 @@ seconds.
   confirmed applied, the process still climbs to 102 MB — so the growing part is **not the managed
   heap**, and "the GC could not see the limit" is excluded. What remains to separate is native
   allocation on the delivery path: the curl engine, the Rust half of sqlx4k, thread stacks. The arm
-  for that is an outbound that does no HTTP.
+  for that is an outbound that does no HTTP. **Built and run, 2026-09-16** (`-Pxyk.outbound=noop`):
+  with the request removed and everything else kept, growth above the database file falls from
+  61–97 MB in five minutes to 0.7–7 MB. The term is the request. What it does not separate is the
+  response handling, which goes with it — though that allocates in a heap that is pinned while the
+  growth is outside it. The real arm at this configuration still wants a second run.
 - AC: whatever is found, `README.md` and [B-21](B-21-criterion-memory.md) stop claiming a memory
   answer that no run longer than thirty seconds supports.
 - AC: **met** — both missing memory recipes are applied (`MALLOC_ARENA_MAX=2` in both images, the
