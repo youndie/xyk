@@ -52,7 +52,7 @@ seconds.
   with the request removed and everything else kept, growth above the database file falls from
   61–97 MB in five minutes to 0.7–7 MB. The term is the request. What it does not separate is the
   response handling, which goes with it — though that allocates in a heap that is pinned while the
-  growth is outside it. The real arm at this configuration still wants a second run.
+  growth is outside it. Two runs an arm, same configuration.
 - AC: whatever is found, `README.md` and [B-21](B-21-criterion-memory.md) stop claiming a memory
   answer that no run longer than thirty seconds supports.
 - AC: **met** — both missing memory recipes are applied (`MALLOC_ARENA_MAX=2` in both images, the

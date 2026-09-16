@@ -135,6 +135,7 @@ At 256 MiB, 60 rps, four readers, heap pinned at 32 MiB, `MALLOC_ARENA_MAX=2`, f
 |---|---:|---:|---:|
 | real, no recipes | +109 672 kB | +12 956 kB | **+96 716** |
 | real, both recipes | +74 552 kB | ~+13 700 kB | **+60 852** |
+| real, both recipes, repeat | +70 860 kB | +13 844 kB | **+57 016** |
 | **no-op**, both recipes | +20 676 kB | +13 692 kB | **+6 984** |
 | **no-op**, both recipes, repeat | +14 544 kB | +13 812 kB | **+732** |
 
@@ -148,8 +149,7 @@ cost. It allocates 512 boxed bytes per response in the managed heap, and the man
 at 32 MiB while the growth is anonymous memory outside it, so it is not; but the arm does not
 separate them and this says so rather than claiming it does.
 
-**Not yet repeated:** the real arm with both recipes has one run at this configuration (the second
-was lost when the build machine dropped its connection mid-run). The two real runs above are the
-same service under different settings rather than two of the same, which is weaker than the no-op
-side and is the gap to close first.
+**Two runs an arm, same configuration**: 60.9 and 57.0 MB above the file with the request, 7.0 and
+0.7 without it. The repeat also counted deliveries — 17 621 in 290 s — which puts the cost at about
+**3.2 kB per delivery** once both memory recipes are applied, against roughly 6 kB without them.
 
