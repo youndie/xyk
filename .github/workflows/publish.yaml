@@ -1,0 +1,83 @@
+# Publishes the image this repository actually ships.
+#
+# WHICH IMAGE, because there are two and only one of them is the answer. `docker/native.Dockerfile`
+# on `distroless/cc` is 56 MB and is what `make build` produces for local work; the shipping variant
+# is `docker/scratch.Dockerfile` with the curl engine — 11 840 625 bytes, the number B-23 quotes and
+# B-22 measured a cold start on. Publishing the convenient one and documenting the measured one is
+# how a repository ends up with numbers about an artefact nobody runs.
+#
+# WHAT A TAG MEANS HERE. `sha-<commit>` is the only tag that names something immutable; `main` moves
+# and is a convenience. A tag derived from a workflow run number looks like a version and is not one
+# — that mistake is why this file spells the commit out.
+name: publish
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The scratch image links its binary INSIDE the build, so there is no Gradle step here and no
+      # ~/.konan cache to keep: the toolchain lives in the build stage's own layer cache, which is
+      # what `cache-from`/`cache-to` below is for.
+      - uses: docker/setup-buildx-action@v3
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=long
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/scratch.Dockerfile
+          build-args: XYK_HTTP_CLIENT=true
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # THE PUBLISHED IMAGE IS RUN, not merely pushed. An image that builds and cannot start is the
+      # failure this step exists to catch, and it is cheap: pull the tag that was just written, start
+      # it, and require a real `200` through the ingest route rather than a probe — a probe answers
+      # before the database has been touched.
+      - name: The published image starts and accepts a webhook
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}@${{ steps.meta.outputs.digest || '' }}"
+          [ -n "${{ steps.meta.outputs.digest || '' }}" ] || IMAGE="ghcr.io/${{ github.repository }}:sha-${{ github.sha }}"
+          docker run -d --name smoke -p 8080:8080 \
+            -e XYK_BOOTSTRAP_ENDPOINT_ID=hook-1 -e XYK_BOOTSTRAP_SECRET=s "$IMAGE"
+          for _ in $(seq 1 60); do
+            sleep 0.5
+            curl -sf -o /dev/null http://127.0.0.1:8080/health/ready && break
+          done
+          SIG=$(printf %s '{"zen":"x"}' | openssl dgst -sha256 -hmac s -hex | sed 's/.*= //')
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/hooks/hook-1 \
+            -H 'Content-Type: application/json' -H "X-Hub-Signature-256: sha256=$SIG" -d '{"zen":"x"}')
+          docker logs smoke | tail -5
+          docker rm -f smoke >/dev/null
+          [ "$CODE" = 200 ] || { echo "the published image answered $CODE, not 200" >&2; exit 1; }
+          echo "published image accepted a signed webhook: $CODE"

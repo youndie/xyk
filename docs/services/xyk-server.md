@@ -122,10 +122,14 @@ batches.
 
 ## 5. Infrastructure and deploy
 
-* **Image:** `ghcr.io/youndie/xyk`, built from `docker/native.Dockerfile` on
-  `gcr.io/distroless/cc-debian13`. The binary is linked on the runner and copied in — except in the
-  `scratch` variant, which must link inside the image
-  ([research §1.7](../research/research-architecture.md)).
+* **Image:** `ghcr.io/youndie/xyk`, published by `.github/workflows/publish.yaml` from
+  **`docker/scratch.Dockerfile` with the curl engine** — 11 840 625 bytes, which is the number
+  [B-23](../backlog/B-23-criterion-image-size.md) quotes and the one
+  [B-22](../backlog/B-22-criterion-cold-start.md) measured a cold start on. Tags: `main` moves,
+  `sha-<commit>` does not, and a release tag adds `X.Y.Z` and `X.Y`.
+  `docker/native.Dockerfile` on `gcr.io/distroless/cc-debian13` is the **local** variant, 56 MB, and
+  is what `make build` produces: its binary is linked outside and copied in, while the `scratch` one
+  must link inside the image ([research §1.7](../research/research-architecture.md)).
 * **Certificates:** present in `distroless/cc` and **verified by use**, not by unpacking:
   `XYK_TLS_PROBE=<url>` on a `with-curl` build makes one `GET` from inside the container and got
   `200`; with the bundle masked it fails with `Problem with the SSL CA cert` (B-17).
