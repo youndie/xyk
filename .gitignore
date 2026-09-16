@@ -61,3 +61,7 @@ captures/
 # A subchart fetched by `helm dependency build`. Pinned by Chart.yaml and Chart.lock, so the
 # unpacked copy is a build artifact rather than a source.
 charts/*/charts/
+
+# The reproducer has a build of its own; its outputs are not xyk's.
+bench/curl-leak/build/
+bench/curl-leak/.gradle/

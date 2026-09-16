@@ -53,6 +53,11 @@ seconds.
   61–97 MB in five minutes to 0.7–7 MB. The term is the request. What it does not separate is the
   response handling, which goes with it — though that allocates in a heap that is pinned while the
   growth is outside it. Two runs an arm, same configuration.
+- AC: **met** — the mechanism is named and it is not ours. `bench/curl-leak`, a standalone binary
+  with one client and one loop, grows ~2.0 kB per request on `ktor-client-curl` and ~0.3 kB
+  flattening on CIO, same loop and same ceiling. Reading the response body makes no difference.
+  CIO is not a way out: it speaks plain HTTP on native and subscribers are `https` (research §1.6),
+  so what is left is upstream or a mitigation that bounds the growth.
 - AC: whatever is found, `README.md` and [B-21](B-21-criterion-memory.md) stop claiming a memory
   answer that no run longer than thirty seconds supports.
 - AC: **met** — both missing memory recipes are applied (`MALLOC_ARENA_MAX=2` in both images, the

@@ -153,3 +153,36 @@ separate them and this says so rather than claiming it does.
 0.7 without it. The repeat also counted deliveries — 17 621 in 290 s — which puts the cost at about
 **3.2 kB per delivery** once both memory recipes are applied, against roughly 6 kB without them.
 
+## Reproduced with nothing but the client — `bench/curl-leak`
+
+Attribution by subtraction is not the same as seeing the thing, so the next arm is a standalone
+binary: one `HttpClient`, one loop, no database, no server, no workers, no ingest. It lives in
+[`bench/curl-leak`](../../../bench/curl-leak) with a build of its own, because a reproducer that
+needs the service around it reproduces the service — and because this one is now small enough to
+hand to somebody who has never heard of xyk.
+
+20 000 sequential POSTs of 64 bytes to the same subscriber, `GC.maxHeapBytes` pinned at 32 MiB,
+`VmRSS` read out of `/proc/self/status`:
+
+| arm | RSS at 5 000 → 20 000 | per request |
+|---|---|---:|
+| `READ_BODY=1` | 36 968 → 70 152 kB | ~2.1 kB |
+| `READ_BODY=0` | 35 880 → 67 344 kB | ~2.0 kB |
+| **`ENGINE=cio`** | 37 468 → **41 968 kB**, flattening | **~0.3 kB** |
+| **`ENGINE=curl`** | 38 472 → **67 860 kB**, linear | **~2.0 kB** |
+
+**Reading the response is not the cost.** The two branches differ by 5 %, which settles what the
+no-op arm above could not separate. `bodyAsBytes()` on a two-byte body was never a plausible 3 kB,
+and now it does not have to be argued.
+
+**It is the engine.** The CIO arm is the same loop, the same client core, the same heap ceiling and
+the same subscriber, with one line different — and it is flat where curl is linear. So this is not
+ktor's client, not the service, not the allocator, and not the GC: it is `ktor-client-curl`.
+
+The per-request figure here (~2.0 kB) is the same order as the ~3.2 kB per delivery measured inside
+the service, and the difference is what the service does around each delivery.
+
+**What this costs xyk specifically.** CIO is not an alternative: it speaks plain HTTP on native and
+webhook subscribers are `https`, which is why research §1.6 records curl as the only engine there
+is. So the choice is upstream, or a mitigation that bounds the growth rather than removes it.
+
