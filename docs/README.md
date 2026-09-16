@@ -79,7 +79,7 @@ person — the machine only guards the membership.
 - [x] [research-architecture](research/research-architecture.md) — what was verified and against
   what, the decisions and their rejected alternatives, the risks with their machinery
 
-### Services (3/3)
+### Services (2/2)
 
 - [x] [xyk-server](services/xyk-server.md) — the binary: ingest, delivery, journal, one SQLite file
 - [x] [xyk-twin-go](services/xyk-twin-go.md) — the Go twin of the ingest path; a fixture, never
