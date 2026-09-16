@@ -28,17 +28,19 @@ kotlin {
 val withHttpClient = (project.findProperty("xyk.httpClient") as String?)?.toBoolean() ?: false
 val staticLinkRequested = (project.findProperty("xyk.staticLink") as String?)?.toBoolean() ?: false
 
-// WHICH ALLOCATOR THE BINARY IS LINKED WITH, as a property rather than an edit, because B-21 has to
-// compare four arms and a measurement whose variants are produced by editing a file is a measurement
-// nobody can repeat. `fixed16` is what ships; the others exist to be measured against it.
+// WHICH ALLOCATOR THE BINARY IS LINKED WITH, as a property rather than an edit, because the two
+// criteria had to compare arms and a measurement whose variants are produced by editing a file is a
+// measurement nobody can repeat. **`std` is what ships, since 2026-09-16** — the reasoning and the
+// numbers are at the `when` below, and the arms stay so the decision can be re-run rather than
+// re-argued.
 //
-//   -Pxyk.allocator=fixed16   binaryOption("fixedBlockPageSize", "16")   (default here)
+//   -Pxyk.allocator=std       -Xallocator=std                            (default here)
+//   -Pxyk.allocator=fixed16   binaryOption("fixedBlockPageSize", "16")
 //   -Pxyk.allocator=default   the Kotlin/Native default, 256 KiB pages
-//   -Pxyk.allocator=std       -Xallocator=std
 //
 // The fourth arm, `MALLOC_ARENA_MAX=2`, is an environment variable on the runtime image and needs no
 // build of its own.
-val allocator = (project.findProperty("xyk.allocator") as String?) ?: "fixed16"
+val allocator = (project.findProperty("xyk.allocator") as String?) ?: "std"
 
 // Printed at configuration time, and it stays: the variant a binary was linked with is the one fact
 // a size measurement of it cannot be read without, and it is not visible in the artefact.
@@ -85,17 +87,35 @@ kotlin {
             executable {
                 entryPoint = "io.github.youndie.xyk.main"
 
-                // 16 KiB PAGES INSTEAD OF THE DEFAULT 256, SET NOW RATHER THAN WHEN THINGS START
-                // DYING. Kotlin/Native's allocator keeps a page per size class PER THREAD for as
-                // long as that thread lives, so resident memory follows the thread count rather than
-                // the live heap, and no GC setting bounds it — these are pages, not objects.
-                // Measured on katcher under `--memory=192m --cpus=1`: the default is killed 0/8
-                // with peaks of 252–329 MB, this survives 8/8 at 47–62 MB.
+                // `-Xallocator=std`, AND THESE ARE XYK'S OWN NUMBERS — the line above used to quote
+                // another service's and said that whatever B-20 and B-21 measured would replace it.
+                // They have.
                 //
-                // It is NOT evidence about this service. B-21 measures four arms on this binary,
-                // with a positive control, because the arm that fits 64 MiB on a service with no
-                // database is the arm that was worse on a service with SQLite on the request path.
-                // Whatever that measurement says replaces this line and quotes its own numbers.
+                // The mechanism is unchanged and is why an allocator is chosen at all: Kotlin/Native
+                // keeps a page per size class PER THREAD for as long as that thread lives, so
+                // resident memory follows the thread count rather than the live heap, and no GC
+                // setting bounds it — these are pages, not objects.
+                //
+                // Measured on `bench-a` (4 cpu), generator on a second machine, at the declared
+                // scenario of 2 000 rps over 200 connections:
+                //
+                //   memory, 64 MiB limit, ten interleaved rounds, control dead at 6 MiB:
+                //     fixedBlockPageSize=16   1/10 survived   (its one survivor peaked ABOVE the limit)
+                //     -Xallocator=std        10/10 survived   54.9–65.7 MB, 56–108 threads
+                //
+                //   throughput, three interleaved rounds, first discarded, 0 % failed in every arm:
+                //     fixedBlockPageSize=16   437 rps (423–452)   control 434
+                //     -Xallocator=std         379 rps (375–384)   control 331
+                //
+                // **The swap costs 13 % of ingest throughput and buys the memory criterion.** It is
+                // an easy trade only because the throughput criterion does not distinguish them:
+                // 2 000 rps is met by neither, on this host, by a wide margin (B-20). One criterion
+                // separates the arms and the other does not, so the one that separates decides.
+                //
+                // The inherited warning — "`-Xallocator=std` measured worse on a service with SQLite
+                // on the request path" — was true where it was measured and does not transfer here.
+                // It is kept in research §1.8 rather than deleted, because the next service will
+                // inherit it again and should inherit the correction with it.
                 when (allocator) {
                     "fixed16" -> binaryOption("fixedBlockPageSize", "16")
                     "std" -> freeCompilerArgs += "-Xallocator=std"

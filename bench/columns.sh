@@ -34,6 +34,10 @@ SUBJECT_IP=${SUBJECT_IP:-10.0.0.2}
 SECRET=bench-secret
 ENDPOINT=hook-1
 SETTLE=${SETTLE:-20}
+# WHICH BINARY IS IN THE KOTLIN COLUMN. Two allocator builds are in play and the decision between
+# them rests on this table plus B-21's — so the column has to be able to name which one it is rather
+# than "the Kotlin one" ([B-28](../docs/backlog/B-28-allocator-decision.md)).
+KOTLIN_BINARY=${KOTLIN_BINARY:-bench-xyk-new}
 OUT=${OUT:-docs/research/measurements-$(date +%Y-%m-%d)}
 
 while [ $# -gt 0 ]; do
@@ -42,27 +46,31 @@ while [ $# -gt 0 ]; do
     --duration) DURATION=$2; shift 2 ;;
     --rounds) ROUNDS=$2; shift 2 ;;
     --connections) CONNECTIONS=$2; shift 2 ;;
+    --kotlin-binary) KOTLIN_BINARY=$2; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
 mkdir -p "$OUT/raw"
-cleanup() { ssh "$SUBJECT" 'pkill -x bench-xyk-new; pkill -x bench-twin-new' >/dev/null 2>&1 || true; }
+cleanup() { ssh "$SUBJECT" "pkill -x $KOTLIN_BINARY; pkill -x bench-twin-new" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 BODY='{"zen":"Non-blocking is better than blocking."}'
 SIGNATURE=$(printf %s "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/.*= //')
 
 echo "=== starting both arms on $SUBJECT ==="
-cat > /tmp/xyk-columns-start.sh <<'REMOTE'
+cat > /tmp/xyk-columns-start.sh <<REMOTE
 #!/bin/bash
-pkill -x bench-xyk-new 2>/dev/null; pkill -x bench-twin-new 2>/dev/null
+KOTLIN_BINARY=$KOTLIN_BINARY
+REMOTE
+cat >> /tmp/xyk-columns-start.sh <<'REMOTE'
+pkill -x "$KOTLIN_BINARY" 2>/dev/null; pkill -x bench-twin-new 2>/dev/null
 sleep 1
 rm -rf /root/bench-run && mkdir -p /root/bench-run
 cd /root
 export XYK_BOOTSTRAP_ENDPOINT_ID=hook-1 XYK_BOOTSTRAP_SECRET=bench-secret
 export XYK_BOOTSTRAP_SUBSCRIBERS=https://sink.invalid/a
-XYK_DB_PATH=/root/bench-run/kotlin.db XYK_PORT=8091 nohup ./bench-xyk-new > /root/bench-run/kotlin.log 2>&1 &
+XYK_DB_PATH=/root/bench-run/kotlin.db XYK_PORT=8091 nohup "./$KOTLIN_BINARY" > /root/bench-run/kotlin.log 2>&1 &
 XYK_DB_PATH=/root/bench-run/go.db     XYK_PORT=8092 nohup ./bench-twin-new > /root/bench-run/go.log 2>&1 &
 disown -a
 for i in $(seq 1 60); do
@@ -160,7 +168,7 @@ echo "=== hosts ==="
   echo "generator: $(ssh "$GENERATOR" 'hostname; nproc; k6 version' | tr '\n' ' ')"
   echo "rate: $RATE  duration: $DURATION  rounds: $ROUNDS  connections allowed: $CONNECTIONS"
   echo "twin driver: modernc.org/sqlite (CGO_ENABLED=0)"
-  echo "kotlin arm: static, no outbound engine, therefore no delivery workers"
+  echo "kotlin arm: $KOTLIN_BINARY — static, no outbound engine, therefore no delivery workers"
 } | tee "$OUT/raw/columns-hosts.txt"
 
 echo

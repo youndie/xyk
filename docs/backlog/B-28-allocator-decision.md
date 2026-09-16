@@ -1,7 +1,7 @@
 ---
 id: B-28
 title: "Decide the allocator on both criteria, not on the one that was measured last"
-status: open
+status: done
 priority: P0
 size: M
 stage: stage-3-verdict
@@ -41,3 +41,30 @@ is evidence that the swap is not obviously expensive — and evidence is not a c
 - AC: whichever way it comes out, `server/build.gradle.kts`'s allocator comment stops quoting the
   katcher numbers and quotes xyk's own — the comment there already says that is what should happen.
 - Anchors: `server/build.gradle.kts`, `bench/columns.sh`, `bench/memory-declared.sh`
+
+## Decided, 2026-09-16 — [allocator-decision.md](../research/measurements-2026-09-16/allocator-decision.md)
+
+The missing column exists: `std` in the Kotlin column of B-20's table, three interleaved rounds, the
+first discarded, against the same twin and control.
+
+| | `fixed16` | `std` |
+|---|---:|---:|
+| ingest | 437 (423–452) | **379** (375–384) |
+| control | 434 | **331** |
+| memory, 64 MiB × 10 | **1/10** | **10/10** |
+
+**`-Xallocator=std` ships.** `server/build.gradle.kts`'s default is changed and its comment now
+quotes xyk's own numbers, as the comment itself said it would.
+
+**The Go column calibrates the two campaigns against each other** — the same binary a day apart, 601
+against 620, overlapping. Without that, comparing two separate runs would be comparing two stands.
+
+**The trade is 13 % of ingest throughput for the memory criterion**, and it is easy only because the
+throughput criterion does not separate the arms: neither reaches a third of 2 000 rps, so 58 rps
+changes no verdict. One criterion distinguishes them and one does not; the one that does decides.
+
+- AC: **met** — the table exists with `std` in the Kotlin column.
+- AC: **met** — the allocator comment quotes xyk's measurements rather than katcher's.
+- Left in place deliberately: the other arms, and the inherited warning in research §1.8. The
+  decision is re-runnable on a host where throughput is reachable, and the warning was true where it
+  was measured.

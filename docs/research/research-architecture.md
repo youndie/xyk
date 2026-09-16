@@ -414,7 +414,7 @@ Supporting facts, from other services and needed to read the table:
 |---|---|
 | The Kotlin/Native allocator keeps a page per size class **per thread**; RSS follows the thread count, not the live heap, and no GC setting bounds it | katcher, `--memory=192m`: default 0/8 survivals at 56–68 MB at rest and 252–329 MB peak, against 8/8 and 22–26/47–62 with `fixedBlockPageSize=16` |
 | `GC.targetHeapBytes` is a collection threshold, not a process limit: 4 MiB target still left 110 MB resident. Kotlin/Native does not read its cgroup limit; the JVM does, Go does | the memory-probe stand, three repeats, shuffled order |
-| `-Xallocator=std` measured **worse** than 16 KiB pages on a service with SQLite on the request path — higher peak, lower throughput | katcher |
+| `-Xallocator=std` measured **worse** than 16 KiB pages on a service with SQLite on the request path — higher peak, lower throughput | katcher. **Did not transfer: on xyk it is the only arm that survives 64 MiB at the declared concurrency, at a cost of 13 % ingest throughput ([B-28](../backlog/B-28-allocator-decision.md)). Kept because the next service inherits this row and should inherit the correction with it.** |
 | glibc grants an arena per thread counting **host** cores, so `--cpus=1` on a 20-core runner still allows 160 | `smaps`: anonymous mappings of 6–12 MB on 64 MB boundaries |
 
 **Consequence 1 — say it now rather than after the run: 64 MiB with 10/10 is below anything measured
