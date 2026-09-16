@@ -760,6 +760,30 @@ positive control is for. The lesson is not about the numbers: **a control has to
 measurement like anything else**, and a harness that stops when its control survives is worth more
 than one that produces a table.
 
+### 1.25 Cold start does not separate Kotlin/Native from Go (B-22, 2026-09-16)
+
+| Fact | Where verified |
+|---|---|
+| On a k0s node, `ctr run` → first `200` through the real ingest route: **xyk 0.394 s mean** (0.348–0.423), **twin 0.395 s** (0.355–0.440) | five interleaved rounds, image cache cleared before each |
+| The phase where they differ is import — 0.686 s against 0.401 s — in proportion to 11.8 MB against 4.1 MB | the same rounds |
+| Both reach `listen` in ≈0.35 s | the same rounds |
+| The first import of a freshly built image costs ≈1.45 s against 0.6–0.76 s for one that has been imported and removed | the smoke round against the campaign |
+
+**Consequence 1 — this was expected to be the platforms' widest gap and it is their narrowest.** The
+item predicted cold start would separate them most; measured, the difference is inside the noise. A
+Kotlin/Native binary starts like a Go binary because there is nothing to bring up: no runtime, no
+JIT, no class loading. The ≈0.35 s both spend reaching `listen` is containerd and the kernel, not
+either language.
+
+**Consequence 2 — image size shows up in the phase the criterion excludes, and nowhere else.** The
+declared criterion puts the pull and the unpack outside itself on purpose, so the 8 MB the curl
+engine costs (§1.6) does not touch this number. It is real and it is charged to
+[B-23](../backlog/B-23-criterion-image-size.md), where it is already counted in bytes — the same
+cost must not be counted twice in two criteria.
+
+**Consequence 3 — a Pod's start is this plus what the cluster adds**, and the two should not be
+summed without saying which is which. No kubelet, admission or CNI attach is in these numbers.
+
 ### 1.24 A failure that aborts the runtime cannot be caught downstream of itself (B-27, 2026-09-16)
 
 | Fact | Where verified |
