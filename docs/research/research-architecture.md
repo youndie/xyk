@@ -760,6 +760,37 @@ positive control is for. The lesson is not about the numbers: **a control has to
 measurement like anything else**, and a harness that stops when its control survives is worth more
 than one that produces a table.
 
+### 1.26 A storage symptom whose cause was a query plan (B-24/B-25, 2026-09-16)
+
+| Fact | Where verified |
+|---|---|
+| Before migration v7: 20-minute soak, sweep off — `-wal` 72 256 kB, readiness `503` in 23 of 120 samples, 87 rps delivered of 200, p99 5.47 s | [soak-wal.md](measurements-2026-09-15/soak-wal.md) |
+| After it, same harness, same arm, same host — `-wal` **8 996 kB**, **0** readiness failures, **200.0 rps**, p99 **12.04 ms**, 240 001 requests, none failed | [soak-after-the-index.md](measurements-2026-09-16/soak-after-the-index.md) |
+| The only change is `deliveries(event_id, state)`, which took a journal page from 1 568 ms to 1.7 ms | [B-25](../backlog/B-25-journal-page-collapses-under-concurrency.md) |
+
+**Consequence 1 — the chain, which is worth learning as a shape rather than as an incident.** A
+correlated subquery picked the wrong index → a journal page held a read transaction open for a second
+and a half → four such readers meant one was almost always live → SQLite's PASSIVE checkpoint cannot
+truncate the journal while a reader is alive → the `-wal` file grew, reads got more expensive,
+in-flight requests rose, readiness failed. **Every symptom was in storage and the cause was in a
+query plan.**
+
+**Consequence 2 — three separate pieces of design were reasoning about the true middle of that
+chain.** The WAL sweep, the pool of two and the soak itself are all about "a PASSIVE checkpoint
+cannot truncate while a reader is alive", which is correct, documented and was never the thing to
+fix. A true statement about the mechanism is not the same as the cause of the incident, and a
+mitigation aimed at it can be right and irrelevant at once.
+
+**Consequence 3 — the mitigation stays and its justification changes.** The sweep is now a mitigation
+with no demonstrated problem *on this service*; the mechanism is real elsewhere (931 MB of journal
+beside a 183 MB database) and any future query with a poor plan restores it. What is retired is the
+claim that it is load-bearing here — and with it every number the earlier soak produced, which
+described a service with a missing index rather than a checkpoint behaviour.
+
+**Consequence 4 — "the control did not misbehave" ended the measurement instead of prompting a
+better one**, which is the rule working. The soak declared in advance that a healthy control makes
+the treated arm meaningless. It did, so the treated arm was not run.
+
 ### 1.25 Cold start does not separate Kotlin/Native from Go (B-22, 2026-09-16)
 
 | Fact | Where verified |

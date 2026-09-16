@@ -1,7 +1,7 @@
 ---
 id: B-24
 title: "The soak: the journal page reading while ingest writes, long enough to find the cliff"
-status: wip
+status: done
 priority: P1
 size: M
 stage: stage-3-verdict
@@ -150,3 +150,38 @@ still wants one.
 
 - AC: the control arm fails. If it does not, the run is void and is redesigned rather than published.
 - Anchors: `bench/soak.sh`, `server/src/commonMain/kotlin/io/github/youndie/xyk/db/`
+
+## Closed by its subject disappearing, 2026-09-16 — [soak-after-the-index.md](../research/measurements-2026-09-16/soak-after-the-index.md)
+
+Re-run on the current build, same arm, same harness. **The control arm — the one with the sweep
+turned off entirely, the one that is supposed to misbehave — behaves perfectly:**
+
+| | before the index | after |
+|---|---:|---:|
+| `-wal` peak | 72 256 kB | **8 996 kB** |
+| readiness 503 | 23 / 120 | **0 / 120** |
+| delivered of 200 rps | 87 | **200.0** |
+| p99 | 5.47 s | **12.04 ms** |
+| failed | 0 of 104 972 | 0 of **240 001** |
+
+**The mechanism this item was built to find was a query plan.** The journal page held a read
+transaction open for 1.5 seconds because two subqueries were using the wrong index
+([B-25](B-25-journal-page-collapses-under-concurrency.md)); four such readers meant one was almost
+always live; a PASSIVE checkpoint cannot truncate while a reader is alive; the journal grew. Every
+symptom was in storage and the cause was one missing composite index.
+
+**By this item's own rule the soak is over.** It said: *if the control does not misbehave, this soak
+has not reproduced the mechanism and the swept arm's good behaviour says nothing about the
+mitigation.* The control does not misbehave, so the treated arm is not run — there is nothing for it
+to be better than.
+
+**The WAL sweep stays.** It is now a mitigation with no demonstrated problem *on this service*, which
+is a different statement from one that does not work: the mechanism is real, it was measured
+elsewhere at 931 MB of journal, and any future query with a bad plan puts it straight back. What is
+retired is the claim that it is load-bearing here, and everything that quoted the earlier soak's
+numbers was quoting a service with a missing index.
+
+- AC: **superseded** — two arms plotted over time is not a result worth taking when the control is
+  healthy. What replaces it is the comparison above, which is the same harness against two builds.
+- AC: **met in the only way left** — the control was required to fail and it did not, so the run
+  stops rather than publishing a table about a mitigation nothing needed.

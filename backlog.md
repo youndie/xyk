@@ -61,17 +61,16 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (5)
+## Open (4)
 
 | Task | | Priority | Size | Blocked by |
 |---|---|---|---|---|
 | [B-20](docs/backlog/B-20-criterion-throughput.md) `[~]` | Criterion: 2 000 rps over 200 connections with no slow state, in three columns | P0 | L | B-06, B-16 |
 | [B-21](docs/backlog/B-21-criterion-memory.md) `[~]` | Criterion: 64 MiB limit, ten runs out of ten survive | P0 | L | B-06, B-17 |
 | [B-10](docs/backlog/B-10-delivery-sink.md) `[~]` | The delivery sink: one POST, one timeout, one attempt row | P1 | M | B-03 |
-| [B-24](docs/backlog/B-24-soak-wal.md) `[~]` | The soak: the journal page reading while ingest writes, long enough to find the cliff | P1 | M | B-04, B-12 |
 | [B-19](docs/backlog/B-19-secret-handling.md) `[?]` | Secrets at rest, and how long payloads are kept | P2 | M | B-07 |
 
-## Closed (24)
+## Closed (25)
 
 **Does this work at all**
 
@@ -106,6 +105,7 @@ re-prioritising one must never move its file.
 - [B-16](docs/backlog/B-16-twin-parity-gate.md) `[x]` - A parity gate: the twin and xyk answer the same things before anything is timed
 - [B-22](docs/backlog/B-22-criterion-cold-start.md) `[x]` - Criterion: cold start to the first 200 under a second on a k0s node
 - [B-23](docs/backlog/B-23-criterion-image-size.md) `[x]` - Criterion: the image is at most 10 MB
+- [B-24](docs/backlog/B-24-soak-wal.md) `[x]` - The soak: the journal page reading while ingest writes, long enough to find the cliff
 - [B-28](docs/backlog/B-28-allocator-decision.md) `[x]` - Decide the allocator on both criteria, not on the one that was measured last
 - [B-29](docs/backlog/B-29-memory-with-delivery-on.md) `[x]` - The memory criterion has not been measured on the configuration that ships
 
