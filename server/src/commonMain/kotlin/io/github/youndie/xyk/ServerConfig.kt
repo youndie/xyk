@@ -68,6 +68,9 @@ data class ServerConfig(
          */
         const val DEFAULT_WAL_CHECKPOINT_SECONDS: Long = 60
 
+        /** Seven days of payloads, the owner's answer of 2026-09-16. `0` means never purge. */
+        const val DEFAULT_RETENTION_DAYS: Long = 7
+
         /** Two seconds: long enough for a slow subscriber, short enough that fifty of them fit in a tick. */
         const val DEFAULT_DELIVERY_TIMEOUT_MS: Long = 2_000
 
@@ -167,8 +170,19 @@ fun getServerConfig(): ServerConfig {
         stripeToleranceSeconds =
             (readEnv("XYK_STRIPE_TOLERANCE_SECONDS")?.toLongOrNull() ?: DEFAULT_STRIPE_TOLERANCE)
                 .also { require(it > 0) { "XYK_STRIPE_TOLERANCE_SECONDS must be above zero: 0 disables the check" } },
+        // SEVEN DAYS, and it is a default rather than a setting somebody must choose. xyk stores raw
+        // bodies by design, so every day nobody thinks about retention is a day the liability grows,
+        // and a service whose safe configuration requires an act of configuration is usually unsafe.
+        // A week is long enough that the journal answers the question it exists for — what did that
+        // sender send, and did it arrive — across a working week, and short enough that a copy of
+        // somebody's customer data does not accumulate for ever in a volume nobody audits.
+        //
+        // `0` still means *never purge* and is still expressible. It was the default until
+        // 2026-09-16; a deployment upgrading across that line and relying on it begins purging
+        // bodies older than a week, which is why the change is in the research document as a
+        // decision (§3) and not only in a diff.
         retentionDays =
-            (readEnv("XYK_RETENTION_DAYS")?.toLongOrNull() ?: 0L)
+            (readEnv("XYK_RETENTION_DAYS")?.toLongOrNull() ?: ServerConfig.DEFAULT_RETENTION_DAYS)
                 .also { require(it >= 0) { "XYK_RETENTION_DAYS cannot be negative" } },
         // THE TIMEOUT IS NOT A TUNING KNOB, it is what bounds a tick. chronik's `tick()` walks its
         // batch sequentially, so the worst case for one tick is `batchSize × this`, and a

@@ -667,7 +667,7 @@ cannot keep.
 **Risk 7. The stored payload is the sensitive thing.** A Stripe event carries customer data, and xyk
 stores raw bodies by design (§1.4). Mitigation: secrets come from the environment and are never
 logged or rendered; the journal shows *which* secret verified a request, never its value; and
-payloads are purged on a retention schedule. Open question below.
+payloads are purged on a retention schedule — **seven days by default since 2026-09-16**, Decision 3 below.
 
 **Open question 1.** Will chronik take native targets, and at what cost to its own gate? The
 Postgres module's tests need Docker and stay JVM-only either way. Settled by
@@ -1015,16 +1015,41 @@ not exist yet; not spending them meets a number that was declared before any of 
 **An owner answers this, not an implementer** — and the default until then is to keep them, because
 the failure they prevent is silent.
 
-**Open question 3.** Payload retention. **The machinery is built and switched off** (B-19):
-`XYK_RETENTION_DAYS=0` means for ever, a purge empties the body and keeps the record, and the `410`
-path is live. What is missing is the number — and a service that deleted data on a horizon nobody
-chose would be the one mistake here that cannot be undone. The earlier hypothesis of 7 days is
-**not** what shipped, precisely because it was a hypothesis.
+**Decision 3 (was open question 3; answered by the owner, 2026-09-16).** Payload retention is
+**seven days by default**, `XYK_RETENTION_DAYS=7`, overridable by the deployment.
 
-**Open question 3b.** Secrets at rest. Encrypting them needs a key, and a key in the environment of
-the same process defends against a stolen volume and not a stolen pod. The alternative is to say in
-the documentation that the volume is as sensitive as the secrets in it. Nothing was built either
-way (B-19).
+The reason it is a default rather than a setting somebody must choose: xyk stores raw bodies by
+design, so every day nobody thinks about retention is a day the liability grows, and a service whose
+safe configuration requires an act of configuration is a service that is usually unsafe. Seven days
+is long enough that a journal answers the question it exists for — *what did that sender send, and
+did it arrive* — over a working week, and short enough that a copy of somebody's customer data does
+not accumulate for ever in a volume nobody audits.
+
+**What changed with it, and it is the part to read before an upgrade:** the previous default was `0`,
+which means *never purge*. Any deployment that was relying on that and does not set the variable will
+begin purging bodies older than a week. Nothing is deployed yet, so this costs nothing today; it
+would be a breaking change the day after a release, and it is written here rather than only in a
+changelog because the failure it produces is silent and unrecoverable.
+
+The mechanism was already built and is unchanged: a purge is an `UPDATE`, the body is emptied,
+`purged_at` is stamped, `body_bytes` keeps the size the payload **arrived** with, the event stays in
+the journal, and `GET /api/events/{id}/payload` answers `410` rather than `404` so that retention
+never reads as data loss.
+
+**Decision 3b (was open question 3b; answered by the owner, 2026-09-16).** Secrets are **not**
+encrypted at rest. **The volume is as sensitive as the secrets in it, and the documentation says so
+in those words.**
+
+The reason is that the alternative does not buy what it appears to. Encrypting the column needs a key;
+a key in the environment of the same process is readable by anything that can read the process, so it
+defends against a stolen *volume* and not against a stolen *pod* — and the second is the likelier of
+the two in a cluster. What it would buy for certain is a false sentence in an audit: "secrets are
+encrypted at rest", true of the bytes and untrue of the threat.
+
+So the protection is operational rather than cryptographic, and it is stated where an operator will
+meet it: the volume holds credentials, back it up and grant access to it as such. A deployment that
+wants more than that wants an external secret store and a different design, which is a decision with
+its own cost and not a column type.
 
 **Open question 4.** What exactly does "cold start under a second on a k0s node" measure? Declared
 here so the answer cannot drift afterwards: **from container start to the first `200`, with the

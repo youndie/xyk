@@ -61,13 +61,11 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (1)
+## Open (0)
 
-| Task | | Priority | Size | Blocked by |
-|---|---|---|---|---|
-| [B-19](docs/backlog/B-19-secret-handling.md) `[?]` | Secrets at rest, and how long payloads are kept | P2 | M | B-07 |
+No open tasks.
 
-## Closed (28)
+## Closed (29)
 
 **Does this work at all**
 
@@ -87,6 +85,7 @@ re-prioritising one must never move its file.
 - [B-11](docs/backlog/B-11-delivery-workers.md) `[x]` - Delivery workers: owners, lifecycle, and a readiness check that counts ticks
 - [B-12](docs/backlog/B-12-journal-page.md) `[x]` - The journal page and its five states
 - [B-13](docs/backlog/B-13-journal-api.md) `[x]` - The journal API: keyset pages, streamed payloads, redelivery
+- [B-19](docs/backlog/B-19-secret-handling.md) `[x]` - Secrets at rest, and how long payloads are kept
 - [B-25](docs/backlog/B-25-journal-page-collapses-under-concurrency.md) `[x]` - The journal page collapses under fifty concurrent readers
 - [B-26](docs/backlog/B-26-schedule-timers-on-ingest.md) `[x]` - Nothing schedules a timer yet, so nothing is ever delivered
 - [B-27](docs/backlog/B-27-bind-failure-is-unreadable.md) `[x]` - A port already in use is reported as a cancelled coroutine, after the start was announced

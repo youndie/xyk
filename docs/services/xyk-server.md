@@ -168,11 +168,35 @@ it cannot verify. The list below is the shape, not a copy — the file is the tr
 | `XYK_DELIVERY_TIMEOUT_MS` | per-attempt timeout, enforced inside the sink | no |
 | `XYK_DELIVERY_WORKERS` | number of `TimerWorker`s | no |
 | `XYK_STRIPE_TOLERANCE_SECONDS` | Stripe timestamp tolerance; `0` disables the check rather than tightening it | no (300) |
-| `XYK_RETENTION_DAYS` | payload purge horizon in days; **`0` (the default) keeps payloads for ever** | no |
+| `XYK_RETENTION_DAYS` | payload purge horizon in days; `0` keeps payloads for ever | no (**7**) |
 
 Endpoint secrets are **not** environment variables: they are rows, created through the journal's
-admin routes, and the environment carries only the key that encrypts them at rest if that decision
-is taken ([B-19](../backlog/B-19-secret-handling.md)).
+admin routes and never readable back over HTTP — the API answers with a fingerprint.
+
+## 7a. The volume is as sensitive as the secrets in it
+
+**Endpoint secrets are stored unencrypted in the SQLite file, and so are the webhook payloads. Back
+up and grant access to that volume exactly as you would to the credentials themselves.** This is a
+decision rather than an omission (2026-09-16, research §3b).
+
+Encrypting the column would need a key, and a key in the environment of the same process is readable
+by anything that can read the process — so it defends against a stolen **volume** and not a stolen
+**pod**, and the second is the likelier of the two in a cluster. What it would reliably produce is a
+sentence in an audit that is true of the bytes and false about the threat.
+
+Concretely, for whoever operates this:
+
+* the PVC holds live credentials — an attacker with a copy of it can sign requests that xyk will
+  accept, and read every payload xyk has kept;
+* restrict access to it as you would to a secret store, and treat its backups the same way;
+* `XYK_RETENTION_DAYS` (7 by default) bounds how much payload is in there, which is the one lever
+  that reduces this exposure without changing the design;
+* a deployment that needs more than operational protection needs an external secret store and a
+  different design — that is a decision with its own cost, not a column type.
+
+Rotation is the other half and it already works: several secrets can be active at once, so a
+compromised one is retired by adding its replacement and disabling it, without an outage for whatever
+is still signing with the old one ([feature-endpoint-registry](../features/feature-endpoint-registry.md)).
 
 ## 8. Quirks
 

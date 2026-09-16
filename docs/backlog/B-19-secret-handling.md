@@ -1,7 +1,7 @@
 ---
 id: B-19
 title: "Secrets at rest, and how long payloads are kept"
-status: question
+status: done
 priority: P2
 size: M
 stage: stage-1-product
@@ -62,9 +62,42 @@ honest alternative — "the volume is as sensitive as the secrets; treat it that
 a sentence in the documentation rather than code, and which of the two is wanted is the owner's
 call. Until then the secrets sit in the volume, write-only over HTTP (B-07), shown as fingerprints.
 
-**Two questions, one place.** They are in
-[research §3](../research/research-architecture.md) as open questions 3 and 3b, alongside the third
-one this work produced: whether to spend 2.8 MB of image on charset converters this service does not
-call (B-18, open question 3a).
+**Two questions, one place.** They were open questions 3 and 3b in
+[research §3](../research/research-architecture.md), alongside the third one this work produced —
+whether to spend 2.8 MB of image on charset converters this service does not call (B-18, question
+3a). **All three are now decisions**, taken by the owner: gconv stays (B-23), retention is seven
+days, secrets are not encrypted and the volume is documented as sensitive.
 - Anchors: `server/src/commonMain/kotlin/io/github/youndie/xyk/registry/data/`,
   `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Retention.kt`
+
+## Answered by the owner, 2026-09-16
+
+**Payloads: seven days by default.** `ServerConfig.DEFAULT_RETENTION_DAYS = 7`; `0` still means never
+purge and is still expressible.
+
+It is a default rather than a setting somebody must choose because xyk stores raw bodies by design,
+so every day nobody thinks about retention is a day the liability grows — and a service whose safe
+configuration requires an act of configuration is usually unsafe. A week answers the question the
+journal exists for across a working week, and does not accumulate a copy of somebody's customer data
+for ever in a volume nobody audits.
+
+**The change of default is itself the risk this item warned about**, pointed the other way: the
+previous default was `0`, so a deployment upgrading across this line and relying on it begins purging
+bodies older than a week. Nothing is deployed yet, so it costs nothing today; it is written into
+[research §3](../research/research-architecture.md) as a decision and into the config comment, rather
+than living only in a diff, because the failure it would produce is silent and unrecoverable.
+
+**Secrets: not encrypted at rest, and the documentation says why in those words.**
+[`services/xyk-server.md` §7a](../services/xyk-server.md) now opens with the operational sentence —
+*the volume is as sensitive as the secrets in it; back it up and grant access to it as such* — and
+gives an operator the four things that follow from it.
+
+The reason encryption was not taken is that it does not buy what it looks like: a key in the
+environment of the same process is readable by anything that can read the process, so it defends
+against a stolen **volume** and not a stolen **pod**, and the second is likelier in a cluster. What
+it would reliably produce is a sentence in an audit that is true of the bytes and false about the
+threat. A deployment needing more wants an external secret store and a different design.
+
+- AC: **met** — both halves are in research §3 and §3b as decisions with their reasons, written from
+  the owner's answer rather than chosen by whoever implemented the purge.
+- AC: **met earlier** — `RetentionTest`, four cases on both targets, plus the `410` path through HTTP.
