@@ -43,7 +43,24 @@ accepted with a `200` and not delivered. Both are recorded in
 [`services/xyk-server.md` §8](../services/xyk-server.md), because an operator choosing a limit is
 choosing between those two failures and should be told so.
 
-**Not measured: recovery.** Every arm kept the subscriber down for the whole run. Whether the
-backlog drains when it comes back, and what that costs, is open — and with the delivery timeout
-occupying a worker for two seconds per attempt, the backlog itself grows without bound at 60 rps
-regardless of memory (15 020 pending after five minutes against a black hole).
+## Recovery, measured 2026-09-16 — and it is not one
+
+Two runs, a sixty-second outage at a limit with room, the subscriber brought back without restarting
+the service:
+
+* **~1 600 events are dead before it returns** — about thirty seconds of accepted traffic. Five
+  attempts on chronik's doubling backoff from a 1 s base are spent in thirty-one seconds, and a
+  refused connection spends them as fast as they arrive.
+* **Dead is final.** Neither run retried one. `POST /api/events/{eventId}/redeliver` is by hand and one
+  event at a time, and there is no sweep.
+* **The rest does not drain.** A healthy service sits at ~220 pending; these sit at 2 000–2 240 for
+  six minutes, one of them drifting up. Delivery once recovered runs at 54–59 /s against the same
+  ingest — there is no spare capacity to work a backlog off with.
+* **At 256 MiB there is no recovery at all**: a two-minute outage reaches the limit at 110 s and the
+  process is OOM-killed just after the subscriber returns, having delivered 94 of 4 878.
+
+**So "it comes back" is not a state this service reaches on its own.** An operator gets the traffic
+back only by redelivering by hand, and only for what the journal still holds.
+
+**Still not measured:** an outage shorter than the retry window — the bound is thirty seconds and
+nothing has been run below it.
