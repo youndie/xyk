@@ -61,16 +61,13 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (4)
+## Open (1)
 
 | Task | | Priority | Size | Blocked by |
 |---|---|---|---|---|
-| [B-20](docs/backlog/B-20-criterion-throughput.md) `[~]` | Criterion: 2 000 rps over 200 connections with no slow state, in three columns | P0 | L | B-06, B-16 |
-| [B-21](docs/backlog/B-21-criterion-memory.md) `[~]` | Criterion: 64 MiB limit, ten runs out of ten survive | P0 | L | B-06, B-17 |
-| [B-10](docs/backlog/B-10-delivery-sink.md) `[~]` | The delivery sink: one POST, one timeout, one attempt row | P1 | M | B-03 |
 | [B-19](docs/backlog/B-19-secret-handling.md) `[?]` | Secrets at rest, and how long payloads are kept | P2 | M | B-07 |
 
-## Closed (25)
+## Closed (28)
 
 **Does this work at all**
 
@@ -86,6 +83,7 @@ re-prioritising one must never move its file.
 - [B-07](docs/backlog/B-07-endpoint-registry.md) `[x]` - Endpoints and subscribers as rows: create, rotate, disable
 - [B-08](docs/backlog/B-08-body-limit-and-rejection-counters.md) `[x]` - A body limit that does not buffer, and counters for what was refused
 - [B-09](docs/backlog/B-09-signature-verifiers.md) `[x]` - Five schemes, recorded vendor vectors, and one constant-time compare
+- [B-10](docs/backlog/B-10-delivery-sink.md) `[x]` - The delivery sink: one POST, one timeout, one attempt row
 - [B-11](docs/backlog/B-11-delivery-workers.md) `[x]` - Delivery workers: owners, lifecycle, and a readiness check that counts ticks
 - [B-12](docs/backlog/B-12-journal-page.md) `[x]` - The journal page and its five states
 - [B-13](docs/backlog/B-13-journal-api.md) `[x]` - The journal API: keyset pages, streamed payloads, redelivery
@@ -103,6 +101,8 @@ re-prioritising one must never move its file.
 - [B-14](docs/backlog/B-14-delivery-worker-count.md) `[x]` - How many delivery workers, and is the curl dispatcher the real ceiling?
 - [B-15](docs/backlog/B-15-go-twin.md) `[x]` - The Go twin of the ingest path
 - [B-16](docs/backlog/B-16-twin-parity-gate.md) `[x]` - A parity gate: the twin and xyk answer the same things before anything is timed
+- [B-20](docs/backlog/B-20-criterion-throughput.md) `[x]` - Criterion: 2 000 rps over 200 connections with no slow state, in three columns
+- [B-21](docs/backlog/B-21-criterion-memory.md) `[x]` - Criterion: 64 MiB limit, ten runs out of ten survive
 - [B-22](docs/backlog/B-22-criterion-cold-start.md) `[x]` - Criterion: cold start to the first 200 under a second on a k0s node
 - [B-23](docs/backlog/B-23-criterion-image-size.md) `[x]` - Criterion: the image is at most 10 MB
 - [B-24](docs/backlog/B-24-soak-wal.md) `[x]` - The soak: the journal page reading while ingest writes, long enough to find the cliff

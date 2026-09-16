@@ -1,7 +1,7 @@
 ---
 id: B-10
 title: "The delivery sink: one POST, one timeout, one attempt row"
-status: wip
+status: done
 priority: P1
 size: M
 stage: stage-1-product
@@ -79,3 +79,16 @@ this repository keeps catching.
   machine and in no minimal base image.
 - Anchors: `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliverySink.kt`,
   `server/src/commonMain/kotlin/io/github/youndie/xyk/HttpClients.kt`
+
+## The half that was outstanding is closed, by B-26 rather than here
+
+This item left one acceptance line half met: certificates were measured from inside the image
+(`GET https://example.com -> 200`) but no delivery had been made, because nothing called the sink
+until the workers landed.
+
+[B-26](B-26-schedule-timers-on-ingest.md) ran it: a webhook posted to the released image reached a
+real subscriber with the body byte for byte, the sender's own content type, `X-Xyk-Attempt: 1`, and
+the journal showing `deliveries: 1, pending: 0, dead: 0`.
+
+- AC: **met**, in the item that could run it. Recorded here rather than left as a half, because an
+  acceptance line that is satisfied elsewhere and not marked is a line somebody re-does.

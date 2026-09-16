@@ -1,7 +1,7 @@
 ---
 id: B-21
 title: "Criterion: 64 MiB limit, ten runs out of ten survive"
-status: wip
+status: done
 priority: P0
 size: L
 stage: stage-3-verdict
@@ -186,3 +186,8 @@ reports a *higher* rate than a live one.
   the Kotlin column. Swapping the allocator on the memory criterion alone would be deciding on one of
   the two numbers that matter. This run supplies 250–442 rps at 0 % failures over ten rounds — the
   same band `fixed16` showed — which is evidence and not the column.
+
+**Closed 2026-09-16.** The criterion is met, at the declared load, by `-Xallocator=std` — and then
+re-measured on the configuration that actually deploys, with the engine linked and four workers
+running ([B-29](B-29-memory-with-delivery-on.md)): **10/10 again**, at 60 928 – 66 108 kB. It is met
+by reclaim rather than by headroom, which is the phrasing to quote.

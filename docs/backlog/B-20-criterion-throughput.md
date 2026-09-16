@@ -1,7 +1,7 @@
 ---
 id: B-20
 title: "Criterion: 2 000 rps over 200 connections with no slow state, in three columns"
-status: wip
+status: done
 priority: P0
 size: L
 stage: stage-3-verdict
@@ -151,3 +151,10 @@ time with the generator on another machine and a spread of 1.05× rather than 2.
 Left open deliberately: the same table on a host with more visible cores. §1.18 measured 2 112 rps at
 twelve against 355–816 at four on a route of this shape, so the number here is the small end of the
 range the product is aimed at rather than the whole answer.
+
+**Closed 2026-09-16.** The criterion is answered — *no*, by both columns, with the reason named
+(latency, not throughput: at 200 connections the rate is `200 ÷ latency` and these latencies are
+300–460 ms where 2 000 through 200 needs 100). The table exists, the harness exists, and the arm that
+ships changed since ([B-28](B-28-allocator-decision.md)) — the `std` column is in
+[allocator-decision.md](../research/measurements-2026-09-16/allocator-decision.md) rather than
+re-stated here.
