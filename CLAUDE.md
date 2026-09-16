@@ -35,19 +35,25 @@ make build     # link, image, and the assertion that the process stops in order 
 regenerates the backlog index and fills in missing coverage-map lines with placeholders you then
 finish.
 
-`code_anchors.py` currently reports nearly every path as missing, and that is the honest state: the
-anchors name files the backlog is about to create. It does not block, for the same reason.
+`code_anchors.py` resolves most paths now that the backlog is finished. What it still reports are
+addresses **inside other repositories and artefacts** — a line in chronik's sources, a key in
+`konan.properties` — which it cannot resolve and should not: those are verification addresses for a
+research claim, not paths in this tree. It does not block, for that reason.
 
 ## Where code runs
 
-Builds, tests and `docker build` go to the Linux box, not to this Mac — see the global instructions.
-Kotlin/Native links are minutes of LLVM and the Mac is a text editor here. `macos*` targets and
-anything touching Xcode stay local.
+**A release link is minutes of LLVM**, so builds, tests and `docker build` want a machine with cores
+rather than whatever is under your hands. `macos*` targets are the exception: they have to be built
+on macOS.
 
-The project is in `mutagen sync list` (added 2026-09-15), so `~/.claude/bin/wsl-run ./gradlew …`
-works from this directory. Two consequences of the replica, both already seen: it carries no `.git`,
-so `/version` stamps `commit: unknown` there, and work done on the Linux side reaches neither git nor
-the Mac.
+Two consequences worth knowing wherever the build happens. A build context without `.git` stamps
+`/version` with `commit: unknown` — that is what a `.dockerignore` normally produces, and a file git
+tracks but the ignore excludes reads as *deleted*, which makes the stamp `-dirty` permanently. And
+work done only on the build machine reaches neither git nor the checkout you are editing.
+
+**The benchmark harnesses in `bench/` need two machines**, and they refuse to take a number on one:
+the generator must not run on the host under test, because it competes for exactly the cores being
+measured. `SUBJECT` and `GENERATOR` are ssh destinations and have no useful defaults.
 
 ## Language
 

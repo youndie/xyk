@@ -1,6 +1,6 @@
 # B-24 — the journal read while ingest writes, twenty minutes an arm
 
-**Date:** 2026-09-15. **Host:** the Linux box, 20 cores, cgroup v2. **Subject:** `xyk-mem:fixed16` on
+**Date:** 2026-09-15. **Host:** a 20-core workstation, cgroup v2. **Subject:** `xyk-mem:fixed16` on
 `distroless/cc-debian13`, `--memory=64m`, pinned to cores `0-3`, its `/data` bind-mounted so the
 `-wal` file can be measured from outside. **Load:** k6 0.54.0, `constant-arrival-rate`, 200 rps
 offered over 50 connections through `POST /hooks/{id}` with a genuine GitHub signature, generator

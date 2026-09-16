@@ -1,6 +1,6 @@
 # B-14 — the curl dispatcher is not the ceiling, and the hypothesis was wrong
 
-**Date:** 2026-09-16. **Host:** the Linux box, 20 cores, docker. **Subject:** the shipping image with
+**Date:** 2026-09-16. **Host:** a 20-core workstation, docker. **Subject:** the shipping image with
 `ktor-client-curl`. **Subscriber:** a Python sink with a fixed delay, counting rather than logging.
 **Method:** 600 events posted first, then the clock starts — what is measured is how fast the workers
 drain a queue that already exists. Three interleaved rounds per arm.

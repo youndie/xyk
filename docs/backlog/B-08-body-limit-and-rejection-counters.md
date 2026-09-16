@@ -27,7 +27,7 @@ has nothing at all to look at.
 - Not covered: rate limiting per sender.
 
 - AC: a 64 MiB body against a 1 MiB limit answers `413` and the process's resident memory does not
-  move beyond a small constant. **Measured** on the Linux box: `VmRSS` 42 880 kB before, 46 560 kB
+  move beyond a small constant. **Measured** on the build machine: `VmRSS` 42 880 kB before, 46 560 kB
   after three 64 MiB bodies in a row — **+3.6 MB against 192 MB offered**. All three answered `413`
   and no event row was written.
 - AC: the counters distinguish all five reasons, and the journal's empty state points at them —

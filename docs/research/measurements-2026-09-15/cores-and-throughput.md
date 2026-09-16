@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-15. **Subject:** `xyk:scratch`, the release `linuxX64` binary, `GET /health/ready`
 — a route that touches no database. **Generator:** k6 0.54.0, closed model, 50 VUs, 10 s, on the same
-host over loopback. **Host:** the Linux box, 20 cores. Four rounds, the three arms **interleaved**.
+host over loopback. **Host:** a 20-core workstation. Four rounds, the three arms **interleaved**.
 
 This started as the throughput criterion (B-20) and turned into something else: the subject was
 serving 410 rps on a four-core benchmark host, and the same binary served 4 566 rps on a
@@ -142,7 +142,7 @@ was one edit away from a document.
 2. **The Kotlin arm at twelve visible cores is steady at ≈2 100 rps.**
 3. **At four visible cores it is 355–816 rps and does not converge** — a single measurement of this
    stack at a small core count is a sample from a wide distribution, not a property of the service.
-4. **`bench-a`'s 410 rps, taken with the generator on a different machine entirely, sits in that
+4. **the subject host's 410 rps, taken with the generator on a different machine entirely, sits in that
    band** — the cleanest number here, and the only one taken the way the criterion requires.
 
 ## Next

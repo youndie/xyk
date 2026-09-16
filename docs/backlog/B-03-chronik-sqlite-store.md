@@ -79,6 +79,6 @@ not when this item was written.
 - AC: a test kills a worker mid-batch and shows the claimed timers becoming claimable again exactly
   at the lease boundary — not before, not never.
 - AC: the tests use a **file** database in a temporary directory; `:memory:` is not used anywhere.
-- Anchors: `chronik-sqlite/src/commonMain/kotlin/io/github/youndie/xyk/chronik/Sqlx4kTimerStore.kt`,
+- Anchors: `server/src/variants/with-chronik/kotlin/io/github/youndie/xyk/delivery/`,
   `chronik-sqlite/src/commonTest/kotlin/io/github/youndie/xyk/chronik/ConformanceTest.kt`,
   `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt`

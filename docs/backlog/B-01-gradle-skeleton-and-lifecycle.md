@@ -37,7 +37,7 @@ image**, and not one line further: the Gradle module with `jvm()` plus `linuxX64
 
 ## Closed 2026-09-15, and what it produced
 
-Measured on the Linux box (Ubuntu 24.04, glibc 2.39), release build, `linuxX64`:
+Measured on the build machine (Ubuntu 24.04, glibc 2.39), release build, `linuxX64`:
 
 | | |
 |---|---|

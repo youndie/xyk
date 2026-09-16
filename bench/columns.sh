@@ -3,10 +3,9 @@
 #
 #   bench/columns.sh [--rate 2000] [--duration 30s] [--rounds 3]
 #
-# Orchestrated from the workstation over ssh: the subject is `bench-a` (both static binaries, run
-# directly — there is no docker on that box and none is wanted between the measurement and the
-# thing measured), the generator is `bench-b` (k6, on the private network, about half a millisecond
-# away). Neither is this machine, which is the point.
+# Orchestrated from a workstation over ssh. The subject runs both static binaries directly — no
+# docker between the measurement and the thing measured — and the generator runs k6 on a second
+# machine. Neither is the machine you type on, which is the point.
 #
 # WHAT THE PILOT ASKED FOR AND THIS ADDS
 #
@@ -22,15 +21,20 @@
 # build — statically linked, no outbound engine, therefore no delivery workers. The twin has no
 # delivery either. Measuring the shipping build here would put background work in one column and not
 # the other, and the parity gate would be lying about what it compared.
+# THE TWO MACHINES ARE NOT OPTIONAL AND HAVE NO DEFAULTS. The generator must not run on the host
+# under test — on the subject's machine it does not merely add noise, it competes for exactly the
+# cores being measured — so both are ssh destinations the caller supplies:
+#
+#   SUBJECT=user@host GENERATOR=user@host bench/<this script>
 set -uo pipefail
 
 RATE=2000
 DURATION=30s
 ROUNDS=3
 CONNECTIONS=200
-SUBJECT=${SUBJECT:-bench-a}
-GENERATOR=${GENERATOR:-bench-b}
-SUBJECT_IP=${SUBJECT_IP:-10.0.0.2}
+SUBJECT=${SUBJECT:?set SUBJECT to the ssh destination of the host under test}
+GENERATOR=${GENERATOR:?set GENERATOR to the ssh destination of the load generator}
+SUBJECT_IP=${SUBJECT_IP:?set SUBJECT_IP to the address the generator reaches the subject on}
 SECRET=bench-secret
 ENDPOINT=hook-1
 SETTLE=${SETTLE:-20}

@@ -1,7 +1,7 @@
 # B-20 pilot — VOID, and both reasons are findings
 
-**Date:** 2026-09-15. **Subject:** `bench-a`, 4 cpu, 7.7 GB, Ubuntu, glibc 2.43 — the two **static**
-binaries, run directly, no docker. **Generator:** `bench-b`, 4 cpu, k6 **v1.4.1**, ~1 ms away.
+**Date:** 2026-09-15. **Subject:** the subject host — a 4-core, 7 GB cloud VM, Ubuntu, glibc 2.43 — the two **static**
+binaries, run directly, no docker. **Generator:** the generator host, 4 cpu, k6 **v1.4.1**, ~1 ms away.
 **Twin driver:** `modernc.org/sqlite`, pure Go. Offered rate 2 000 rps, 200 connections, 15–20 s.
 
 This is not a result. It is the harness finding two things wrong before any number was quoted, which
@@ -42,7 +42,7 @@ time and sheds half of them under load is not doing the same work, and no gate i
 noticed. The gate now runs a short concurrent burst as its last case.
 
 **The static binaries run on a host that has nothing to do with the build.** Built against glibc 2.39
-on WSL, copied to a 2.43 Ubuntu box, started and served with no runtime, no image and no
+on the build machine, copied to a 2.43 Ubuntu box, started and served with no runtime, no image and no
 dependencies. That is the `-static` claim of B-05 confirmed somewhere it could have failed.
 
 ## What has to happen before a number is quoted
@@ -80,7 +80,7 @@ scenario's own header says that executor exists to prevent.
 
 ## The generator's real ceiling, measured on the same pair
 
-bench-b → bench-a over the private network, against the Go twin's `/health/ready`, `maxVUs` 2 000–3 000:
+generator host → subject host over the private network, against the Go twin's `/health/ready`, `maxVUs` 2 000–3 000:
 
 | offered | delivered | dropped | latency |
 |---:|---:|---:|---|

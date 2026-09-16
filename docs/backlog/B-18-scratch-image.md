@@ -41,7 +41,7 @@ returns `500` on the first rendered page
   **Done**, and it passes on every `scratch` variant — **including the one built to fail**, which is
   the finding below.
 - AC: pull bytes for both variants in one table, measured on one host, with the method named.
-  **Done** — six variants, `docker save | wc -c`, the Linux box.
+  **Done** — six variants, `docker save | wc -c`, the build machine.
 
 ## Closed 2026-09-15
 

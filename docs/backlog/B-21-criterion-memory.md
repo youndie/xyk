@@ -85,8 +85,8 @@ variable and needs no build.
 Control: 2 of 2 killed at 6 MiB, and that part stands. Everything after it does not.
 
 **All forty generator logs of that run say `stat /bench/ingest.js: permission denied`.** The harness
-bind-mounted the working tree, which on the Linux box is a mutagen replica at mode `0600`, and the
-`grafana/k6` image runs as a non-root user. k6 exited in milliseconds every time, the harness never
+bind-mounted the working tree, whose files are mode `0600`, and the `grafana/k6` image runs as a
+non-root user. k6 exited in milliseconds every time, the harness never
 looked at its status, and each round then measured a container that received **no requests at all**.
 The table it produced — four arms, 10/10 each, peaks from 5 608 to 35 828 kB — is a table of an idle
 process, and it is retracted in full:
@@ -155,8 +155,8 @@ numbers here are the best. It needs the throughput column beside it before the s
 
 ## At the criterion's own load, 2026-09-16 — [memory-declared-load.md](../research/measurements-2026-09-16/memory-declared-load.md)
 
-Two machines at last: subject on `bench-a` under a `systemd-run` unit with `MemoryMax=64M`, generator
-on `bench-b` offering **2 000 rps over 200 connections**, ten interleaved rounds an arm, control at
+Two machines at last: subject on the subject host under a `systemd-run` unit with `MemoryMax=64M`, generator
+on the generator host offering **2 000 rps over 200 connections**, ten interleaved rounds an arm, control at
 6 MiB dead twice out of two before the table was allowed to exist.
 
 | arm | survived | cgroup peak, kB | threads |

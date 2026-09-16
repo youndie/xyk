@@ -1,8 +1,8 @@
 # B-20 — the three columns, on two machines: nobody reaches the line
 
-**Date:** 2026-09-16. **Subject:** `bench-a`, Hetzner, 4 cpu, 7 GB, Ubuntu, glibc 2.43 — both static
+**Date:** 2026-09-16. **Subject:** the subject host — a 4-core, 7 GB cloud VM, Ubuntu, glibc 2.43 — both static
 binaries run directly, no docker between the measurement and the thing measured. **Generator:**
-`bench-b`, 4 cpu, **k6 v1.4.1**, on the private network (`10.0.0.2`), about half a millisecond away.
+the generator host, 4 cpu, **k6 v1.4.1**, on a private network, about half a millisecond away.
 **Load:** `constant-arrival-rate`, **2 000 rps offered over 200 connections**, 30 s an arm, three
 rounds, arms interleaved, **round 1 discarded as warm-up** — all declared before the run.
 

@@ -3,7 +3,7 @@
 #
 #   bench/cold-start.sh [--rounds 5]
 #
-# Orchestrated from the workstation; the subject is the k0s node (`bench-a`), where the containers
+# Orchestrated from a workstation; the subject is a k0s node, where the containers
 # run under the node's own containerd — the same runtime a pod would get. **The scheduler's part is
 # deliberately outside this**: image pull policy, node selection and admission belong to the cluster
 # and the item says so. What is measured is the node doing the work.
@@ -21,10 +21,15 @@
 #
 # THE CACHE IS CLEARED BETWEEN ROUNDS — the image is removed and re-imported — because a second run
 # measures a warm snapshotter, which is a different and easier question.
+# THE TWO MACHINES ARE NOT OPTIONAL AND HAVE NO DEFAULTS. The generator must not run on the host
+# under test — on the subject's machine it does not merely add noise, it competes for exactly the
+# cores being measured — so both are ssh destinations the caller supplies:
+#
+#   SUBJECT=user@host GENERATOR=user@host bench/<this script>
 set -uo pipefail
 
 ROUNDS=5
-SUBJECT=${SUBJECT:-bench-a}
+SUBJECT=${SUBJECT:?set SUBJECT to the ssh destination of the host under test}
 SECRET=bench-secret
 ENDPOINT=hook-1
 OUT=${OUT:-docs/research/measurements-$(date +%Y-%m-%d)}

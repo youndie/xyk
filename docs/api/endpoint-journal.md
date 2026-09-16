@@ -44,7 +44,7 @@ authenticated because it sits behind a proxy on one deployment is unauthenticate
 | `GET /journal`, `GET /journal/{eventId}` | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalRouting.kt` |
 | the markup | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalPage.kt` |
 | `GET /api/events*` | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalApi.kt` |
-| `POST .../redeliver` | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/domain/RedeliverUseCase.kt` |
+| `POST .../redeliver` | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/data/Sqlx4kJournalRepository.kt` |
 | the resources | `server/src/commonMain/kotlin/io/github/youndie/xyk/contract/JournalResource.kt` |
 
 ## Query parameters on the list

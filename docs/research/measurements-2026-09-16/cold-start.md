@@ -1,6 +1,6 @@
 # B-22 — cold start on a k0s node: met, and the two platforms are indistinguishable
 
-**Date:** 2026-09-16. **Node:** `bench-a`, 4 cpu, 7 GB, Ubuntu 25.10, glibc 2.43, **k0s
+**Date:** 2026-09-16. **Node:** the subject host — a 4-core, 7 GB cloud VM, Ubuntu 25.10, glibc 2.43, **k0s
 v1.36.4+k0s.0** installed single-node, containers run through the node's own containerd (`k0s ctr`,
 containerd 2.3.4). **Images already on the node**; the pull is not in any number here, as the item
 declared before the run. **The image cache is cleared before every round** — the image is removed and

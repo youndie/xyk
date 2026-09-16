@@ -43,10 +43,10 @@ a number that turns out to be the generator's ceiling reads as the service's.
 
 ## Where it stands (2026-09-15)
 
-**The two-host setup exists and works.** Subject on `bench-a` — the two **static binaries run
+**The two-host setup exists and works.** Subject on the subject host — the two **static binaries run
 directly**, no docker on that box and none needed, which is also the first confirmation of B-05's
 `-static` claim somewhere it could have failed (built against glibc 2.39, running on 2.43).
-Generator on `bench-b`, k6 v1.4.1, about a millisecond away.
+Generator on the generator host, k6 v1.4.1, about a millisecond away.
 
 **The first run is void and produced three findings instead of a number:**
 
@@ -105,7 +105,7 @@ set to the connection count on a misreading of what a k6 virtual user is
 ([research §1.23](../research/research-architecture.md),
 [throughput-pilot.md](../research/measurements-2026-09-15/throughput-pilot.md)).
 
-Measured on the real pair, bench-b → bench-a: the generator offers **8 000 rps with zero dropped
+Measured on the real pair, generator host → subject host: the generator offers **8 000 rps with zero dropped
 iterations at p50 0.5 ms**, and first strains at 16 000. Four times this criterion, so nothing below
 it is the generator's.
 

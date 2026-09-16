@@ -82,8 +82,6 @@ person — the machine only guards the membership.
 ### Services (3/3)
 
 - [x] [xyk-server](services/xyk-server.md) — the binary: ingest, delivery, journal, one SQLite file
-- [x] [chronik-sqlite](services/chronik-sqlite.md) — a chronik store over SQLite, so the timer
-  commits with the event
 - [x] [xyk-twin-go](services/xyk-twin-go.md) — the Go twin of the ingest path; a fixture, never
   shipped
 

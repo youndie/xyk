@@ -1,6 +1,6 @@
 # B-05 — the static link, with and without the outbound engine
 
-**Date:** 2026-09-15. **Host:** the Linux box, `Linux 6.6.87.2-microsoft-standard-WSL2 x86_64`,
+**Date:** 2026-09-15. **Host:** the build machine — a 20-core x86-64 Linux workstation,
 glibc 2.39 (`2.39-0ubuntu8.9`), gcc 13.3.0, Kotlin 2.4.10, Ktor 3.5.2.
 **Subject:** `:server` at B-01 — Ktor CIO server, sqlx4k/SQLite, kore, Koin — release `linuxX64`.
 

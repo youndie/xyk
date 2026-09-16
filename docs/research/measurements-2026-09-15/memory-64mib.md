@@ -16,9 +16,9 @@ that received **no requests at all**. Ten rounds per arm, four arms, all of them
 ## Why the mount failed
 
 `bench/memory.sh` bind-mounted the working tree: `-v "$PWD/bench":/bench`. On this Linux box the
-working tree is a **mutagen replica**, and mutagen writes files `0600` owned by the account that
-syncs them. The `grafana/k6` image runs as a **non-root** user. So the container can see the path and
-cannot read the file — and `permission denied` on a *scenario file* is not a failure of any request,
+working tree carries files at mode **`0600`**, owned by the account that created them. The
+`grafana/k6` image runs as a **non-root** user. So the container can see the path and cannot read the
+file — and `permission denied` on a *scenario file* is not a failure of any request,
 so nothing downstream goes red.
 
 The fix is to stage the scenario outside the replica (`mktemp -d`, `chmod 755`, `chmod 644` the file)

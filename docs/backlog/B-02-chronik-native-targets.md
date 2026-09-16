@@ -70,7 +70,7 @@ chronik still executes no DDL and owns no schema lifecycle.
 
 **One limit to know before it is discovered by a red build:** the native variant is `linuxX64`
 **only**. There is no `macosArm64`, so anything in xyk that touches chronik will not resolve on the
-Mac. That costs nothing here — this repository builds on the Linux box by policy — but it means the
+Mac. That costs nothing here — this repository builds on the build machine by policy — but it means the
 delivery half cannot be compiled locally at all, where the ingest half can.
 
 - AC: **met.** The release exists, xyk pins `0.1.0.16` from the catalog, and the coordinate was read

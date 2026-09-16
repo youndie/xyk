@@ -11,7 +11,7 @@
 # scenario is the concurrency, and on this platform resident memory follows the thread count, which
 # follows the concurrency.
 #
-# THE LIMIT IS A TRANSIENT SYSTEMD SERVICE rather than a container: `bench-a` has no docker, and a
+# THE LIMIT IS A TRANSIENT SYSTEMD SERVICE rather than a container: the subject host has no docker, and a
 # `MemoryMax=` unit gives the same cgroup v2 accounting — `memory.peak` and `memory.events` — which
 # is what the kernel kills on. `VmHWM` is not read here; it counts the mapped pages of an eleven
 # megabyte binary and once reported 9 600 kB for a container held under 8 MiB.
@@ -19,6 +19,11 @@
 # THE POSITIVE CONTROL IS PART OF THE RUN. The same binary under a deliberately small limit must be
 # killed. Two limits were guessed on another host and both survived; this one is verified here or the
 # run stops before it prints a table.
+# THE TWO MACHINES ARE NOT OPTIONAL AND HAVE NO DEFAULTS. The generator must not run on the host
+# under test — on the subject's machine it does not merely add noise, it competes for exactly the
+# cores being measured — so both are ssh destinations the caller supplies:
+#
+#   SUBJECT=user@host GENERATOR=user@host bench/<this script>
 set -uo pipefail
 
 LIMIT=64M
@@ -27,9 +32,9 @@ ROUNDS=10
 DURATION=30s
 RATE=2000
 CONNECTIONS=200
-SUBJECT=${SUBJECT:-bench-a}
-GENERATOR=${GENERATOR:-bench-b}
-SUBJECT_IP=${SUBJECT_IP:-10.0.0.2}
+SUBJECT=${SUBJECT:?set SUBJECT to the ssh destination of the host under test}
+GENERATOR=${GENERATOR:?set GENERATOR to the ssh destination of the load generator}
+SUBJECT_IP=${SUBJECT_IP:?set SUBJECT_IP to the address the generator reaches the subject on}
 SECRET=bench-secret
 ENDPOINT=hook-1
 # A PORT PER ROUND, and the reason is not tidiness. The readiness probes leave TIME-WAIT entries on

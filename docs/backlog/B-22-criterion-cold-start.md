@@ -36,11 +36,11 @@ number — the two are in different units of responsibility.
 - AC: a table with the three phases, per arm, several rounds, the node described.
 - AC: if the criterion is missed, the phase that missed it is named; "slow start" without the phase
   is not a result.
-- Anchors: `bench/cold-start.sh`, `charts/xyk/values.yaml`
+- Anchors: `bench/cold-start.sh`, `docker/scratch.Dockerfile`
 
 ## Met, 2026-09-16 — [cold-start.md](../research/measurements-2026-09-16/cold-start.md)
 
-k0s v1.36.4 installed single-node on `bench-a`; containers run through the node's own containerd,
+k0s v1.36.4 installed single-node on the subject host; containers run through the node's own containerd,
 images already present, cache cleared before every round, five rounds interleaved.
 
 | arm | import | listen | first 200 | **run → first 200** |

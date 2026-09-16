@@ -1,8 +1,8 @@
 # B-21 at the criterion's own load: what ships does not survive, and the arm that does was the one dismissed
 
-**Date:** 2026-09-16. **Subject:** `bench-a`, 4 cpu, 7 GB, Ubuntu, glibc 2.43, cgroup v2 — the binary
+**Date:** 2026-09-16. **Subject:** the subject host — a 4-core, 7 GB cloud VM, Ubuntu, glibc 2.43, cgroup v2 — the binary
 under a transient `systemd-run` unit with `MemoryMax=64M`, `MemorySwapMax=0`. **Generator:**
-`bench-b`, k6 v1.4.1, over the private network. **Load:** the criterion's own — `2 000 rps offered
+the generator host, k6 v1.4.1, over the private network. **Load:** the criterion's own — `2 000 rps offered
 over 200 connections`, 30 s a round, **ten rounds per arm, interleaved**. **Control:** the shipping
 arm at 6 MiB, which died twice out of two before the table was allowed to exist.
 

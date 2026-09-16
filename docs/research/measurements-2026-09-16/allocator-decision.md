@@ -1,7 +1,7 @@
 # B-28 — the allocator, decided on both criteria
 
-**Date:** 2026-09-16. Same two machines, same harness, same twin binary: `bench-a` (4 cpu) as the
-subject with both binaries run directly, `bench-b` as the generator, 2 000 rps offered over 200
+**Date:** 2026-09-16. Same two machines, same harness, same twin binary: the subject host (4 cpu) as the
+subject with both binaries run directly, the generator host as the generator, 2 000 rps offered over 200
 connections, three interleaved rounds with the first discarded.
 
 ## The two campaigns, side by side

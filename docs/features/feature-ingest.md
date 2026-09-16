@@ -6,7 +6,6 @@ status: active
 owner: unassigned
 involved_services:
   - xyk-server
-  - chronik-sqlite
 client_entries: []
 api:
   - endpoint-ingest
@@ -73,7 +72,7 @@ There are no cross-service calls: the whole path is in one process, against one 
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/` — the routing, the use case, the repository |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/contract/IngestResource.kt` — the typed resource |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` — `events`, `deliveries`, `timers` |
-| chronik-sqlite | `chronik-sqlite/src/commonMain/kotlin/io/github/youndie/xyk/chronik/Sqlx4kTimerStore.kt` — `insert(tx, timer)` |
+| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/TimerScheduler.kt` — the timer written inside the caller's transaction |
 | xyk-twin-go | `twin-go/main.go` — the same path, for the second column |
 
 ## 5. Scenarios (BDD / test cases)

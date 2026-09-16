@@ -76,7 +76,7 @@ Listed here because there is no screen document; the names are the ones the rend
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalRouting.kt` |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalPage.kt` — the markup |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalApi.kt` |
-| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/domain/RedeliverUseCase.kt` |
+| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/data/Sqlx4kJournalRepository.kt` |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/data/Sqlx4kJournalRepository.kt` |
 | xyk-server | `dev/image-smoke.sh` — the check that the page actually renders inside the image |
 

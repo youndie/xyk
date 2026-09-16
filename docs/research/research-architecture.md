@@ -288,7 +288,7 @@ rendering HTML pages out of SQLite.
 | Result on katcher: **9 570 311 bytes to pull** on `scratch` against 15 542 820 on `distroless/cc` | `docker save`, one host |
 | Curating a single gconv module instead of the directory would have saved 2 811 555 bytes and risks a `500` on an unusual `charset=` | the same comparison |
 | Static linking makes the **binary** about 0.9 MB larger; the saving is the base image disappearing | same source, same compiler, two link modes |
-| `docker image inspect .Size` means the compressed size on the containerd snapshotter and the uncompressed one on overlay2 — 9 569 623 against 27 918 036 for one image | the same image on WSL and on a GitHub runner |
+| `docker image inspect .Size` means the compressed size on the containerd snapshotter and the uncompressed one on overlay2 — 9 569 623 against 27 918 036 for one image | the same image on the build machine and on a GitHub runner |
 
 **Consequence 1 — the 10 MB image criterion is attainable and has almost no margin.** katcher's
 working `scratch` image is 9.57 MB to pull, and katcher does **not** link an HTTP client. xyk does,
@@ -301,7 +301,7 @@ storage driver.
 ### 1.12 The first numbers from this repository (B-01, 2026-09-15)
 
 The skeleton exists and runs, so the figures above about *other* services now have a local
-counterpart. Measured on the Linux box (Ubuntu 24.04, glibc 2.39), release `linuxX64`:
+counterpart. Measured on the build machine (Ubuntu 24.04, glibc 2.39), release `linuxX64`:
 
 | Fact | Where verified |
 |---|---|
@@ -819,7 +819,7 @@ summed without saying which is which. No kubelet, admission or CNI attach is in 
 
 | Fact | Where verified |
 |---|---|
-| With the port held, the binary exits 134 with a core dump, reporting `JobCancellationException: LazyStandaloneCoroutine is cancelling` and `EADDRINUSE` in a `Caused by` | 12 restarts on bench-a: 6 deaths, strictly alternating |
+| With the port held, the binary exits 134 with a core dump, reporting `JobCancellationException: LazyStandaloneCoroutine is cancelling` and `EADDRINUSE` in a `Caused by` | 12 restarts on the subject host: 6 deaths, strictly alternating |
 | The crash arrives **after** Ktor logs `Application started in 0.003 seconds` | the same logs |
 | Awaiting `resolvedConnectors()` after `start(wait = false)` changes nothing | tried, still exit 134 |
 | Binding the address before the engine starts turns it into one line and exit 78 | 12 restarts: 6 alive, 6 clean refusals, 0 crashes |
@@ -847,7 +847,7 @@ second line to correct the first.
 | `bench/ingest.js` set `preAllocatedVUs: connections` and `maxVUs: connections`, both 200 | the file, before this change |
 | Under `constant-arrival-rate` a VU is held for the whole round trip, so the pool caps requests **in flight**; the highest offerable rate is `VUs ÷ latency` | k6's executor semantics, and the numbers below |
 | 200 VUs ÷ 380 ms ≈ **526 rps** — the pilot's three arms delivered 523, 568 and 630 | [throughput-pilot.md](measurements-2026-09-15/throughput-pilot.md) |
-| With a large pool the same host pair offers **8 000 rps, 0 dropped, p50 0.5 ms**, and first drops at 16 000 | bench-b → bench-a, 2026-09-16 |
+| With a large pool the same host pair offers **8 000 rps, 0 dropped, p50 0.5 ms**, and first drops at 16 000 | generator host → subject host, 2026-09-16 |
 
 **Consequence 1 — the pilot's "shared ceiling across all three arms" was correctly spotted and wrongly
 attributed.** The reading was that a number landing in the same band for the subject, the twin and the
@@ -938,7 +938,7 @@ when somebody happens to need a fresh image.
 | Fact | Where verified |
 |---|---|
 | All **40** generator logs of the B-21 memory run contain one line: `stat /bench/ingest.js: permission denied` | `/tmp/xyk-memory-212808/*.log`, counted not sampled |
-| The scenario was bind-mounted from the working tree (`-v "$PWD/bench":/bench`); on this box that tree is a mutagen replica at mode `0600` | `ls -l` on the replica, and `grafana/k6`'s non-root user |
+| The scenario was bind-mounted from the working tree (`-v "$PWD/bench":/bench`), whose files are mode `0600` | `ls -l` on the replica, and `grafana/k6`'s non-root user |
 | The subject was therefore idle for every one of the forty rounds, and scored **10/10 survived** at 64 MiB | `/tmp/xyk-memory-212808/results.csv` |
 | The same defect silently produced twenty minutes of flat WAL in the first B-24 soak | `/tmp/xyk-soak-213521-unswept/samples.csv`, 1 stored event |
 | Staged outside the replica (`mktemp -d`, `chmod 755` / `644`) the same image reads the same file and runs | the smoke run, `http_reqs 3` |

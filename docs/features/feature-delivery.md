@@ -6,7 +6,6 @@ status: active
 owner: unassigned
 involved_services:
   - xyk-server
-  - chronik-sqlite
 client_entries: []
 api:
   - endpoint-journal
@@ -70,8 +69,8 @@ nothing here can be built until [B-02](../backlog/B-02-chronik-native-targets.md
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliverySink.kt` — the `TimerSink` |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliveryWorkers.kt` — worker count, owner names, lifecycle |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/data/Sqlx4kDeliveryRepository.kt` — attempt rows |
-| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/HttpClients.kt` — the curl engine and its CA configuration |
-| chronik-sqlite | `chronik-sqlite/src/commonMain/kotlin/io/github/youndie/xyk/chronik/Sqlx4kTimerStore.kt` — `claimDue`, `markFired`, `markFailed`, `markDeadLettered` |
+| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/OutboundPost.kt` — the curl engine and its CA configuration |
+| xyk-server | `server/src/variants/with-chronik/kotlin/io/github/youndie/xyk/delivery/DeliveryWorkers.native.kt` — the workers over chronik's published store |
 | upstream | `chronik/chronik-core/src/commonMain/kotlin/TimerWorker.kt` — the loop this feature depends on |
 
 ## 5. Scenarios (BDD / test cases)

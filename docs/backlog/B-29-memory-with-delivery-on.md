@@ -31,7 +31,7 @@ out, and the claim now describes a configuration nobody deploys.
   no state; the interesting case is deliveries in flight, which is what a real subscriber produces
   and what costs memory.
 - **Rejected: assuming the delta is small because B-14 saw flat RSS across worker counts.** That was
-  measured on a twenty-core box with no memory limit and no ingest load at the same time. Three
+  measured on a twenty-core machine with no memory limit and no ingest load at the same time. Three
   differences, each of which could be the one that matters.
 - Not covered: the twin's memory, which has no delivery half to compare against.
 
