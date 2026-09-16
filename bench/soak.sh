@@ -45,6 +45,10 @@ IMAGE=${IMAGE:-xyk-mem:fixed16}
 SINK_PORT=${SINK_PORT:-9101}
 SINK_DELAY_MS=${SINK_DELAY_MS:-0}
 SINK_NAME=soak-sink
+# An address of your own instead of the harness's sink. The arm it exists for is a subscriber that
+# is *down*, which is the most ordinary condition a webhook gateway meets and the one nobody had
+# measured — see B-31.
+SUBSCRIBER_OVERRIDE=${SUBSCRIBER_OVERRIDE:-}
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -54,6 +58,7 @@ while [ $# -gt 0 ]; do
     --delivery) DELIVERY=$2; shift 2 ;;
     --image) IMAGE=$2; shift 2 ;;
     --rate) RATE=$2; shift 2 ;;
+    --subscriber) SUBSCRIBER_OVERRIDE=$2; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -102,6 +107,9 @@ if [ "$DELIVERY" = on ] || [ "$DELIVERY" = noop ]; then
   # soaks did and changing it would change the subject — so loopback inside it is the container
   # itself and the sink is simply unreachable. Which is not a quiet failure: see the guard below.
   SUBSCRIBER="http://host.docker.internal:$SINK_PORT/hook"
+  # An override replaces the address and nothing else: the sink still runs, so the arm differs from
+  # the others by where deliveries go and by nothing about the stand.
+  [ -n "$SUBSCRIBER_OVERRIDE" ] && SUBSCRIBER="$SUBSCRIBER_OVERRIDE"
 else
   # Unreachable on purpose: with delivery off there is nothing to deliver with, and a real address
   # would only make the arm look like it was doing something.
@@ -192,6 +200,10 @@ if [ "$DELIVERY" = noop ]; then
   # built with `-Pxyk.outbound=noop`, so the whole delivery path runs and the request does not.
   # The banner check above still applies — the engine must be linked — and this one cannot.
   echo "subscriber check skipped: this build is the no-op outbound arm, nothing is meant to arrive"
+elif [ -n "$SUBSCRIBER_OVERRIDE" ]; then
+  # The harness's sink is not where this arm's deliveries go, so it cannot say whether they arrive.
+  # What the arm asserts instead is that attempts are being *made* — see the attempt count below.
+  echo "subscriber check skipped: deliveries go to $SUBSCRIBER, not to this harness's sink"
 elif [ "$DELIVERY" = on ]; then
   delivered_at_30s=$(curl -s -m 10 "http://127.0.0.1:$SINK_PORT/")
   if [ "${delivered_at_30s:-0}" -eq 0 ]; then
@@ -245,7 +257,11 @@ while [ $(( $(date +%s) - started )) -lt $(( MINUTES * 60 )) ]; do
   if [ "$DELIVERY" = on ] && [ "$elapsed" -ge 300 ] && [ "${backlog_checked:-0}" -eq 0 ]; then
     backlog_checked=1
     pending_now=$(echo "$(delivery_counts)" | cut -d, -f1)
-    if [ "${pending_now:-0}" -gt $(( RATE * 60 )) ]; then
+    if [ -n "$SUBSCRIBER_OVERRIDE" ]; then
+      # A backlog is the expected state when the subscriber is down; the arm is about what that
+      # costs, not about whether it happens.
+      echo "backlog check skipped: this arm's subscriber is somebody else's address"
+    elif [ "${pending_now:-0}" -gt $(( RATE * 60 )) ]; then
       echo "soak: ${pending_now} deliveries pending at five minutes — more than a minute of ingest." \
         | tee -a "$OUT/verdict.txt" >&2
       echo "      At $RATE rps the outbound half is not keeping up, so this run would measure a" >&2

@@ -65,7 +65,7 @@ re-prioritising one must never move its file.
 
 No open tasks.
 
-## Closed (30)
+## Closed (31)
 
 **Does this work at all**
 
@@ -108,6 +108,7 @@ No open tasks.
 - [B-28](docs/backlog/B-28-allocator-decision.md) `[x]` - Decide the allocator on both criteria, not on the one that was measured last
 - [B-29](docs/backlog/B-29-memory-with-delivery-on.md) `[x]` - The memory criterion has not been measured on the configuration that ships
 - [B-30](docs/backlog/B-30-delivery-memory-growth.md) `[-]` - The delivery half grows without bound, and the memory criterion cannot see it
+- [B-31](docs/backlog/B-31-subscriber-down.md) `[x]` - What a subscriber being down costs
 
 <!-- END INDEX -->
 

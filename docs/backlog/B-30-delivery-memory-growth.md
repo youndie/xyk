@@ -80,7 +80,7 @@ own measurement rather than a line in someone else's item.
 
 **No issue upstream and no mitigation.** The diagnosis is the deliverable and it is complete; the
 remedy is declined, so this is a **known problem** rather than a task, and it is written where an
-operator meets it — [`services/xyk-server.md` §9](../services/xyk-server.md), the README's criteria
+operator meets it — [`services/xyk-server.md` §8](../services/xyk-server.md), the README's criteria
 table, and a comment on the chart's memory limit — rather than only here.
 
 `dropped` rather than `done`, because `[x]` beside a title that says *grows without bound* would

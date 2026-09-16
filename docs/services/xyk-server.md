@@ -240,6 +240,29 @@ is still signing with the old one ([feature-endpoint-registry](../features/featu
 
 ## 8. Quirks
 
+* **The outbound half leaks about 2 kB per delivery, and it is not ours to fix.**
+  `ktor-client-curl` grows roughly that much of anonymous memory per request — measured outside this
+  service entirely, in [`bench/curl-leak`](../../bench/curl-leak), where one client in a loop with
+  no database and no server does the same thing and the same loop on the CIO engine is flat. Nothing
+  in xyk's code, its allocator or its GC is involved: the heap is capped and the growth is outside
+  it ([B-30](../backlog/B-30-delivery-memory-growth.md)). **So a memory limit on this container is a
+  time budget rather than headroom** — at 60 rps, about ninety seconds at 64Mi, four minutes at
+  128Mi, eight at 256Mi, then an OOM kill and a restart. Nothing is lost in one: an event is
+  committed with its timer before it is answered, and a delivery in flight is retried by whoever
+  takes the lease next. There is nothing to switch to — CIO speaks plain HTTP on Kotlin/Native and
+  subscribers are `https` ([research §1.6](../research/research-architecture.md)) — and the two
+  memory recipes that are applied, `MALLOC_ARENA_MAX=2` in the images and the optional
+  `XYK_HEAP_BYTES` ceiling, roughly halve the slope without removing it.
+* **A subscriber that is down makes that worse, not better**
+  ([B-31](../backlog/B-31-subscriber-down.md)). The request is still made, and a failure costs more
+  than a success: about 2 kB per delivered attempt against **14 kB refused and 60 kB timed out**. So
+  the intuition that a gateway with nowhere to deliver idles is wrong in both halves. **And the
+  limit decides which way it then fails:** at 64 MiB the behaviour is bimodal, both modes seen on
+  the same image — one run OOM-killed inside thirty seconds, the other riding the limit for five
+  minutes and delivering nothing, 3 442 events accepted with a `200` and still pending, because the
+  limit starves the workers so fewer attempts are made. A bigger limit lets them work and is spent
+  faster. Neither setting makes this go away; they are two failures to choose between.
+
 * **`GET /version` reports `commit = unknown` when `.git` is absent from the build context**, which
   is the usual case behind a `.dockerignore`, and is what it reports today — any build whose context
   has no `.git` stamps it. Worse: a file git tracks but `.dockerignore` excludes reads as *deleted*
