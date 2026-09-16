@@ -458,6 +458,24 @@ itself. Ten survivals at the edge of the limit, at a tenth of the load, is a res
 failure without demonstrating it. Full table and caveats in
 [memory-64mib.md](measurements-2026-09-15/memory-64mib.md).
 
+**Demonstrated, 2026-09-16, at the criterion's own load.** With the generator on a second machine
+offering 2 000 rps over **200** connections — the scenario the criterion actually names — the
+shipping arm is killed **nine times out of ten**, and `-Xallocator=std` survives **ten out of ten**
+at 54 864 – 65 656 kB with 56–108 threads
+([memory-declared-load.md](measurements-2026-09-16/memory-declared-load.md)).
+
+**So the prediction at the top of this section is confirmed, and the inherited fact two rows above it
+no longer transfers.** "`-Xallocator=std` measured worse than 16 KiB pages on a service with SQLite on
+the request path" was read here as a reason not to take it; on xyk at the declared concurrency it is
+the only arm that survives at all. The row stays because it was true where it was measured — and it
+is now the second time this section has had to say that a constant does not travel while its
+mechanism does.
+
+**The variable was concurrency, not rate**, and that is worth separating because the criterion states
+both. B-20 measured that this service absorbs ~437 rps whatever is offered, so raising the offered
+rate changes nothing; raising the connections from 50 to 200 changes the threads, and resident memory
+follows the threads.
+
 **Consequence 3 — the SQLite settings are not tuning, they are survival.** Pool of 2 connections,
 `PRAGMA wal_checkpoint(TRUNCATE)` on a timer **and** on file size, and `walBytes` reported separately
 because `page_count * page_size` does not include the journal. The failure mode is a cliff, not a

@@ -152,3 +152,37 @@ numbers here are the best. It needs the throughput column beside it before the s
   [research §1.8](../research/research-architecture.md) at the point where the prediction is, as a
   confirmation or a refutation — not appended elsewhere as a new fact.
 - Anchors: `bench/memory.sh`, `server/build.gradle.kts`, `docker/native.Dockerfile`
+
+## At the criterion's own load, 2026-09-16 — [memory-declared-load.md](../research/measurements-2026-09-16/memory-declared-load.md)
+
+Two machines at last: subject on `bench-a` under a `systemd-run` unit with `MemoryMax=64M`, generator
+on `bench-b` offering **2 000 rps over 200 connections**, ten interleaved rounds an arm, control at
+6 MiB dead twice out of two before the table was allowed to exist.
+
+| arm | survived | cgroup peak, kB | threads |
+|---|---|---:|---:|
+| `fixedBlockPageSize=16` — **what ships** | **1 / 10** | 65 868 (its one survivor, *above* the limit) | 57 |
+| `-Xallocator=std` | **10 / 10** | 54 864 – 65 656 | 56 – 108 |
+
+**The criterion is met — by the arm this repository decided not to ship.** The prediction written into
+this item before the code said 64 MiB was the criterion most likely to fail, and for the shipping
+configuration it does, nine times out of ten.
+
+**What changed from the earlier run is the concurrency, not the rate.** That run was 200 rps over 50
+connections; B-20 has since measured that the service absorbs ~437 rps whatever is offered, so the
+criterion's scenario adds requests *in flight* rather than requests per second. Resident memory
+follows the thread count and the thread count follows the concurrency — which is the mechanism this
+item named at the start and could not engage until there was a second machine.
+
+**A number in that run must not be read as throughput:** the killed rounds show 1 933 rps at 99.9 %
+failed, which is a generator meeting a closed port. Refused connections are cheap, so a dead subject
+reports a *higher* rate than a live one.
+
+- AC: **met** — four arms became two (the other two were decided by the earlier run and are not
+  re-litigated), ten rounds each, interleaved, positive control included, both hosts named.
+- AC: **the verdict goes into [research §1.8](../research/research-architecture.md)** where the
+  prediction is — done.
+- **Open, and it is the next item rather than a footnote:** B-20's three columns re-run with `std` in
+  the Kotlin column. Swapping the allocator on the memory criterion alone would be deciding on one of
+  the two numbers that matter. This run supplies 250–442 rps at 0 % failures over ten rounds — the
+  same band `fixed16` showed — which is evidence and not the column.
