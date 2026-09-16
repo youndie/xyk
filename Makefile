@@ -54,7 +54,7 @@ image:
 	./gradlew :server:linkReleaseExecutableNative
 	dev/binary-report.sh
 	docker build -f docker/native.Dockerfile -t xyk:dev .
-	@echo "image pull bytes: $$(docker save xyk:dev | wc -c)  (docker save on this host; `docker image inspect .Size` means different things on different storage drivers)"
+	@echo "image pull bytes: $$(docker save xyk:dev | wc -c)  (docker save on this host; 'docker image inspect .Size' means different things on different storage drivers)"
 
 # The `scratch` image, kept out of `make build` because it links the binary INSIDE docker — minutes
 # rather than the second the assembly takes. The control is the point of the second half: an image

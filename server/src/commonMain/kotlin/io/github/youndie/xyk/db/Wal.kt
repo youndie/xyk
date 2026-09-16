@@ -1,7 +1,9 @@
 package io.github.youndie.xyk.db
 
+import io.github.smyrgeorge.sqlx4k.ConnectionPool
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
+import io.github.smyrgeorge.sqlx4k.sqlite.sqlite
 import kotlinx.serialization.Serializable
 import okio.FileSystem
 import okio.Path.Companion.toPath
@@ -69,4 +71,36 @@ class WalCheckpoint(
      * looked like from the outside: nothing at all.
      */
     fun walBytes(): Long = fileSystem.metadataOrNull("$dbPath-wal".toPath())?.size ?: 0L
+}
+
+/**
+ * The last checkpoint of the process, on a connection nothing else shares.
+ *
+ * **Why it is not simply the pool's.** `PRAGMA wal_checkpoint(TRUNCATE)` has to wait for every other
+ * connection to the same database, and the pool's *own* second connection is one of those — idle in
+ * the pool and still enough to hold the truncation off. Left on the pool it is bimodal: 5–29 ms when
+ * it slips through, and past the stop stage's whole deadline when it does not. Measured under
+ * `--cpus 0.5`, 20 rounds an arm: **0 stalls with `XYK_SQLITE_POOL=1`, 5 of 30 with the shipping
+ * pool of two.** So this is called *after* `close()`, when this process holds no other connection,
+ * and it opens one of its own to do it.
+ *
+ * It is worth the connection because of what the truncation buys the *next* process: a log left
+ * full is journal the next start has to replay before it can serve, and that time lands on a cold
+ * start nobody attributes to the process that caused it.
+ */
+suspend fun lastCheckpoint(
+    path: String,
+    fileSystem: FileSystem = FileSystem.SYSTEM,
+): WalState {
+    val options =
+        ConnectionPool.Options
+            .builder()
+            .maxConnections(1)
+            .build()
+    val db = sqlite(url = "sqlite://" + path, options = options)
+    return try {
+        WalCheckpoint(db, path, fileSystem).checkpoint()
+    } finally {
+        db.close()
+    }
 }

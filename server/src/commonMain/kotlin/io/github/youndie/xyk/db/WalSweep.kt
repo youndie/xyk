@@ -3,6 +3,7 @@ package io.github.youndie.xyk.db
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -64,24 +65,17 @@ class WalSweep(
     }
 
     /**
-     * Stops the loop and takes one last checkpoint.
+     * Stops the loop, and only that.
      *
-     * The last one matters on a deploy: a pod that stops with a full journal hands the next pod a
-     * file it has to work through before it can serve, and that time is added to a cold start
-     * nobody attributes to the previous process.
+     * **The last checkpoint is deliberately not here.** It cannot run while the pool is open — the
+     * pool's other connection holds the truncation off — so it belongs after `close()`, where
+     * [lastCheckpoint] does it on a connection of its own.
      */
     suspend fun stop() {
-        job?.cancel()
+        // `cancelAndJoin`, not `cancel`. Cancelling a loop says it must stop; only joining says it
+        // has. The gap between the two is a statement still in flight inside SQLite — and the stop
+        // participant returns in the meantime, so the work escapes into the *next* stage.
+        job?.cancelAndJoin()
         job = null
-        try {
-            wal.checkpoint()
-        } catch (cancelled: CancellationException) {
-            // The stop sequence has a deadline of its own; if it has run out, leaving is right.
-            throw cancelled
-        } catch (failure: Throwable) {
-            // Reported rather than swallowed: a last checkpoint that could not run is the reason
-            // the next process starts slowly, and nothing else would say so.
-            onFailure(failure)
-        }
     }
 }

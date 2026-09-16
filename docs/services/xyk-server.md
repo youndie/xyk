@@ -74,7 +74,7 @@ What it deliberately does **not** do:
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalRouting.kt` | the page and its JSON companions |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/Modules.kt` | Koin modules; the storage module is the only place a driver is named |
 | `docker/native.Dockerfile` | the runtime image on `distroless/cc-debian13`; the glibc pairing is written there |
-| `dev/shutdown-check.sh` | asserts the stop order against the real image, and fails on purpose under `STOP_TIMEOUT=0` |
+| `dev/shutdown-check.sh` | asserts the stop order against the real image, and that the journal was folded away; fails on purpose under `STOP_TIMEOUT=0` |
 
 ## 3. How it is built
 
@@ -88,8 +88,37 @@ is opened and migrated *before* `embeddedServer(...)`, the server is started wit
 and the stop sequence is kore's rather than `ApplicationStopping` — because on Kotlin/Native the
 engine's stop steps run in the opposite order from the JVM, so the idiomatic place to close the pool
 runs *before* the engine has drained ([research §1.10](../research/research-architecture.md)). The
-stop order is: announce not-ready → drain the engine → stop the delivery workers → close the pool.
-A webhook that was answered `200` and not yet delivered is exactly what that order protects.
+stop order is: announce not-ready → drain the engine → stop the delivery workers, the sweeps and the
+health checks → close the pool → take the last checkpoint. A webhook that was answered `200` and not
+yet delivered is exactly what that order protects.
+
+**Three things about that order were wrong until 2026-09-16, and each was found by measuring rather
+than by reading.** The symptom was one line on a GitHub runner — `RELEASE_CONSUMERS
+DEADLINE_EXCEEDED in 3.000228711s`, with a 2.006354202s pool close behind it — which took `make
+build` red on `main`. It reproduces on the build machine under `--cpus 0.5`, in 3 rounds of 30, and
+the rounds that miss it spend 3–31 ms: a wait on a lock, not a slow machine.
+
+1. **Participants registered in one stage run concurrently.** kore's `runStage` launches all of them
+   and joins; only the *stages* are ordered. So `consumer(a)` before `consumer(b)` ordered nothing,
+   and `wal_checkpoint(TRUNCATE)` ran alongside `RejectionFlush.stop()`'s final write and the
+   probes' `SELECT 1`. An order needed inside a stage is written as composition — one participant
+   calling two things in sequence.
+2. **Cancelling a loop is not stopping it.** Every `stop()` here cancelled its job without joining,
+   so the participant returned while a statement was still in flight inside SQLite and the work
+   escaped into the *next* stage. They join now. `HealthRegistry.stop()` in kore cancels without
+   joining too, and the check is inside an FFI call cancellation does not reach, so the probes get a
+   scope of their own and that scope is joined.
+3. **The truncating checkpoint cannot run while the pool is open at all.** It waits for every other
+   connection to the database, and the pool's own second connection — idle, holding nothing of ours
+   — is enough to hold it off. This is the one that actually cost the deadline, and it is settled by
+   an experiment rather than an argument: same image, same host, `--cpus 0.5`, **0 stalls in 20
+   rounds at `XYK_SQLITE_POOL=1` against 5 in 30 at the shipping pool of two.** So the last
+   checkpoint happens *after* `close()`, on a connection of its own (`lastCheckpoint`), when this
+   process holds no other.
+
+After all three: **0 stalls in 30 rounds**, the pool stage a flat 5–7 ms. And it is checked for
+doing its job rather than for being quick — a 107 152-byte `-wal` at the moment of `SIGTERM` is gone
+after it, with the frames moved into a database file that grew to match.
 
 **Verification happens on the raw bytes, before anything parses them.** The body is read once, as
 bytes; it is verified; it is stored; and it is parsed only if some feature needs a field out of it.

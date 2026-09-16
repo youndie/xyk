@@ -11,6 +11,7 @@ import io.github.youndie.xyk.db.RetentionSweep
 import io.github.youndie.xyk.db.WalCheckpoint
 import io.github.youndie.xyk.db.WalSweep
 import io.github.youndie.xyk.db.applyBootstrap
+import io.github.youndie.xyk.db.lastCheckpoint
 import io.github.youndie.xyk.db.openDatabase
 import io.github.youndie.xyk.delivery.DeliverySink
 import io.github.youndie.xyk.delivery.data.Sqlx4kDeliveryRepository
@@ -39,6 +40,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -263,7 +266,13 @@ fun main() {
     server.start(wait = false)
 
     val checksScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    probes.start(checksScope)
+    // A scope of its own, not `checksScope`, and the reason is the stop sequence rather than
+    // tidiness: the readiness check is `SELECT 1` against the pool, so it is a *reader*, and a
+    // reader alive during `wal_checkpoint(TRUNCATE)` is what that checkpoint waits for. Separating
+    // the scopes is what makes it possible to end the readers first without touching the loops that
+    // have their own ordered participants below.
+    val probesScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    probes.start(probesScope)
     // Started after the engine, so the first tick cannot race the schema or the port. A delivery
     // attempted before this process can answer its own probes would be an attempt nobody could
     // explain from the outside.
@@ -293,6 +302,17 @@ fun main() {
             // attempt — the record of the one thing an operator would come looking for.
             workers?.let { running -> consumer(participant("delivery workers") { running.stop() }) }
 
+            // A READER, AND CANCELLATION IS NOT ENOUGH. The store check is `SELECT 1` on the
+            // pool, so a probe in flight holds a read lock; `HealthRegistry.stop()` cancels without
+            // joining, and the statement is inside an FFI call cancellation does not reach. Only
+            // the join establishes that no reader is left by the time this stage ends.
+            consumer(
+                participant("health checks") {
+                    probes.stop()
+                    probesScope.coroutineContext.job.cancelAndJoin()
+                },
+            )
+
             // Before the pool and after the drain: the last checkpoint runs while the database is
             // still open, and it decides how much journal the *next* process has to work through
             // before it can serve — time that would otherwise be added to a cold start nobody
@@ -301,14 +321,43 @@ fun main() {
             // for, so they are flushed here rather than lost with the process.
             consumer(participant("retention sweep") { retentionSweep.stop() })
             consumer(participant("rejection counters") { rejectionFlush.stop() })
-            consumer(participant("wal sweep") { sweep.stop() })
 
-            // Last, because everything above it writes through this pool.
-            pool(databaseParticipant(db))
+            // Last, because everything above it writes through this pool — and the last checkpoint
+            // is *inside* this participant rather than beside the ones above it.
+            //
+            // PARTICIPANTS IN ONE STAGE RUN CONCURRENTLY. kore orders stages, not the participants
+            // within a stage: `runStage` launches all of them and joins. So registering the
+            // checkpoint after the flush ordered nothing, and `wal_checkpoint(TRUNCATE)` ran
+            // alongside `RejectionFlush.stop()`'s final write and the probes' `SELECT 1` — a
+            // truncating checkpoint cannot take its lock while either is in flight, so it waited,
+            // and the wait cost more than the stage had.
+            //
+            // Measured, not reasoned: on a GitHub runner this took `make build` red with
+            // `RELEASE_CONSUMERS DEADLINE_EXCEEDED in 3.000228711s` and a 2.006354202s pool close
+            // behind it. On the build machine under `--cpus 0.5` it reproduced in 3 rounds of 30,
+            // at 3.000s against 3–31 ms in the rounds that missed the collision — the shape of a
+            // lock being waited on rather than of a slow machine.
+            //
+            // The order between the two below is the reason they are composed and not registered:
+            // the checkpoint has to happen while the database is still open, and the database has
+            // to close after it.
+            pool(
+                participant("sqlite") {
+                    sweep.stop()
+                    db.close().getOrThrow()
+                    // AFTER the close, not before it: the truncating checkpoint has to wait for
+                    // every other connection to this database, and the pool's own second connection
+                    // — idle, holding nothing of ours — is enough to hold it off past the stage's
+                    // whole deadline. `lastCheckpoint` opens one of its own once the pool is gone.
+                    val state = lastCheckpoint(config.sqlitePath)
+                    if (state.busy) {
+                        println("wal: last checkpoint left ${state.framesInLog} frames, ${state.bytes} bytes")
+                    }
+                },
+            )
 
             telemetry(
-                participant("health checks") {
-                    probes.stop()
+                participant("DI container") {
                     checksScope.cancel()
                     koin.close()
                     stopKoin()
@@ -317,8 +366,6 @@ fun main() {
         }
     }
 }
-
-private fun databaseParticipant(db: ISQLite) = participant("sqlite pool") { db.close().getOrThrow() }
 
 /**
  * A participant out of a name and a lambda.

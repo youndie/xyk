@@ -26,11 +26,18 @@ STOP_TIMEOUT=${STOP_TIMEOUT:-30}
 # pool must close after the engine has finished answering, not before.
 STAGES=(SIGNAL ANNOUNCE DRAIN RELEASE_CONSUMERS RELEASE_POOLS EXIT)
 
-cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
+# On a volume, because the stop order is only half the assertion: the other half is that the last
+# checkpoint DID something, and that is a file on disk. It has to be visible from outside the
+# container — a participant that throws is recorded by kore as a failure and the stage still reports
+# COMPLETED, so a checkpoint that quietly stopped working would pass every check above.
+DATA=$(mktemp -d)
+chmod 777 "$DATA"
+
+cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$DATA"; }
 trap cleanup EXIT
 
-cleanup
-docker run -d --name "$NAME" -p "$PORT:8080" "$IMAGE" >/dev/null || {
+docker rm -f "$NAME" >/dev/null 2>&1 || true
+docker run -d --name "$NAME" -v "$DATA:/data" -p "$PORT:8080" "$IMAGE" >/dev/null || {
   echo "shutdown-check: could not start $IMAGE" >&2; exit 2; }
 
 ready=false
@@ -62,10 +69,25 @@ for stage in "${STAGES[@]}"; do
   previous=$position
 done
 
+# THE JOURNAL, AFTER THE STOP. `wal_checkpoint(TRUNCATE)` has to wait for every other connection to
+# the database, and the pool's own second connection is one of them — so a checkpoint taken while
+# the pool is still open waits, and either misses its deadline or gives up and leaves the log where
+# it was. Either way the next process starts by replaying a journal this one was supposed to have
+# folded away, and nothing in the transcript says so. The file does.
+wal=$(ls "$DATA"/*-wal 2>/dev/null | head -1)
+if [ -n "$wal" ] && [ -s "$wal" ]; then
+  echo "shutdown-check: the journal survived the stop — $(wc -c <"$wal") bytes in $(basename "$wal")" >&2
+  failed=1
+fi
+if printf '%s\n' "$log" | grep -q "last checkpoint left"; then
+  echo "shutdown-check: the last checkpoint could not reset the log" >&2
+  failed=1
+fi
+
 if [ "$failed" -ne 0 ]; then
   echo "--- transcript ---" >&2
   printf '%s\n' "$log" >&2
   exit 1
 fi
 
-echo "shutdown-check: ${STAGES[*]} — in order, all COMPLETED"
+echo "shutdown-check: ${STAGES[*]} — in order, all COMPLETED; the journal is folded away"

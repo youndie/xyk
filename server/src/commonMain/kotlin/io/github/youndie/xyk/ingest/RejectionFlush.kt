@@ -4,6 +4,7 @@ import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -43,7 +44,11 @@ class RejectionFlush(
      * the last rejections of a deploy are the ones an operator is most likely to be looking for.
      */
     suspend fun stop() {
-        job?.cancel()
+        // `cancelAndJoin`, not `cancel`. Cancelling a loop says it must stop; only joining says it
+        // has. The gap between the two is a statement still in flight inside SQLite — and the stop
+        // participant returns in the meantime, so the work escapes into the *next* stage and
+        // collides with the checkpoint there. See the stop order in `Main.kt`.
+        job?.cancelAndJoin()
         job = null
         flushOnce()
     }
