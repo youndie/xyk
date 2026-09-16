@@ -186,3 +186,33 @@ the service, and the difference is what the service does around each delivery.
 webhook subscribers are `https`, which is why research §1.6 records curl as the only engine there
 is. So the choice is upstream, or a mitigation that bounds the growth rather than removes it.
 
+## Four ways it could have been ours, and none of them is
+
+The attribution above rests on subtraction — CIO flat, curl not — and subtraction is consistent with
+more than one story. "The engine leaks" is one. "The engine allocates native memory behind Kotlin
+objects nobody collects" is another, and that one would be **ours**: a caller's GC settings, a
+caller's client lifetime, a caller's allocator. Each was tested in `bench/curl-leak` rather than
+argued about, 20 000 requests an arm:
+
+| what was changed | result |
+|---|---|
+| `GC.collect()` every 1 000 requests | 68 208 kB against 69 788 — **no effect** |
+| response body never read (`READ_BODY=0`) | 67 344 against 70 152 — no effect |
+| client closed and rebuilt every 1 000 requests | 73 808 against 70 272 — **slightly worse** |
+| built with `pagedAllocator=false`, the allocator the service ships | 83 840 — **faster**, not slower |
+
+So it is not retention behind uncollected objects, not the response handling, not the client's
+lifetime, and not the allocator. The same binary on the shipping allocator with the CIO engine sat
+at **19 200 kB and did not move at all** across all four samples — the flattest control in this
+file, and it holds the runtime, the loop, the sink, the heap ceiling and `MALLOC_ARENA_MAX=2` still.
+
+**And the engine's own handle lifecycle reads correct.** In `CurlMultiApiHandler`, every completion
+path goes through `cleanupEasyHandle` — `curl_multi_remove_handle` then `curl_easy_cleanup` — inside
+a `finally`, and the holder's `dispose()` frees the header slist and three `StableRef`s. Whatever
+grows is not an easy handle nobody released.
+
+**What that leaves, and it is not nothing.** Reading code is not running it, so "reads correct" is a
+weaker statement than these measurements. The candidates left are inside the engine's native half —
+its response and header buffers, or libcurl's own caches — and separating those needs a tool that
+can attribute native allocations, not another arm of this harness.
+

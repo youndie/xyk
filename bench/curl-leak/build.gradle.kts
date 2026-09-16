@@ -2,7 +2,15 @@ plugins { kotlin("multiplatform") version "2.4.10" }
 
 kotlin {
     linuxX64 {
-        binaries.executable { entryPoint = "main" }
+        binaries.executable {
+            entryPoint = "main"
+            // MATCH WHAT THE SERVICE SHIPS, on request. The default here is Kotlin/Native's paged
+            // allocator and xyk ships `pagedAllocator=false` (B-28), so a reproducer left on the
+            // default is answering about a binary nobody runs. `-Pallocator=paged-off` switches it.
+            if (project.findProperty("allocator") == "paged-off") {
+                freeCompilerArgs += listOf("-Xbinary=pagedAllocator=false")
+            }
+        }
     }
     sourceSets {
         getByName("linuxX64Main") {

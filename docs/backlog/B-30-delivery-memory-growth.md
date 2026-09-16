@@ -94,6 +94,14 @@ read as fixed. Nothing is fixed. What is settled is whose it is and what it cost
   roughly halve the slope and are worth keeping on their own account. They are in the images and
   they stay.
 
+**Four consumer-side explanations were tested afterwards and refuted** — an explicit GC, never
+reading the response, recycling the client, and the shipping allocator — because the attribution had
+been made by subtraction and subtraction admits more than one story. None of them changed the slope;
+the allocator arm made it steeper. The CIO control on the shipping allocator sat at 19 200 kB
+without moving at all. The engine's handle lifecycle also reads correct on inspection. That does not
+make the conclusion certain — reading code is not running it — but it is no longer one experiment
+wide.
+
 **What would reopen this.** A ktor release that changes the curl engine's allocation, or a second
 HTTPS engine on Kotlin/Native. `bench/curl-leak` is the check either way: it takes a minute to
 build and answers in five.
