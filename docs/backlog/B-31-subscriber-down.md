@@ -62,5 +62,11 @@ the service:
 **So "it comes back" is not a state this service reaches on its own.** An operator gets the traffic
 back only by redelivering by hand, and only for what the journal still holds.
 
-**Still not measured:** an outage shorter than the retry window — the bound is thirty seconds and
-nothing has been run below it.
+**How short is short enough, measured:** nothing dies up to **fifteen seconds**; at twenty, 90 and
+143 events do. Five attempts with 1, 2, 4 and 8 seconds between them span fifteen seconds from the
+first, so that is the threshold and it is arithmetic rather than luck. But the queue is left
+elevated by **every** outage, including a five-second one — 458 pending two minutes later against a
+healthy 220 — because the capacity that would drain it is not there.
+
+**Still not measured:** whether that threshold moves with the ingest rate. It was found at 60 rps
+and nowhere else.

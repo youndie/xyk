@@ -101,10 +101,33 @@ B-31's ~14 kB — and the process was OOM-killed shortly after the subscriber re
 delivered **94** of 4 878 pending. The outage spends the memory budget before there is anything to
 recover with.
 
+## How short an outage loses nothing
+
+Same stand, the outage shortened until nothing dies. Each arm: the sink starts that many seconds
+after the first event is stored, then two minutes of recovery, then the counts.
+
+| outage | dead | | pending after two minutes |
+|---:|---:|---:|---:|
+| 5 s | 0 | | 458 |
+| 10 s | 0 | 0 | 721 – 997 |
+| 15 s | 0 | | 995 |
+| **20 s** | **90** | **143** | 1 193 – 1 321 |
+
+**Nothing dies up to fifteen seconds; at twenty, some does.** That is where the arithmetic puts it:
+five attempts with delays of 1, 2, 4 and 8 seconds between them are spread over **fifteen seconds**
+from the first, so an event needs fifteen seconds of uninterrupted failure to exhaust them. Below
+that the subscriber comes back before any event runs out of attempts, and a 20-second outage kills
+only what was accepted in its first few seconds — 90 and 143 of roughly 1 100 accepted while it was
+down, not all of them.
+
+**The queue, though, is elevated after every one of them.** A healthy service at this rate sits at
+about 220 pending; two minutes after a **five-second** outage it is at 458, and it climbs with the
+length of the outage. The same absence of spare capacity that keeps a big backlog from draining
+keeps a small one from draining too — it is only less visible.
+
 ## Not covered
 
 * **DNS failure as its own arm.** It behaved like the others when it appeared by accident, and it
   was not re-run deliberately.
 * **Whether the per-attempt figures hold at other rates.** One rate, 60 rps, throughout.
-* **An outage shorter than the retry window.** Both recovery runs outlast it, so "how short is short
-  enough to lose nothing" is bounded above by thirty seconds and not measured.
+* **Whether the threshold below moves with the rate.** It was found at 60 rps and nowhere else.
