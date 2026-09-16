@@ -1,0 +1,64 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "The portfolio's configuration is extended by name rather than copied: what belongs to ten repositories lives in `youndie/sborka`, and what is here is what only this repository can decide.",
+    "`automerge-harness` is extended second, and its precondition was checked rather than assumed. It is only safe where a pull request actually runs the build — and both workflows here do, on `pull_request`, verified by watching them run rather than by reading their triggers. Neither had ever executed before 2026-09-16: `build.yaml` did not parse, and `check.yaml` had no JDK. A green-looking pull request in that state means nobody ran anything, which is exactly the counter-example the harness preset names.",
+    "The order matters: package rules are concatenated preset-first and the last match wins, so the harness rule has to come after the base preset's 'a major gets a human'."
+  ],
+  "extends": [
+    "github>youndie/sborka",
+    "github>youndie/sborka:automerge-harness"
+  ],
+  "packageRules": [
+    {
+      "description": [
+        "chronik is one release across three modules, and taking them apart is a link error rather than a version skew. `chronik-core` carries the contract, `chronik-sqlx4k-sqlite` the store that implements it and `chronik-conformance` the corpus that decides whether a store is correct — a repository holding one version of the corpus against another of the store is asking a different question from the one it thinks it is asking.",
+        "The same shape as the preset's `sborka` rule and for the same reason: one number in the catalogue, one pull request.",
+        "sqlx4k moves with chronik whether or not Renovate knows it. `chronik-sqlx4k-sqlite` is compiled against a particular sqlx4k, and this repository pins the same number for its own SQLite driver: 1.13.0 against 1.13.1 was found by reading chronik's POM, not by a failure, and the failure it would have produced is a link error rather than a resolution one.",
+        "They are grouped so the build checks them together. They are NOT pinned to each other, because they release independently and a rule that pretended otherwise would hold back whichever moved first."
+      ],
+      "matchPackageNames": [
+        "/^io\\.github\\.youndie\\.chronik:/",
+        "/^io\\.github\\.smyrgeorge:sqlx4k/"
+      ],
+      "groupName": "chronik"
+    },
+    {
+      "description": [
+        "kore is two libraries and a Gradle plugin that generates the object those libraries read. A plugin from one version with a library from another compiles and then disagrees about the shape of `KoreBuildIdentity` — the catalogue says so where the version is declared, and this keeps the bump honouring it."
+      ],
+      "matchPackageNames": [
+        "/^io\\.github\\.youndie:kore-/",
+        "/^io\\.github\\.youndie\\.kore\\./"
+      ],
+      "groupName": "kore"
+    },
+    {
+      "description": [
+        "This repository's own image is not a dependency of itself. Renovate offering a bump of `ghcr.io/youndie/xyk` would be offering the tag this repository publishes."
+      ],
+      "matchPackageNames": [
+        "ghcr.io/youndie/xyk"
+      ],
+      "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "description": [
+        "THE GENERATOR'S IMAGE IS PINNED IN SHELL, WHERE THE DOCKER MANAGER CANNOT SEE IT. `K6_IMAGE=${K6_IMAGE:-grafana/k6:0.54.0}` appears in four harnesses under `bench/`, and a bumper that sees one form of a pin and not another leaves the unseen one behind for ever — which is worse than not bumping at all, because the repository then has two versions of the same tool and one of them is invisible.",
+        "It is a `customType: regex` rather than a refactor into a single file because the harnesses are meant to be runnable one at a time, by hand, without sourcing anything.",
+        "`managerFilePatterns` rather than `fileMatch`: the running app is Renovate 44, where the older name is gone. Validated against 44 — an older validator accepts only the old name and would have passed a config the app then ignores, which is a manager that manages nothing and says so nowhere."
+      ],
+      "customType": "regex",
+      "matchStrings": [
+        "K6_IMAGE=\\$\\{K6_IMAGE:-(?<depName>[^:]+):(?<currentValue>[^}]+)\\}"
+      ],
+      "datasourceTemplate": "docker",
+      "managerFilePatterns": [
+        "/^bench/.*\\.sh$/",
+        "/^dev/.*\\.sh$/"
+      ]
+    }
+  ]
+}
