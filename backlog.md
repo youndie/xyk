@@ -61,13 +61,11 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (1)
+## Open (0)
 
-| Task | | Priority | Size | Blocked by |
-|---|---|---|---|---|
-| [B-30](docs/backlog/B-30-delivery-memory-growth.md) `[ ]` | The delivery half grows without bound, and the memory criterion cannot see it | P0 | L | - |
+No open tasks.
 
-## Closed (29)
+## Closed (30)
 
 **Does this work at all**
 
@@ -109,6 +107,7 @@ re-prioritising one must never move its file.
 - [B-24](docs/backlog/B-24-soak-wal.md) `[x]` - The soak: the journal page reading while ingest writes, long enough to find the cliff
 - [B-28](docs/backlog/B-28-allocator-decision.md) `[x]` - Decide the allocator on both criteria, not on the one that was measured last
 - [B-29](docs/backlog/B-29-memory-with-delivery-on.md) `[x]` - The memory criterion has not been measured on the configuration that ships
+- [B-30](docs/backlog/B-30-delivery-memory-growth.md) `[-]` - The delivery half grows without bound, and the memory criterion cannot see it
 
 <!-- END INDEX -->
 

@@ -1,7 +1,7 @@
 ---
 id: B-30
 title: "The delivery half grows without bound, and the memory criterion cannot see it"
-status: open
+status: dropped
 priority: P0
 size: L
 stage: stage-3-verdict
@@ -75,3 +75,25 @@ seconds** — faster than the growth above. That arm was an accident: the first 
 pointed the subject at `127.0.0.1`, which inside a bridge container is the container itself. It is
 the most ordinary condition a webhook gateway meets — the subscriber is down — and it deserves its
 own measurement rather than a line in someone else's item.
+
+## Closed without a fix, by the owner, 2026-09-16
+
+**No issue upstream and no mitigation.** The diagnosis is the deliverable and it is complete; the
+remedy is declined, so this is a **known problem** rather than a task, and it is written where an
+operator meets it — [`services/xyk-server.md` §9](../services/xyk-server.md), the README's criteria
+table, and a comment on the chart's memory limit — rather than only here.
+
+`dropped` rather than `done`, because `[x]` beside a title that says *grows without bound* would
+read as fixed. Nothing is fixed. What is settled is whose it is and what it costs:
+
+* about **2 kB per request** in `ktor-client-curl`, reproduced outside this service in
+  [`bench/curl-leak`](../../bench/curl-leak) with one client and one loop;
+* so a container's memory limit is **a time budget, not a headroom**: 64 MiB is about ninety
+  seconds at 60 rps, 128 MiB about four minutes, 256 MiB about eight;
+* and the two memory recipes applied on the way — `MALLOC_ARENA_MAX=2` and the heap ceiling —
+  roughly halve the slope and are worth keeping on their own account. They are in the images and
+  they stay.
+
+**What would reopen this.** A ktor release that changes the curl engine's allocation, or a second
+HTTPS engine on Kotlin/Native. `bench/curl-leak` is the check either way: it takes a minute to
+build and answers in five.

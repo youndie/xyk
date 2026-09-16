@@ -45,10 +45,23 @@ resources:
     memory: 64Mi
     cpu: 100m
   limits:
-    # 64 MiB is the criterion this service was measured against, and it meets it **by reclaim rather
-    # than by headroom** — four of ten runs peaked at or above the limit itself. 128Mi is the default
-    # here because a limit a service sits exactly on is a limit it fails the first time anything
-    # changes; set it to 64Mi to run at the measured edge on purpose.
+    # READ THIS AS A TIME BUDGET, NOT AS HEADROOM, IF DELIVERY IS ON.
+    #
+    # `ktor-client-curl` grows about 2 kB of memory per request and never gives it back. It is not
+    # this service's code — the same growth reproduces with one client and no service around it, and
+    # the same loop on the CIO engine is flat — and there is nothing to switch to, because curl is
+    # the only engine that speaks TLS on Kotlin/Native. It is recorded as a known problem with no
+    # fix here: docs/backlog/B-30-delivery-memory-growth.md.
+    #
+    # So the limit decides how long a pod lives rather than whether it fits. Measured at 60 rps:
+    # roughly 90 seconds at 64Mi, four minutes at 128Mi, eight at 256Mi, then an OOM kill and a
+    # restart. Nothing is lost in one — an event is committed with its timer before it is answered,
+    # and a delivery in flight is retried by whoever takes the lease next — but a deployment that
+    # does not expect restarts will see them, and a smaller limit means more of them.
+    #
+    # The original reason for 128Mi over the measured 64Mi stands on its own: the memory criterion
+    # was met by reclaim rather than by headroom, four of ten runs peaking at or above the limit
+    # itself, and a service sitting exactly on its limit fails the first time anything changes.
     memory: 128Mi
 
 # terminationGracePeriodSeconds is part of the contract rather than a default: the shutdown plan is
