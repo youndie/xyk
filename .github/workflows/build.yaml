@@ -4,10 +4,8 @@
 # docker. Same rule as there: it runs the target a contributor runs — `make build` — so that the two
 # cannot drift apart.
 #
-# NOTE ON THIS REPOSITORY'S RUNNERS: the account's GitHub-hosted minutes are exhausted, so this
-# workflow will queue rather than run until that changes or a self-hosted runner is attached. That is
-# stated here rather than discovered: the target it wraps is `make build`, which runs on the Linux
-# box today and is where the evidence actually comes from.
+# This wraps `make build`, which links the binary, builds the image and asserts the stop order. It is
+# minutes rather than seconds, so it is separate from the document gate.
 
 name: build
 
@@ -44,5 +42,10 @@ jobs:
       # `docker save`, on one host. `docker image inspect .Size` reports the compressed size on the
       # containerd snapshotter and the uncompressed one on overlay2 — two numbers behind one field,
       # and a runner and a workstation disagree by a factor of three.
+      # A BLOCK SCALAR, and not for style. Written as `run: echo "pull bytes: …"` the colon inside
+      # the shell string makes YAML read `pull bytes` as a key, the whole file fails to parse, and
+      # GitHub reports a run with **zero jobs that fails in zero seconds** — no error, no annotation,
+      # and the workflow's name shown as its path. This file had never executed once.
       - name: Image pull bytes
-        run: echo "pull bytes: $(docker save xyk:dev | wc -c)"
+        run: |
+          echo "pull bytes: $(docker save xyk:dev | wc -c)"

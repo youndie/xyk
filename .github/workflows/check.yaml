@@ -1,9 +1,10 @@
 # The documentation gate for xyk. `docs/` lives inside this repository, so `make check` needs no
 # arguments.
 #
-# `./gradlew check` joins the `check` job the moment there is a build; until then this workflow is
-# the whole gate, and that is stated rather than implied — a CI file that looks like it builds
-# something and does not is worse than one that admits it.
+# `make check` is the documents **and** `./gradlew check`, so this job needs a JDK. It went red on
+# the first push it ever ran for, with `Dependency requires at least JVM runtime version 21. This
+# build uses a Java 17 JVM` — the runner's default. A workflow written from a template and never
+# executed is not a gate; it is a file that looks like one.
 
 name: check
 
@@ -33,6 +34,22 @@ jobs:
           python-version: "3.11"
 
       - run: pip install pyyaml
+
+      # 25 rather than the runner's default, and it must match what the build actually resolves
+      # against: the shared Gradle conventions refuse anything below 21.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      # MANDATORY, NOT AN OPTIMISATION. Without it every run downloads the Kotlin/Native distribution
+      # and its sysroots — hundreds of megabytes — before it can compile a line. Keyed on the version
+      # catalogue so a Kotlin upgrade invalidates it.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
 
       # BEFORE `make check`, and that order is the whole value of this step. Both checks catch a
       # number taken twice, but this one says *which branch took it and under what name*, while the
