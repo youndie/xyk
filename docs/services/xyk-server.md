@@ -72,6 +72,8 @@ What it deliberately does **not** do:
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliverySink.kt` | the `TimerSink`: one POST, one timeout, one attempt row |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliveryWorkers.kt` | N `TimerWorker`s and their owner names |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalRouting.kt` | the page and its JSON companions |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/sink/EventSink.kt` | the second-destination port, the envelope, and why the body is not on it |
+| `server/src/variants/with-kafka/kotlin/io/github/youndie/xyk/sink/EventSink.native.kt` | the kafkakn-backed sink, compiled only where kafkakn publishes a variant |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/Modules.kt` | Koin modules; the storage module is the only place a driver is named |
 | `docker/native.Dockerfile` | the runtime image on `distroless/cc-debian13`; the glibc pairing is written there |
 | `dev/shutdown-check.sh` | asserts the stop order against the real image, and that the journal was folded away; fails on purpose under `STOP_TIMEOUT=0` |
@@ -146,6 +148,7 @@ batches.
 | Library | `io.github.youndie:kore-core`, `kore-ktor` + `io.github.youndie.kore.build` | ordered shutdown, three probes, `/version`; resolves from reposilite, not Central |
 | Library | `org.kotlincrypto.macs:hmac-sha2`, `org.kotlincrypto.hash:sha2` | HMAC-SHA256 for GitHub and Stripe |
 | Library | `io.ktor:ktor-client-curl` | the only native engine that speaks HTTPS; carries its own static libcurl/OpenSSL |
+| Library | `io.github.youndie.kafkakn:kafkakn-core` | the optional Kafka sink; **snapshots only**, `linuxX64` and `jvm`, resolves from reposilite |
 | Library | Koin | DI, wired from the first repository rather than the third |
 | External | subscriber endpoints | arbitrary HTTP servers; their behaviour is the main source of retries |
 
@@ -221,6 +224,8 @@ it cannot verify. The list below is the shape, not a copy — the file is the tr
 | `XYK_DELIVERY_WORKERS` | number of `TimerWorker`s | no |
 | `XYK_STRIPE_TOLERANCE_SECONDS` | Stripe timestamp tolerance; `0` disables the check rather than tightening it | no (300) |
 | `XYK_RETENTION_DAYS` | payload purge horizon in days; `0` keeps payloads for ever | no (**7**) |
+| `XYK_KAFKA_BOOTSTRAP_SERVERS` | broker list for the optional sink; **unset means no sink at all** | no |
+| `XYK_KAFKA_TOPIC` | the topic accepted events are published to | no (`xyk.events`) |
 
 Endpoint secrets are **not** environment variables: they are rows, created through the journal's
 admin routes and never readable back over HTTP — the API answers with a fingerprint.
@@ -249,6 +254,37 @@ Concretely, for whoever operates this:
 Rotation is the other half and it already works: several secrets can be active at once, so a
 compromised one is retired by adding its replacement and disabling it, without an outage for whatever
 is still signing with the old one ([feature-endpoint-registry](../features/feature-endpoint-registry.md)).
+
+## 7b. The optional Kafka sink
+
+Off unless `XYK_KAFKA_BOOTSTRAP_SERVERS` names a broker, and absent from the binary altogether on a
+target kafkakn publishes nothing for — `main` prints which of the two it is at start-up rather than
+letting a configured deployment publish silently into nothing.
+
+What it publishes, per accepted event: the key is the event id, the value is a small JSON envelope
+(`event`, `endpoint`, `receivedAt`, `bodyBytes`, `contentType`), and the headers carry the endpoint
+id and the declared content type. **The body is not on the topic** — it is in `events`, behind the
+retention horizon of section 7a, and a copy on a topic would outlive that horizon somewhere nothing
+here can reach.
+
+Three properties are deliberate and each costs something:
+
+* **The row is committed before the publish is attempted.** An event that never reached the topic is
+  therefore visible from outside as a row with nothing behind it. What it costs is the reverse case:
+  a process that stops between the two leaves a row that never becomes a record, which is an outbox
+  question and not one this service answers today.
+* **`send` returns when the broker has acknowledged**, so the publish is part of the request that is
+  waiting for it, not something left behind afterwards. What it costs is ingest latency; what it
+  buys is that there is nothing in flight when the process is asked to stop.
+* **A refused publish does not fail the request.** The event is stored and the sender was promised
+  nothing about Kafka; a `500` would ask for a second copy of the webhook, which is worse than a
+  missing record that says so on stdout with its event id.
+
+The producer is closed in the release stage **after** the engine has drained, next to the delivery
+workers, for the same reason they are there: a publish belongs to a request that was already
+accepted. `close` flushes, so against a broker that is not answering it can take up to
+`message.timeout.ms` (ten seconds) against a `releaseGroup` deadline of three — a shutdown that loses
+nothing and overruns is a timing defect, and it is meant to be read as one rather than rounded.
 
 ## 8. Quirks
 

@@ -75,6 +75,11 @@ kotlin {
     // the consequence: on the Mac the native suite compiles without the delivery half rather than
     // failing to resolve, and the loss is stated rather than discovered.
     val chronikOnThisHost = hostOs == "Linux" && (arch == "x86_64" || arch == "amd64")
+
+    // kafkakn's native variant is `linuxX64` ONLY as well, and the same expression is written twice
+    // rather than shared: the two upstreams are separate publications and the day one of them grows
+    // a target is the day a single flag would quietly speak for both.
+    val kafkaknOnThisHost = hostOs == "Linux" && (arch == "x86_64" || arch == "amd64")
     val nativeTarget =
         when {
             hostOs == "Mac OS X" && arch == "aarch64" -> macosArm64("native")
@@ -255,6 +260,22 @@ kotlin {
                 dependencies {
                     implementation(libs.chronik.core)
                     implementation(libs.chronik.sqlx4k.sqlite)
+                }
+            }
+        }
+
+        // THE KAFKA SINK, on the same axis and for the same reason. The klib carries librdkafka and
+        // its TLS stack as static archives, so a target kafkakn does not publish for is a target
+        // this source set cannot even compile against — and the Mac is one. `no-kafka` keeps the
+        // suite building there, and the loss is a sink that is always absent rather than a build
+        // that fails to resolve.
+        getByName("nativeMain") {
+            kotlin.srcDir(
+                if (kafkaknOnThisHost) "src/variants/with-kafka/kotlin" else "src/variants/no-kafka/kotlin",
+            )
+            if (kafkaknOnThisHost) {
+                dependencies {
+                    implementation(libs.kafkakn.core)
                 }
             }
         }

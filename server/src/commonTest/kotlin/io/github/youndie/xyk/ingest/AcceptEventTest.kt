@@ -9,6 +9,8 @@ import io.github.youndie.xyk.delivery.TestTimerScheduler
 import io.github.youndie.xyk.ingest.data.Sqlx4kEventRepository
 import io.github.youndie.xyk.ingest.data.countOf
 import io.github.youndie.xyk.ingest.domain.AcceptEventUseCase
+import io.github.youndie.xyk.sink.AcceptedRecord
+import io.github.youndie.xyk.sink.EventSink
 import io.github.youndie.xyk.verify.GithubVerifier
 import io.github.youndie.xyk.verify.SignedRequest
 import io.github.youndie.xyk.verify.VerificationFailure
@@ -32,7 +34,11 @@ class AcceptEventTest {
     private val secret = "it's a secret"
     private val endpointId = "hook-under-test"
 
-    private suspend fun fixture(subscribers: Int): Pair<AcceptEventUseCase, ISQLite> {
+    private suspend fun fixture(
+        subscribers: Int,
+        sink: EventSink? = null,
+        onPublishFailure: (String, Throwable) -> Unit = { _, _ -> },
+    ): Pair<AcceptEventUseCase, ISQLite> {
         val db = openDatabase("/tmp/xyk-ingest-${Random.nextLong()}.db", maxConnections = 2)
         db.applyBootstrap(
             BootstrapEndpoint(
@@ -48,6 +54,8 @@ class AcceptEventTest {
             AcceptEventUseCase(
                 repository = Sqlx4kEventRepository(db, TestTimerScheduler()),
                 verifiers = mapOf(GithubVerifier.SCHEME to GithubVerifier()),
+                sink = sink,
+                onPublishFailure = { accepted, failure -> onPublishFailure(accepted.id, failure) },
             )
         return useCase to db
     }
@@ -191,6 +199,96 @@ class AcceptEventTest {
                 "the new secret was not accepted",
             )
             assertEquals(2, db.countOf("SELECT count(*) FROM endpoint_secrets;").toInt())
+            db.close().getOrThrow()
+        }
+
+    /**
+     * The sink, and the one thing about it that is pre-registered rather than chosen afterwards:
+     * **the row exists before the publish is attempted.** That order is what makes a record that
+     * never reached the topic visible from outside — an event in the table with nothing behind it —
+     * and the assertion is inside the fake, at the moment of the call, because asserting it after
+     * the fact would pass for either order.
+     */
+    @Test
+    fun `an accepted event is published after its row is committed and under the id the sender was given`() =
+        runTest {
+            val published = mutableListOf<AcceptedRecord>()
+            var rowsAtPublish = -1L
+            lateinit var db: ISQLite
+            val sink =
+                object : EventSink {
+                    override suspend fun publish(record: AcceptedRecord) {
+                        rowsAtPublish = db.countOf("SELECT count(*) FROM events WHERE id = '${record.eventId}';")
+                        published += record
+                    }
+
+                    override suspend fun close() = Unit
+                }
+            val (accept, database) = fixture(subscribers = 1, sink = sink)
+            db = database
+            val body = "{\"ok\":true}".encodeToByteArray()
+
+            val accepted = accept(params(signed(body))).getOrThrow()
+
+            assertEquals(1, published.size, "the accepted event was not published")
+            assertEquals(accepted.id, published.single().eventId)
+            assertEquals(endpointId, published.single().endpointId)
+            assertEquals(body.size.toLong(), published.single().bodyBytes)
+            assertEquals(1L, rowsAtPublish, "the publish ran before the row was committed")
+            db.close().getOrThrow()
+        }
+
+    @Test
+    fun `a sink that refuses does not fail the request and names the event it dropped`() =
+        runTest {
+            val refused = mutableListOf<String>()
+            val sink =
+                object : EventSink {
+                    override suspend fun publish(record: AcceptedRecord): Unit =
+                        throw IllegalStateException("no broker")
+
+                    override suspend fun close() = Unit
+                }
+            val (accept, db) =
+                fixture(
+                    subscribers = 1,
+                    sink = sink,
+                    onPublishFailure = { eventId, _ -> refused += eventId },
+                )
+
+            val accepted = accept(params(signed("{}".encodeToByteArray())))
+
+            assertTrue(accepted.isSuccess, "a refused publish failed a request that was already stored")
+            assertEquals(1, db.countOf("SELECT count(*) FROM events;").toInt())
+            assertEquals(listOf(accepted.getOrThrow().id), refused, "the dropped event was not named")
+            db.close().getOrThrow()
+        }
+
+    @Test
+    fun `a request that fails verification is never published`() =
+        runTest {
+            var publishes = 0
+            val sink =
+                object : EventSink {
+                    override suspend fun publish(record: AcceptedRecord) {
+                        publishes++
+                    }
+
+                    override suspend fun close() = Unit
+                }
+            val (accept, db) = fixture(subscribers = 1, sink = sink)
+            val body = "{\"ok\":true}".encodeToByteArray()
+            val request = signed(body)
+
+            accept(params(SignedRequest(request.headers, body + "!".encodeToByteArray(), request.nowEpochSeconds)))
+
+            assertEquals(0, publishes, "an unverified request reached the topic")
+
+            // The second half is what keeps the first from being vacuous: with the publish removed
+            // altogether, the assertion above passes and this one does not. A negative test that
+            // holds when the mechanism is absent says nothing about the mechanism.
+            accept(params(signed(body))).getOrThrow()
+            assertEquals(1, publishes, "a genuine request through the same fixture was not published")
             db.close().getOrThrow()
         }
 }
