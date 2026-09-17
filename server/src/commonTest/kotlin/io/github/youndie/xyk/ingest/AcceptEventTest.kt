@@ -210,7 +210,7 @@ class AcceptEventTest {
      * the fact would pass for either order.
      */
     @Test
-    fun `an accepted event is published after its row is committed, under the id the sender was given`() =
+    fun `an accepted event is published after its row is committed and under the id the sender was given`() =
         runTest {
             val published = mutableListOf<AcceptedRecord>()
             var rowsAtPublish = -1L
@@ -239,7 +239,7 @@ class AcceptEventTest {
         }
 
     @Test
-    fun `a sink that refuses does not fail the request, and names the event it dropped`() =
+    fun `a sink that refuses does not fail the request and names the event it dropped`() =
         runTest {
             val refused = mutableListOf<String>()
             val sink =
