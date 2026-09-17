@@ -7,8 +7,14 @@ kotlin {
             // MATCH WHAT THE SERVICE SHIPS, on request. The default here is Kotlin/Native's paged
             // allocator and xyk ships `pagedAllocator=false` (B-28), so a reproducer left on the
             // default is answering about a binary nobody runs. `-Pallocator=paged-off` switches it.
-            if (project.findProperty("allocator") == "paged-off") {
-                freeCompilerArgs += listOf("-Xbinary=pagedAllocator=false")
+            when (project.findProperty("allocator")) {
+                // Still the runtime's own allocator, only without paging.
+                "paged-off" -> freeCompilerArgs += listOf("-Xbinary=pagedAllocator=false")
+                // The one that is NOT `CustomAllocator` at all: the system allocator. The profile
+                // puts every leaked byte under `CustomAllocator::CreateObject` and `CreateArray`,
+                // so this is the arm that says whether that attribution is real.
+                "std" -> freeCompilerArgs += listOf("-Xallocator=std")
+                else -> Unit
             }
         }
     }

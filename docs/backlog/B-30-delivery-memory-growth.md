@@ -109,6 +109,14 @@ without moving at all. The engine's handle lifecycle also reads correct on inspe
 make the conclusion certain — reading code is not running it — but it is no longer one experiment
 wide.
 
+**Squeezed further, 2026-09-17.** It does not plateau — a straight line to 197 MB over 100 000
+requests with the heap capped at 8 MiB. Under a profiler every leaked byte is a Kotlin allocation
+(`CustomAllocator::CreateObject` and `CreateArray`, 61 MB of 62) with nothing under a libcurl frame,
+and `-Xallocator=std` grows identically, so it is not the allocator backend either. One fork is left
+open and written down rather than guessed: whether the objects are reachable and the heap ceiling is
+not enforced as assumed, or they are collected and the memory is never returned. Deciding it needs a
+reference-path dump for the Kotlin/Native heap.
+
 **What would reopen this.** A ktor release that changes the curl engine's allocation, or a second
 HTTPS engine on Kotlin/Native. `bench/curl-leak` is the check either way: it takes a minute to
 build and answers in five.

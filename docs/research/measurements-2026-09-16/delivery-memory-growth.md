@@ -247,3 +247,36 @@ quarters of what it grew at 32 MiB. That remainder is outside the heap, is unaff
 ceiling, by an explicit GC, by closing the client and by the allocator, and it does not appear on
 CIO. The engine's share is the larger one; ours is real and smaller.
 
+## Squeezing the remainder: where it is, and one fork left open
+
+**It does not plateau.** 100 000 requests with the heap capped at 8 MiB, sampled every 10 000:
+47 680 → 83 840 → 121 760 → 159 360 → 196 960 kB. Four deltas of 36 160, 37 920, 37 600, 37 600 —
+a straight line at ~3.7 kB per request to 197 MB, stopped by hand rather than by bending. So this is
+growth without bound, not a working set being retained.
+
+**Every leaked byte is a Kotlin allocation.** `heaptrack`, 20 000 requests, 8 MiB ceiling: 62.09 MB
+still allocated at exit, of which `kotlin::alloc::CustomAllocator::CreateObject` accounts for
+35.22 MB over 16.4 M calls and `CustomAllocator::CreateArray` for 25.83 MB over 4.0 M — 61 of the
+62. Nothing under a libcurl frame. The per-request sub-stacks are ktor's own: 288 B/request three
+times over, 160 B twice, then 128 and 104.
+
+**It is not the allocator either.** `-Xallocator=std` — not `CustomAllocator` at all — grows
+identically: 29 920 → 84 160 kB over the same 20 000 requests, the same ~3.6 kB each. The profiler's
+attribution names the allocation *entry point*, not the backend, and swapping the backend changes
+nothing.
+
+**And that reopens something this document had closed.** It said earlier that the objects are
+collectable rather than retained, because the process survives a 4 MiB ceiling. heaptrack says they
+are never `free`d at all, which is the opposite. Both cannot be true, and the fork is:
+
+* the objects are **reachable**, some root on the curl path holds one per request, and the ceiling
+  is simply not enforced the way "survives it" assumed; or
+* the ceiling is enforced, the objects are collected, and the runtime never returns the memory under
+  either allocator — which heaptrack would then have to be misreporting.
+
+Settling it needs a reference-path dump for the Kotlin/Native heap, which is the tool this
+investigation does not have. What can be said without it, and is enough for the operational
+conclusions in B-30 and B-31: the growth is per-request Kotlin allocation on the curl engine's path,
+it is linear and unbounded, it is indifferent to the GC, the ceiling, the client's lifetime and the
+allocator, and the same loop on CIO does not move at all.
+
