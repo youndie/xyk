@@ -30,6 +30,7 @@ import io.github.youndie.xyk.registry.domain.CreateEndpointUseCase
 import io.github.youndie.xyk.registry.domain.RegistryRepository
 import io.github.youndie.xyk.registry.domain.RotateSecretUseCase
 import io.github.youndie.xyk.registry.registryModule
+import io.github.youndie.xyk.sink.QueuedEventSink
 import io.github.youndie.xyk.sink.kafkaEventSink
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.aSocket
@@ -182,13 +183,38 @@ fun main() {
     // topic.
     val sink =
         config.kafkaBootstrapServers?.let { servers ->
-            kafkaEventSink(servers, config.kafkaTopic)
+            kafkaEventSink(servers, config.kafkaTopic)?.let { direct ->
+                // ZERO IS THE SHIPPING VALUE and leaves the sink exactly as it was: the publish
+                // happens inside the request. Above zero this is a measurement arm — see
+                // `QueuedEventSink`, and kafkakn's B-23 for what it is measuring.
+                if (config.kafkaQueue == 0) {
+                    direct
+                } else {
+                    QueuedEventSink(
+                        delegate = direct,
+                        capacity = config.kafkaQueue,
+                        // Printed with the event id, immediately before the producer is asked. It is
+                        // what lets a run tell "the producer lost it" from "the process stopped
+                        // before the producer was asked", and the second of those is an outbox
+                        // question rather than one about the producer.
+                        onAsked = { eventId -> println("xyk: kafka queue asked $eventId") },
+                        onFailure = { eventId, failure ->
+                            println("xyk: kafka sink refused $eventId — ${failure::class.simpleName}: ${failure.message}")
+                        },
+                    )
+                }
+            }
         }
     config.kafkaBootstrapServers?.let { servers ->
         if (sink == null) {
             println("xyk: kafka sink is OFF — $servers is configured, but this build has no kafkakn variant")
+        } else if (config.kafkaQueue == 0) {
+            println("xyk: kafka sink is on — ${config.kafkaTopic} at $servers, acks=all, no queue")
         } else {
-            println("xyk: kafka sink is on — ${config.kafkaTopic} at $servers, acks=all")
+            println(
+                "xyk: kafka sink is on — ${config.kafkaTopic} at $servers, acks=all, " +
+                    "QUEUED ${config.kafkaQueue} deep (a measurement arm, not a deployment)",
+            )
         }
     }
 

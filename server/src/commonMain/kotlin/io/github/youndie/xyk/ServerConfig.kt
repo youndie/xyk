@@ -60,6 +60,17 @@ data class ServerConfig(
     /** The topic accepted events are published to, when there is a broker to publish to. */
     val kafkaTopic: String,
     /**
+     * How many accepted events may wait in front of the producer. **`0` is the shipping value and
+     * means no queue at all**: the publish happens inside the request and returns when the broker has
+     * acknowledged.
+     *
+     * Above zero it becomes a measurement arm rather than a deployment choice, in the same sense as
+     * `xyk.outbound=noop` — it is the only shape in which the producer's `close` has anything to
+     * flush, and something had to have that shape before that half of its contract could be measured
+     * at all (kafkakn's B-23).
+     */
+    val kafkaQueue: Int,
+    /**
      * The one endpoint this service knows until the registry exists (B-07).
      *
      * `null` when none is configured, and that is a legitimate state: the service starts, serves its
@@ -258,6 +269,9 @@ fun getServerConfig(): ServerConfig {
         kafkaTopic =
             (readEnv("XYK_KAFKA_TOPIC") ?: ServerConfig.DEFAULT_KAFKA_TOPIC)
                 .also { require(it.isNotBlank()) { "XYK_KAFKA_TOPIC cannot be blank" } },
+        kafkaQueue =
+            (envInt("XYK_KAFKA_QUEUE", 0))
+                .also { require(it >= 0) { "XYK_KAFKA_QUEUE cannot be negative" } },
         bootstrapEndpoint = readBootstrapEndpoint(),
     )
 }

@@ -73,6 +73,7 @@ What it deliberately does **not** do:
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliveryWorkers.kt` | N `TimerWorker`s and their owner names |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/journal/JournalRouting.kt` | the page and its JSON companions |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/sink/EventSink.kt` | the second-destination port, the envelope, and why the body is not on it |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/sink/QueuedEventSink.kt` | the measurement arm: publish returns before the acknowledgement, close drains |
 | `server/src/variants/with-kafka/kotlin/io/github/youndie/xyk/sink/EventSink.native.kt` | the kafkakn-backed sink, compiled only where kafkakn publishes a variant |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/Modules.kt` | Koin modules; the storage module is the only place a driver is named |
 | `docker/native.Dockerfile` | the runtime image on `distroless/cc-debian13`; the glibc pairing is written there |
@@ -226,6 +227,7 @@ it cannot verify. The list below is the shape, not a copy — the file is the tr
 | `XYK_RETENTION_DAYS` | payload purge horizon in days; `0` keeps payloads for ever | no (**7**) |
 | `XYK_KAFKA_BOOTSTRAP_SERVERS` | broker list for the optional sink; **unset means no sink at all** | no |
 | `XYK_KAFKA_TOPIC` | the topic accepted events are published to | no (`xyk.events`) |
+| `XYK_KAFKA_QUEUE` | records allowed to wait in front of the producer; **`0` ships**, above zero is a measurement arm | no (0) |
 
 Endpoint secrets are **not** environment variables: they are rows, created through the journal's
 admin routes and never readable back over HTTP — the API answers with a fingerprint.
@@ -279,6 +281,24 @@ Three properties are deliberate and each costs something:
 * **A refused publish does not fail the request.** The event is stored and the sender was promised
   nothing about Kafka; a `500` would ask for a second copy of the webhook, which is worse than a
   missing record that says so on stdout with its event id.
+
+### The queued arm, and why it exists
+
+`XYK_KAFKA_QUEUE` above zero puts a bounded queue in front of the producer: `publish` hands the
+record over and returns, and a coroutine of the sink's own calls the producer. **It is a measurement
+arm rather than a deployment choice**, in the same sense as `xyk.outbound=noop` — the three
+properties above are what this service ships, and this arm exists because something had to have the
+other shape before half of the producer's contract could be measured at all.
+
+The half in question: with the shipping sink a record is either inside somebody's `send` or finished,
+so `close` never has anything to flush. With a queue it does, and `close` drains it rather than
+discarding it. Twenty rounds of `SIGTERM` through each shape are kafkakn's B-19 and B-23.
+
+It also makes a second kind of loss possible, and the two wear the same shape from outside — a row in
+`events` with nothing on the topic behind it. So the sink **announces every event id immediately
+before it asks the producer**, which is what lets a record the producer was asked for be told apart
+from one the process stopped before ever reaching. The second is an outbox question — whether a
+service should record its intent and reconcile later — and this service does not answer it.
 
 The producer is closed in the release stage **after** the engine has drained, next to the delivery
 workers, for the same reason they are there: a publish belongs to a request that was already
