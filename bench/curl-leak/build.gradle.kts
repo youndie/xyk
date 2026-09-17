@@ -1,6 +1,15 @@
 plugins { kotlin("multiplatform") version "2.4.10" }
 
 kotlin {
+    // EXPLICIT, because `getByName("nativeMain")` below runs before the template would have created
+    // it and fails the configuration with a name-not-found that says nothing about hierarchies.
+    applyDefaultHierarchyTemplate()
+
+    // The second platform, because one host is one host. macOS has to be built on macOS, so this
+    // target is the reason the reproducer is a Kotlin Multiplatform build rather than a script.
+    macosArm64 {
+        binaries.executable { entryPoint = "main" }
+    }
     linuxX64 {
         binaries.executable {
             entryPoint = "main"
@@ -19,7 +28,7 @@ kotlin {
         }
     }
     sourceSets {
-        getByName("linuxX64Main") {
+        getByName("nativeMain") {
             dependencies {
                 implementation(ktorLibs.client.curl)
                 // The control. CIO speaks plain HTTP on native and nothing else, which is

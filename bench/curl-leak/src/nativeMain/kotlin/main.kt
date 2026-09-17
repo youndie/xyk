@@ -4,6 +4,7 @@ import io.ktor.client.engine.curl.Curl
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsBytes
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.refTo
@@ -52,14 +53,28 @@ fun main() {
     // belongs to the client's lifetime and a caller can end it; if it does not, nothing a
     // caller does will.
     val clientEvery = env("CLIENT_EVERY")?.toIntOrNull() ?: 0
+    // TWO KNOBS FOR "LESS LOAD, MORE TIME". `DELAY_MS` spaces the requests out, which asks
+    // whether the cost is per request or per second; `IDLE_SECONDS` keeps the process alive
+    // and quiet afterwards, which asks whether anything is given back when nothing is
+    // happening. A deployment that delivers once a second for a week is the case neither the
+    // soak nor the first reproducer covered.
+    val delayMs = env("DELAY_MS")?.toLongOrNull() ?: 0L
+    val idleSeconds = env("IDLE_SECONDS")?.toIntOrNull() ?: 0
     env("HEAP_BYTES")?.toLongOrNull()?.takeIf { it > 0 }?.let { GC.maxHeapBytes = it }
 
-    println("curl-leak: engine=$engine target=$target requests=$total readBody=$readBody gcEvery=$gcEvery clientEvery=$clientEvery heapCeiling=${GC.maxHeapBytes}")
+    println("curl-leak: engine=$engine target=$target requests=$total readBody=$readBody gcEvery=$gcEvery clientEvery=$clientEvery delayMs=$delayMs heapCeiling=${GC.maxHeapBytes}")
     println("request,rss_kB")
 
     fun newClient() =
         when (engine) {
-            "curl" -> HttpClient(Curl) { followRedirects = false }
+            "curl" ->
+                HttpClient(Curl) {
+                    followRedirects = false
+                    // The HTTPS arm points at a sink with a self-signed certificate. Verifying
+                    // it would measure certificate plumbing; the question is whether TLS changes
+                    // the growth, so the check is turned off rather than the CA arranged.
+                    engine { sslVerify = env("SSL_VERIFY") != "0" }
+                }
             "cio" -> HttpClient(CIO) { followRedirects = false }
             else -> error("ENGINE is '$engine'; it is curl or cio")
         }
@@ -80,17 +95,58 @@ fun main() {
             }
             if (gcEvery > 0 && n % gcEvery == 0) GC.collect()
             if (n % every == 0) println("$n,${residentKb()}")
+            if (delayMs > 0) delay(delayMs)
         }
     }
     println("done,${residentKb()}")
+
+    // Sampled while idle, then once more after a forced collection: "nothing is given back" and
+    // "nothing is given back until something asks" are different answers.
+    if (idleSeconds > 0) {
+        runBlocking {
+            var waited = 0
+            while (waited < idleSeconds) {
+                delay(15_000)
+                waited += 15
+                println("idle+${waited}s,${residentKb()}")
+            }
+        }
+        GC.collect()
+        println("idle+gc,${residentKb()}")
+    }
 }
 
 @OptIn(ExperimentalForeignApi::class)
 private fun env(name: String): String? = getenv(name)?.toKString()
 
-/** `VmRSS` out of `/proc/self/status`, in kB. Read by hand: there is no dependency here to do it. */
+/**
+ * Resident memory in kB, from `/proc` where there is one and from `ps` where there is not.
+ *
+ * macOS has no `/proc/self/status`, and the first version of this returned `-1` there for a whole
+ * arm before anybody noticed — a reproducer that reports `-1` rather than failing is a reproducer
+ * that produces a table of nothing.
+ */
 @OptIn(ExperimentalForeignApi::class)
 private fun residentKb(): Long {
+    val fromProc = residentKbFromProc()
+    return if (fromProc > 0) fromProc else residentKbFromPs()
+}
+
+/** `ps -o rss=` on this process. Slower and fine: it is called once every few thousand requests. */
+@OptIn(ExperimentalForeignApi::class)
+private fun residentKbFromPs(): Long {
+    val pipe = platform.posix.popen("ps -o rss= -p ${platform.posix.getpid()}", "r") ?: return -1
+    try {
+        val buffer = ByteArray(64)
+        val line = platform.posix.fgets(buffer.refTo(0), buffer.size, pipe)?.toKString() ?: return -1
+        return line.trim().toLongOrNull() ?: -1
+    } finally {
+        platform.posix.pclose(pipe)
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun residentKbFromProc(): Long {
     val file = platform.posix.fopen("/proc/self/status", "r") ?: return -1
     try {
         val buffer = ByteArray(512)

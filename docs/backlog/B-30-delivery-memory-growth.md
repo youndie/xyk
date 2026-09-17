@@ -117,6 +117,18 @@ open and written down rather than guessed: whether the objects are reachable and
 not enforced as assumed, or they are collected and the memory is never returned. Deciding it needs a
 reference-path dump for the Kotlin/Native heap.
 
+**Widened, 2026-09-17, because one version on one platform is not a finding.** ktor **3.6.0** still
+grows (and retains ~5.4 MB less than 3.5.2 over the same 2 000 requests in the same session);
+**HTTPS** costs 2.6 MB more than plain HTTP, which is the half that matters since subscribers are
+`https`; and **macosArm64** reproduces it — ~3.6 kB per request on curl against ~0.3 on CIO, a
+second OS and a second architecture with the control in the same session.
+
+**And the rate decides the price.** The same 2 000 requests spread over ten minutes instead of
+thirty seconds cost about a fifth as much, and every arm gives some back within sixty seconds of
+going quiet and then nothing more. So it is not a fixed cost per delivery: it is a rate the runtime
+does not keep up with. At three deliveries a second it does; at forty it does not — and B-31's arms
+are at the wrong end of that scale.
+
 **What would reopen this.** A ktor release that changes the curl engine's allocation, or a second
 HTTPS engine on Kotlin/Native. `bench/curl-leak` is the check either way: it takes a minute to
 build and answers in five.

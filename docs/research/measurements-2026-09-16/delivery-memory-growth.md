@@ -281,3 +281,54 @@ conclusions in B-30 and B-31: the growth is per-request Kotlin allocation on the
 it is linear and unbounded, it is indifferent to the GC, the ceiling, the client's lifetime and the
 allocator, and the same loop on CIO does not move at all.
 
+## Rate matters, and idling gives back once
+
+`DELAY_MS` spaces the requests out; `IDLE_SECONDS` keeps the process alive and quiet afterwards.
+2 000 requests an arm, heap capped at 8 MiB, ten minutes of idle:
+
+| pause between requests | RSS at 2 000 | after idle, flat from 60 s |
+|---|---:|---:|
+| none (~40 /s) | 24 072 kB | 20 616 kB |
+| 25 ms (~20 /s) | 23 816 kB | 21 008 kB |
+| **300 ms (~3 /s)** | **18 152 kB** | **15 016 kB** |
+
+**The same 2 000 requests cost about a fifth as much when they are spread over ten minutes instead
+of thirty seconds.** So this is not a fixed price per request: it is a rate the runtime cannot keep
+up with. At three a second it keeps up; at forty it does not.
+
+**Idling returns some of it, once.** Every arm drops within the first sixty seconds and is then
+perfectly flat for the remaining nine minutes, and a forced `GC.collect()` at the end adds nothing.
+So what an idle period buys is bounded and immediate, not a slow drain.
+
+That does not make it harmless — at three a second a deployment still accumulates, just slowly —
+but it means the shape of the load decides how long a pod lives, and B-31's rate is at the wrong end
+of that scale.
+
+## The three arms that were missing: another version, another platform, TLS
+
+Each was run because "one version, one platform, one scheme" is what stood between this being a
+measurement and being a claim. Every row is 2 000 requests with 120 s of idle unless stated.
+
+| arm | at 2 000 | after idle |
+|---|---:|---:|
+| ktor 3.5.2, curl, http — **the control, same session** | 25 448 kB | 22 632 kB |
+| **ktor 3.6.0**, curl, http | 22 216 kB | **17 224 kB** |
+| ktor 3.5.2, curl, **HTTPS** (self-signed, verification off) | 28 232 kB | **25 288 kB** |
+
+**The newest release still does it, and does it less.** 3.6.0 retains about 5.4 MB less than 3.5.2
+over the same 2 000 requests in the same session — better, not fixed.
+
+**TLS costs more, not less**: 2.6 MB more retained than plain HTTP over the same requests, which is
+the direction to expect if per-connection structures are part of it, and the direction that matters
+because subscribers are `https`.
+
+**And it is not one platform.** On `macosArm64`, 10 000 requests, the same binary built for the Mac:
+
+| macosArm64 | curl | CIO |
+|---|---|---|
+| 2 500 → 10 000 requests | 25 264 → **52 384 kB** | 35 104 → **37 296 kB** |
+| per request | ~3.6 kB | ~0.3 kB |
+
+Linear on curl, flat on CIO, on a second operating system and a second CPU architecture — with the
+control running in the same session on the same sink.
+

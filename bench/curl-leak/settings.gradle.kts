@@ -7,6 +7,9 @@ rootProject.name = "curl-leak"
 dependencyResolutionManagement {
     repositories { mavenCentral() }
     versionCatalogs {
-        create("ktorLibs") { from("io.ktor:ktor-version-catalog:3.5.2") }
+        // A PROPERTY, because "does the newest still do it" is one of the three questions this
+        // reproducer exists to answer. 3.5.2 is what xyk pins; `-PktorVersion=3.6.0` is the arm.
+        val ktorVersion = providers.gradleProperty("ktorVersion").getOrElse("3.5.2")
+        create("ktorLibs") { from("io.ktor:ktor-version-catalog:$ktorVersion") }
     }
 }
