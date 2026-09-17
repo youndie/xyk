@@ -249,7 +249,8 @@ CIO. The engine's share is the larger one; ours is real and smaller.
 
 ## Squeezing the remainder: where it is, and one fork left open
 
-**It does not plateau.** 100 000 requests with the heap capped at 8 MiB, sampled every 10 000:
+**It does not plateau.** A run set to 100 000 requests with the heap capped at 8 MiB, sampled
+every 10 000 and **stopped by hand at 50 000** once the line was straight:
 47 680 → 83 840 → 121 760 → 159 360 → 196 960 kB. Four deltas of 36 160, 37 920, 37 600, 37 600 —
 a straight line at ~3.7 kB per request to 197 MB, stopped by hand rather than by bending. So this is
 growth without bound, not a working set being retained.
