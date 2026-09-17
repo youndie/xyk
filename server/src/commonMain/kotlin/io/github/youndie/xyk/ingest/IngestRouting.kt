@@ -14,7 +14,7 @@ import io.ktor.server.request.receiveChannel
 import io.ktor.server.resources.post
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
-import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.readBuffer
 import kotlinx.io.readByteArray
 
 /**
@@ -46,7 +46,7 @@ fun Route.ingestRouting(
         val body =
             call
                 .receiveChannel()
-                .readRemaining(maxBodyBytes + 1)
+                .readBuffer(maxBodyBytes + 1)
                 .readByteArray()
         if (body.size > maxBodyBytes) {
             rejections.record(hook.endpointId, RejectionReason.BODY_TOO_LARGE)

@@ -32,7 +32,7 @@ dependencyResolutionManagement {
         // one number rather than eleven. It is also how the OpenSSL inside `ktor-client-curl` gets
         // patched — the version is inside the klib and nothing in the image shows it.
         create("ktorLibs") {
-            from("io.ktor:ktor-version-catalog:3.5.2")
+            from("io.ktor:ktor-version-catalog:3.6.0")
         }
     }
 }
