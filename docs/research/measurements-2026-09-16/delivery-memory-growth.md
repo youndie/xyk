@@ -216,3 +216,34 @@ weaker statement than these measurements. The candidates left are inside the eng
 its response and header buffers, or libcurl's own caches — and separating those needs a tool that
 can attribute native allocations, not another arm of this harness.
 
+## Under a profiler, and a correction to the paragraph above
+
+`heaptrack` on the reproducer, 5 000 requests, curl, a 32 MiB heap ceiling: **peak heap 27.23 MB,
+17.04 MB still allocated at exit**, of which the largest single stack is
+`kotlin::alloc::CustomAllocator::CreateObject` — the Kotlin heap itself. Everything below it is
+per-request and inside ktor: `toCurlRequest` at 128 B/request, `ConcurrentMap` ← `Attributes()` ←
+`HttpRequestBuilder()` at 104 B/request, and a long tail of the same shape. Nothing in the leak
+report is a libcurl allocation.
+
+**Read that carefully, because heaptrack calls anything unfreed at exit a leak**, and a Kotlin/Native
+process never frees its heap at exit — so `CreateObject` appearing there is not evidence of
+anything. What *is* evidence is the peak: 27.23 MB against a 32 MiB ceiling, a heap nearly full.
+
+So the ceiling was varied. 5 000 requests, same arm, RSS at the end:
+
+| heap ceiling | 4 MiB | 8 MiB | 16 MiB | 32 MiB |
+|---|---:|---:|---:|---:|
+| RSS | 30 080 kB | 30 080 kB | 30 720 kB | **37 280 kB** |
+
+**This corrects what this document said earlier.** "With the managed heap hard-capped at 32 MiB the
+process still climbs, so the growing part is not the Kotlin heap" was measured at **one** ceiling,
+and 32 MiB was loose enough that the heap had room to keep what it was allowed to keep. Tightening
+it to 16 MiB or below removes about 7 MB per 5 000 requests. That share **is** the managed heap, it
+is decided by a number we choose, and calling it "not the heap" was wrong.
+
+**What the correction does not do is move the whole finding.** At a 4 MiB ceiling the process still
+survives — so the objects are collectable, not retained — and RSS still grows, by roughly three
+quarters of what it grew at 32 MiB. That remainder is outside the heap, is unaffected by the
+ceiling, by an explicit GC, by closing the client and by the allocator, and it does not appear on
+CIO. The engine's share is the larger one; ours is real and smaller.
+

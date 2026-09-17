@@ -94,6 +94,13 @@ read as fixed. Nothing is fixed. What is settled is whose it is and what it cost
   roughly halve the slope and are worth keeping on their own account. They are in the images and
   they stay.
 
+**Part of it is ours after all, and the earlier wording was too strong.** Under a profiler the
+heap peaked at 27.23 MB against the 32 MiB ceiling it was given, and varying that ceiling moves the
+result: 37 280 kB of RSS at 32 MiB against 30 080 at 4 and 8. So roughly a quarter of the growth is
+managed heap the GC keeps because the ceiling permits it — tunable, and ours. The other three
+quarters survive a 4 MiB ceiling, an explicit GC, a closed client and a changed allocator, and do
+not appear on CIO at all.
+
 **Four consumer-side explanations were tested afterwards and refuted** — an explicit GC, never
 reading the response, recycling the client, and the shipping allocator — because the attribution had
 been made by subtraction and subtraction admits more than one story. None of them changed the slope;
