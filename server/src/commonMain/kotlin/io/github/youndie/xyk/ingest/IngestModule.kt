@@ -5,6 +5,7 @@ import io.github.youndie.xyk.delivery.TimerScheduler
 import io.github.youndie.xyk.ingest.data.Sqlx4kEventRepository
 import io.github.youndie.xyk.ingest.domain.AcceptEventUseCase
 import io.github.youndie.xyk.ingest.domain.EventRepository
+import io.github.youndie.xyk.sink.EventSink
 import io.github.youndie.xyk.verify.GenericHmacVerifier
 import io.github.youndie.xyk.verify.GithubVerifier
 import io.github.youndie.xyk.verify.NoVerificationVerifier
@@ -32,6 +33,9 @@ fun ingestModule(
     db: ISQLite,
     stripeToleranceSeconds: Long,
     scheduler: TimerScheduler?,
+    /** `null` in every deployment that has not named a broker, which is the default one. */
+    sink: EventSink? = null,
+    onPublishFailure: (String, Throwable) -> Unit = { _, _ -> },
 ): Module =
     module {
         single<EventRepository> { Sqlx4kEventRepository(db, scheduler) }
@@ -45,5 +49,12 @@ fun ingestModule(
                 NoVerificationVerifier(),
             )
         }
-        single { AcceptEventUseCase(get(), get<List<Verifier>>().associateBy { it.scheme }) }
+        single {
+            AcceptEventUseCase(
+                repository = get(),
+                verifiers = get<List<Verifier>>().associateBy { it.scheme },
+                sink = sink,
+                onPublishFailure = { accepted, failure -> onPublishFailure(accepted.id, failure) },
+            )
+        }
     }

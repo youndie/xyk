@@ -51,6 +51,15 @@ data class ServerConfig(
      */
     val publicBaseUrl: String,
     /**
+     * Where the Kafka sink publishes, or `null` — **and `null` is the default and the shipping
+     * shape**. A gateway whose job is to receive, store and deliver has no second destination; one
+     * appears when somebody names a broker, and until then nothing in the binary so much as opens a
+     * socket.
+     */
+    val kafkaBootstrapServers: String?,
+    /** The topic accepted events are published to, when there is a broker to publish to. */
+    val kafkaTopic: String,
+    /**
      * The one endpoint this service knows until the registry exists (B-07).
      *
      * `null` when none is configured, and that is a legitimate state: the service starts, serves its
@@ -79,6 +88,14 @@ data class ServerConfig(
          * an `OutOfMemory` and call it an improvement.
          */
         const val DEFAULT_HEAP_BYTES: Long = 0
+
+        /**
+         * Where accepted events go when a broker is configured and nothing else is said.
+         *
+         * A dotted name rather than a bare one: a topic called `events` on somebody's shared cluster
+         * is a collision waiting to happen, and the prefix says whose events these are.
+         */
+        const val DEFAULT_KAFKA_TOPIC: String = "xyk.events"
 
         /** Seven days of payloads, the owner's answer of 2026-09-16. `0` means never purge. */
         const val DEFAULT_RETENTION_DAYS: Long = 7
@@ -234,6 +251,13 @@ fun getServerConfig(): ServerConfig {
             (envLong("XYK_DELIVERY_STALL_SECONDS", ServerConfig.DEFAULT_DELIVERY_STALL_SECONDS))
                 .also { require(it > 0) { "XYK_DELIVERY_STALL_SECONDS must be positive" } },
         publicBaseUrl = (readEnv("XYK_PUBLIC_BASE_URL") ?: "http://localhost:8080").trimEnd('/'),
+        // Kafka's own name for the key, kept verbatim inside the variable: an operator who has a
+        // broker address has it because Kafka's documentation called it `bootstrap.servers`, and a
+        // gateway that renamed it would make them search for a word only this service uses.
+        kafkaBootstrapServers = readEnv("XYK_KAFKA_BOOTSTRAP_SERVERS")?.takeIf { it.isNotBlank() },
+        kafkaTopic =
+            (readEnv("XYK_KAFKA_TOPIC") ?: ServerConfig.DEFAULT_KAFKA_TOPIC)
+                .also { require(it.isNotBlank()) { "XYK_KAFKA_TOPIC cannot be blank" } },
         bootstrapEndpoint = readBootstrapEndpoint(),
     )
 }

@@ -17,6 +17,12 @@ kotlincrypto = "0.8.0"
 kotlincryptoRandom = "0.6.0"
 okio = "3.18.2"
 chronik = "0.1.0.16"
+# kafkakn: the Kafka producer, for the optional sink. A SNAPSHOT AND NOTHING ELSE EXISTS — it is
+# published to reposilite's snapshot repository and has never been released, so this line names a
+# moving target on purpose. Every publication is a unique timestamped one underneath, and the run
+# that measures anything through this sink records which one it resolved; the two together are what
+# make a number here reproducible, because the coordinate alone is not.
+kafkakn = "0.1.0-SNAPSHOT"
 sqlx4k = "1.13.1"
 
 [libraries]
@@ -46,6 +52,7 @@ chronik-core = { module = "io.github.youndie.chronik:chronik-core", version.ref 
 chronik-sqlx4k-sqlite = { module = "io.github.youndie.chronik:chronik-sqlx4k-sqlite", version.ref = "chronik" }
 chronik-conformance = { module = "io.github.youndie.chronik:chronik-conformance", version.ref = "chronik" }
 sqlx4k-sqlite = { module = "io.github.smyrgeorge:sqlx4k-sqlite", version.ref = "sqlx4k" }
+kafkakn-core = { module = "io.github.youndie.kafkakn:kafkakn-core", version.ref = "kafkakn" }
 
 [plugins]
 koreBuild = { id = "io.github.youndie.kore.build", version.ref = "kore" }

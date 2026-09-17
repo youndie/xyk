@@ -30,6 +30,7 @@ import io.github.youndie.xyk.registry.domain.CreateEndpointUseCase
 import io.github.youndie.xyk.registry.domain.RegistryRepository
 import io.github.youndie.xyk.registry.domain.RotateSecretUseCase
 import io.github.youndie.xyk.registry.registryModule
+import io.github.youndie.xyk.sink.kafkaEventSink
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.aSocket
 import io.ktor.server.cio.CIO
@@ -175,6 +176,22 @@ fun main() {
         }
     }
 
+    // THE SECOND DESTINATION, AND IT IS ABSENT UNLESS SOMEBODY NAMED A BROKER. Built before Koin
+    // because the ingest module takes it, and said out loud either way: a sink that is configured
+    // and silently not linked would be a deployment publishing nothing while its operator watches a
+    // topic.
+    val sink =
+        config.kafkaBootstrapServers?.let { servers ->
+            kafkaEventSink(servers, config.kafkaTopic)
+        }
+    config.kafkaBootstrapServers?.let { servers ->
+        if (sink == null) {
+            println("xyk: kafka sink is OFF — $servers is configured, but this build has no kafkakn variant")
+        } else {
+            println("xyk: kafka sink is on — ${config.kafkaTopic} at $servers, acks=all")
+        }
+    }
+
     val probes = XykProbes(db, wal, config.walCeilingBytes, workers, config.deliveryStallSeconds.seconds)
 
     // The one endpoint of B-06, put into the real tables so that B-07 replaces the *way* they are
@@ -188,7 +205,17 @@ fun main() {
             modules(
                 configModule(config),
                 storageModule(db),
-                ingestModule(db, config.stripeToleranceSeconds, scheduler),
+                ingestModule(
+                    db,
+                    config.stripeToleranceSeconds,
+                    scheduler,
+                    sink,
+                    // Printed with the event id, because the id is the only thing that connects this
+                    // line to the row in `events` that has nothing on the topic behind it.
+                    onPublishFailure = { eventId, failure ->
+                        println("xyk: kafka sink refused $eventId — ${failure::class.simpleName}: ${failure.message}")
+                    },
+                ),
                 registryModule(db, config.allowUnverified),
                 journalModule(db, scheduler),
             )
@@ -303,6 +330,19 @@ fun main() {
             // arriving, and closing the pool before it would lose the attempt row rather than the
             // attempt — the record of the one thing an operator would come looking for.
             workers?.let { running -> consumer(participant("delivery workers") { running.stop() }) }
+
+            // AFTER THE DRAIN, AND THAT POSITION IS THE WHOLE QUESTION. A publish belongs to a
+            // request that has already been accepted; closing the producer while the engine still
+            // has that request in flight would cut a record this service promised to carry. The
+            // drain is what makes "in flight" a bounded set, and this stage is the first moment
+            // after it.
+            //
+            // It can exceed the stage deadline and that is a known, named outcome rather than a
+            // surprise: `close` flushes, and a flush against a broker that is not answering takes up
+            // to `message.timeout.ms` — ten seconds — against a `releaseGroup` of three. A shutdown
+            // that loses nothing and overruns is a timing defect, and it is meant to be reported as
+            // one rather than rounded either way.
+            sink?.let { destination -> consumer(participant("kafka sink") { destination.close() }) }
 
             // A READER, AND CANCELLATION IS NOT ENOUGH. The store check is `SELECT 1` on the
             // pool, so a probe in flight holds a read lock; `HealthRegistry.stop()` cancels without
