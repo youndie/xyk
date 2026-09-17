@@ -2,12 +2,14 @@ package io.github.youndie.xyk.sink
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -192,8 +194,11 @@ class QueuedEventSinkTest {
 
                 repeat(RECORDS) { n -> sink.publish(record("e$n")) }
 
-                // Cancels `close` the way a stage deadline does, mid-drain.
-                runCatching { withTimeout(SLOW_MS * 2) { sink.close() } }
+                // Cancels `close` the way a stage deadline does, mid-drain. The cancellation is
+                // the point of the arm, so it is expected rather than swallowed.
+                assertFailsWith<TimeoutCancellationException> {
+                    withTimeout(SLOW_MS * 2) { sink.close() }
+                }
 
                 val left = withTimeout(SLOW_MS * RECORDS) { undrained.await() }
                 assertTrue(left > 0, "the deadline cut the drain short and nothing was reported")
@@ -203,5 +208,4 @@ class QueuedEventSinkTest {
                 )
             }
         }
-
 }
