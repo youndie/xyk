@@ -1,6 +1,6 @@
 plugins {
-    alias(libs.plugins.kotlinMultiplatform) apply false
-    alias(libs.plugins.pluginSerialization) apply false
+    alias(wip.plugins.kotlinMultiplatform) apply false
+    alias(wip.plugins.kotlinSerialization) apply false
     alias(libs.plugins.sborkaKmp) apply false
     alias(libs.plugins.sborkaLint) apply false
     alias(libs.plugins.koreBuild) apply false

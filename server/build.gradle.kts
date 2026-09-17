@@ -1,8 +1,8 @@
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+    alias(wip.plugins.kotlinMultiplatform)
     alias(libs.plugins.sborkaKmp)
     alias(libs.plugins.sborkaLint)
-    alias(libs.plugins.pluginSerialization)
+    alias(wip.plugins.kotlinSerialization)
     // Generates `KoreBuildIdentity` — the version, the commit and the build time, as compiled-in
     // source. Kotlin/Native has neither resources nor a manifest, so `/version` has no other way to
     // know what it is serving. `commit` reads `unknown` wherever the build context has no `.git`,

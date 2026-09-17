@@ -23,7 +23,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
     // Repositories with content filters, the shared catalog, the shared lint configuration, and the
     // check that this repository's `.editorconfig` is the one the rest of the portfolio uses.
-    id("io.github.youndie.sborka.settings") version "0.4.0.58"
+    id("io.github.youndie.sborka.settings") version "0.4.0.86"
 }
 
 dependencyResolutionManagement {
