@@ -129,6 +129,12 @@ going quiet and then nothing more. So it is not a fixed cost per delivery: it is
 does not keep up with. At three deliveries a second it does; at forty it does not — and B-31's arms
 are at the wrong end of that scale.
 
+**Re-soaked at 3 rps, 2026-09-17, because every arm before it offered 60.** At a deployment's
+ordinary rate the shipping image under 64 MiB is **not** OOM-killed — it reaches the limit at forty
+minutes, readiness starts failing at thirty-six, and it rides there: 6 512 delivered of ~10 800
+offered, 2 934 pending at the end. Liveness is a latch with no checks, so nothing restarts it. The
+quiet failure is the one an ordinary rate buys, and it is worse than the loud one.
+
 **What would reopen this.** A ktor release that changes the curl engine's allocation, or a second
 HTTPS engine on Kotlin/Native. `bench/curl-leak` is the check either way: it takes a minute to
 build and answers in five.

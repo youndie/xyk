@@ -91,6 +91,13 @@ resources:
     # and a delivery in flight is retried by whoever takes the lease next — but a deployment that
     # does not expect restarts will see them, and a smaller limit means more of them.
     #
+    # AT AN ORDINARY RATE IT ENDS WORSE, NOT BETTER. Soaked at 3 rps under 64Mi for an hour the
+    # process is NOT killed: it reaches the limit at about forty minutes, `/health/ready` starts
+    # answering 503 at thirty-six, and it then rides the limit — 6 512 delivered of ~10 800 offered,
+    # 2 934 still pending at the end. Liveness here is a latch with no checks, so nothing restarts
+    # such a pod: Kubernetes takes it out of the endpoints and leaves it running. A lower rate buys
+    # minutes rather than immunity, and the failure it buys is the quiet one.
+    #
     # The original reason for 128Mi over the measured 64Mi stands on its own: the memory criterion
     # was met by reclaim rather than by headroom, four of ten runs peaking at or above the limit
     # itself, and a service sitting exactly on its limit fails the first time anything changes.

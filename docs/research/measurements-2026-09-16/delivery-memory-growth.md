@@ -332,3 +332,33 @@ because subscribers are `https`.
 Linear on curl, flat on CIO, on a second operating system and a second CPU architecture — with the
 control running in the same session on the same sink.
 
+## The soak again, at a rate a deployment actually has
+
+Every soak above offered 60 rps, which is the wrong end of the scale the rate arms found. So the
+shipping image was soaked at **3 rps** — a webhook gateway's ordinary load — for an hour at the
+declared 64 MiB, delivery on, four journal readers, both memory recipes applied.
+
+**It is not killed, and it does not survive either.**
+
+| | |
+|---|---|
+| `OOMKilled` | **false** — the run reports `survived=yes` |
+| memory at the start | 32 872 kB |
+| memory at 40 minutes | **65 504 kB**, the limit being 65 536 |
+| first `503` on `/health/ready` | **2 181 s — thirty-six minutes**, at 65 384 kB |
+| delivered in the hour | 6 512 of roughly 10 800 offered |
+| pending at the end | **2 934** |
+
+So at a third of a deployment's ordinary rate the process spends its whole budget in thirty-six
+minutes and then rides the limit: readiness fails, the queue grows, and nothing restarts it.
+
+**That is worse than the OOM kill, not better.** Liveness in this service is a latch with no checks
+(`XykProbes` — nothing declares the process wedged), so a pod in this state is removed from the
+service's endpoints and left running indefinitely. An OOM kill at least ends in a fresh process with
+its timers intact; this ends in a pod that neither serves nor restarts.
+
+**And it corrects the comfort the rate arms offered.** The reproducer showed a fifth of the cost at
+three requests a second, and that is true of the client on its own — but the service does more per
+event than the client does, and 4.5 kB per event here against ~1 kB there is the difference. A lower
+rate buys minutes, not immunity: ninety seconds at 60 rps, thirty-six minutes at 3.
+
