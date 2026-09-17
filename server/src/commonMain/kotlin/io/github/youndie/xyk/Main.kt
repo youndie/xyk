@@ -204,6 +204,12 @@ fun main() {
                                     "${failure::class.simpleName}: ${failure.message}",
                             )
                         },
+                        // The third pile, and it has to be named or the other two absorb it: these
+                        // records were accepted and queued and the shutdown deadline arrived before
+                        // they could be asked for. Silent, they would read as the outbox case.
+                        onUndrained = { left ->
+                            println("xyk: kafka queue lost $left record(s) to the shutdown deadline")
+                        },
                     )
                 }
             }

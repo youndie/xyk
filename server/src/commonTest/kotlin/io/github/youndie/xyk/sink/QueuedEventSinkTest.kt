@@ -161,4 +161,47 @@ class QueuedEventSinkTest {
                 assertTrue(delivered.contains("ev-2"), "one refused record took the queue down with it")
             }
         }
+
+    /**
+     * The third pile, counted rather than inferred.
+     *
+     * `close` runs under a shutdown stage's deadline, so a drain that needs longer is cancelled and
+     * the records still queued were accepted and never asked for. From outside they are
+     * indistinguishable from the outbox case; the only thing that can tell them apart is this count,
+     * taken while the call is being cut short.
+     */
+    @Test
+    fun close_counts_what_the_deadline_left_behind() =
+        runTest {
+            withContext(Dispatchers.Default) {
+                val undrained = CompletableDeferred<Int>()
+                val sink =
+                    QueuedEventSink(
+                        delegate =
+                            object : EventSink {
+                                // Slower than the deadline below, so the drain cannot finish.
+                                override suspend fun publish(record: AcceptedRecord) = delay(SLOW_MS)
+
+                                override suspend fun close() = Unit
+                            },
+                        capacity = RECORDS,
+                        onAsked = {},
+                        onFailure = { _, _ -> },
+                        onUndrained = { left -> undrained.complete(left) },
+                    )
+
+                repeat(RECORDS) { n -> sink.publish(record("e$n")) }
+
+                // Cancels `close` the way a stage deadline does, mid-drain.
+                runCatching { withTimeout(SLOW_MS * 2) { sink.close() } }
+
+                val left = withTimeout(SLOW_MS * RECORDS) { undrained.await() }
+                assertTrue(left > 0, "the deadline cut the drain short and nothing was reported")
+                assertTrue(
+                    left < RECORDS,
+                    "nothing drained at all, so this measures the harness rather than the count",
+                )
+            }
+        }
+
 }
