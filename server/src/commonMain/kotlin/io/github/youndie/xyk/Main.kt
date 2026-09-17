@@ -199,7 +199,10 @@ fun main() {
                         // question rather than one about the producer.
                         onAsked = { eventId -> println("xyk: kafka queue asked $eventId") },
                         onFailure = { eventId, failure ->
-                            println("xyk: kafka sink refused $eventId — ${failure::class.simpleName}: ${failure.message}")
+                            println(
+                                "xyk: kafka sink refused $eventId — " +
+                                    "${failure::class.simpleName}: ${failure.message}",
+                            )
                         },
                     )
                 }

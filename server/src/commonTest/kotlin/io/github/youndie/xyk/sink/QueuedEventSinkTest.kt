@@ -1,7 +1,10 @@
 package io.github.youndie.xyk.sink
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,129 +13,152 @@ import kotlin.test.assertTrue
 /**
  * The measurement arm of the sink, asserted where it can be.
  *
- * What it has to be is three things, and each is the reason a run through it means anything: the
- * publish **returns before** the delegate is done, `close` **drains** rather than discards, and every
- * record is **announced before** the delegate is asked — which is what lets a loss be attributed to
- * the producer or to the gap in front of it.
+ * What it has to be is three things, and each is why a run through it means anything: the publish
+ * **returns before** the delegate is done, `close` **drains** rather than discards, and every record
+ * is **announced before** the delegate is asked — which is what lets a loss be attributed to the
+ * producer or to the gap in front of it.
  *
- * `runTest` is here for its timeout, not for virtual time: the sink runs a coroutine of its own on a
- * real dispatcher, so these tests wait on real signals.
+ * **Every body runs inside `withContext(Dispatchers.Default)`, and that is not decoration.** The sink
+ * runs a coroutine of its own on a real dispatcher while `runTest` runs on virtual time, so a
+ * `withTimeout` written directly in the test body fires the moment the scheduler is idle — before any
+ * of the real work has had a turn. All four of these failed that way once.
  */
 class QueuedEventSinkTest {
     private fun record(id: String) = AcceptedRecord(id, "hook", 1, 0, null)
 
+    private companion object {
+        /** Enough that a drain cannot finish between `close` returning and the next line. */
+        const val RECORDS = 20
+        const val SLOW_MS = 20L
+    }
+
     @Test
     fun publish_returns_while_the_delegate_is_still_working() =
         runTest {
-            val held = CompletableDeferred<Unit>()
-            val entered = CompletableDeferred<Unit>()
-            val sink =
-                QueuedEventSink(
-                    delegate =
-                        object : EventSink {
-                            override suspend fun publish(record: AcceptedRecord) {
-                                entered.complete(Unit)
-                                held.await()
-                            }
+            withContext(Dispatchers.Default) {
+                val held = CompletableDeferred<Unit>()
+                val entered = CompletableDeferred<Unit>()
+                val sink =
+                    QueuedEventSink(
+                        delegate =
+                            object : EventSink {
+                                override suspend fun publish(record: AcceptedRecord) {
+                                    entered.complete(Unit)
+                                    held.await()
+                                }
 
-                            override suspend fun close() = Unit
-                        },
-                    capacity = 8,
-                    onAsked = { },
-                    onFailure = { _, _ -> },
-                )
+                                override suspend fun close() = Unit
+                            },
+                        capacity = 8,
+                        onAsked = { },
+                        onFailure = { _, _ -> },
+                    )
 
-            sink.publish(record("ev-1"))
-            // The delegate is inside `publish` and is not coming out, and this call returned anyway.
-            // With the shipping sink this line would not be reached until the broker had answered.
-            withTimeout(5_000) { entered.await() }
-            sink.publish(record("ev-2"))
+                sink.publish(record("ev-1"))
+                // The delegate is inside `publish` and is not coming out, and these calls return
+                // anyway. With the shipping sink this line would wait for the broker.
+                withTimeout(5_000) { entered.await() }
+                sink.publish(record("ev-2"))
 
-            held.complete(Unit)
-            withTimeout(5_000) { sink.close() }
+                held.complete(Unit)
+                withTimeout(5_000) { sink.close() }
+            }
         }
 
     @Test
     fun close_drains_what_is_queued_instead_of_discarding_it() =
         runTest {
-            val delivered = mutableListOf<String>()
-            val sink =
-                QueuedEventSink(
-                    delegate =
-                        object : EventSink {
-                            override suspend fun publish(record: AcceptedRecord) {
-                                delivered += record.eventId
-                            }
+            withContext(Dispatchers.Default) {
+                val delivered = mutableListOf<String>()
+                val sink =
+                    QueuedEventSink(
+                        delegate =
+                            object : EventSink {
+                                override suspend fun publish(record: AcceptedRecord) {
+                                    // SLOW ON PURPOSE. With an instant delegate this test passed even
+                                    // with the wait inside `close` removed: closing the channel lets
+                                    // the drain continue, and it finished before the assertion looked.
+                                    // A race the test happens to win is not an assertion about
+                                    // draining, and the mutation is what said so — twenty records at
+                                    // twenty milliseconds cannot be finished by accident.
+                                    delay(SLOW_MS)
+                                    delivered += record.eventId
+                                }
 
-                            override suspend fun close() = Unit
-                        },
-                    capacity = 64,
-                    onAsked = { },
-                    onFailure = { _, _ -> },
-                )
+                                override suspend fun close() = Unit
+                            },
+                        capacity = 64,
+                        onAsked = { },
+                        onFailure = { _, _ -> },
+                    )
 
-            repeat(50) { index -> sink.publish(record("ev-$index")) }
-            withTimeout(10_000) { sink.close() }
+                repeat(RECORDS) { index -> sink.publish(record("ev-$index")) }
+                withTimeout(10_000) { sink.close() }
 
-            // This is the half of the producer contract that the synchronous sink can never exercise:
-            // records that are already accepted when the process is asked to stop.
-            assertEquals(50, delivered.size, "close discarded queued records")
-            assertEquals((0 until 50).map { "ev-$it" }, delivered, "the queue did not keep its order")
+                // This is the half of the producer contract the synchronous sink can never exercise:
+                // records already accepted when the process is asked to stop.
+                assertEquals(RECORDS, delivered.size, "close discarded queued records")
+                assertEquals((0 until RECORDS).map { "ev-$it" }, delivered, "the queue did not keep its order")
+            }
         }
 
     @Test
     fun every_record_is_announced_before_the_delegate_is_asked() =
         runTest {
-            val events = mutableListOf<String>()
-            val sink =
-                QueuedEventSink(
-                    delegate =
-                        object : EventSink {
-                            override suspend fun publish(record: AcceptedRecord) {
-                                events += "asked-delegate:${record.eventId}"
-                            }
+            withContext(Dispatchers.Default) {
+                val events = mutableListOf<String>()
+                val sink =
+                    QueuedEventSink(
+                        delegate =
+                            object : EventSink {
+                                override suspend fun publish(record: AcceptedRecord) {
+                                    events += "asked-delegate:${record.eventId}"
+                                }
 
-                            override suspend fun close() = Unit
-                        },
-                    capacity = 8,
-                    onAsked = { id -> events += "announced:$id" },
-                    onFailure = { _, _ -> },
-                )
+                                override suspend fun close() = Unit
+                            },
+                        capacity = 8,
+                        onAsked = { id -> events += "announced:$id" },
+                        onFailure = { _, _ -> },
+                    )
 
-            sink.publish(record("ev-1"))
-            withTimeout(5_000) { sink.close() }
+                sink.publish(record("ev-1"))
+                withTimeout(5_000) { sink.close() }
 
-            // The order is the whole classifier. Announced-after would mean a record the process
-            // stopped in the middle of looked like one it had never reached.
-            assertEquals(listOf("announced:ev-1", "asked-delegate:ev-1"), events)
+                // The order is the whole classifier. Announced-after would mean a record the process
+                // stopped in the middle of looked like one it had never reached.
+                assertEquals(listOf("announced:ev-1", "asked-delegate:ev-1"), events)
+            }
         }
 
     @Test
     fun a_refused_record_is_named_and_does_not_stop_the_ones_behind_it() =
         runTest {
-            val refused = mutableListOf<String>()
-            val delivered = mutableListOf<String>()
-            val sink =
-                QueuedEventSink(
-                    delegate =
-                        object : EventSink {
-                            override suspend fun publish(record: AcceptedRecord) {
-                                if (record.eventId == "ev-1") throw IllegalStateException("no broker")
-                                delivered += record.eventId
-                            }
+            withContext(Dispatchers.Default) {
+                val refused = mutableListOf<String>()
+                val delivered = mutableListOf<String>()
+                val sink =
+                    QueuedEventSink(
+                        delegate =
+                            object : EventSink {
+                                override suspend fun publish(record: AcceptedRecord) {
+                                    if (record.eventId == "ev-1") throw IllegalStateException("no broker")
+                                    delivered += record.eventId
+                                }
 
-                            override suspend fun close() = Unit
-                        },
-                    capacity = 8,
-                    onAsked = { },
-                    onFailure = { id, _ -> refused += id },
-                )
+                                override suspend fun close() = Unit
+                            },
+                        capacity = 8,
+                        onAsked = { },
+                        onFailure = { id, _ -> refused += id },
+                    )
 
-            sink.publish(record("ev-1"))
-            sink.publish(record("ev-2"))
-            withTimeout(5_000) { sink.close() }
+                sink.publish(record("ev-1"))
+                sink.publish(record("ev-2"))
+                withTimeout(5_000) { sink.close() }
 
-            assertEquals(listOf("ev-1"), refused, "the refusal was not reported")
-            assertTrue(delivered.contains("ev-2"), "one refused record took the queue down with it")
+                assertEquals(listOf("ev-1"), refused, "the refusal was not reported")
+                assertTrue(delivered.contains("ev-2"), "one refused record took the queue down with it")
+            }
         }
 }
