@@ -283,6 +283,12 @@ class AcceptEventTest {
             accept(params(SignedRequest(request.headers, body + "!".encodeToByteArray(), request.nowEpochSeconds)))
 
             assertEquals(0, publishes, "an unverified request reached the topic")
+
+            // The second half is what keeps the first from being vacuous: with the publish removed
+            // altogether, the assertion above passes and this one does not. A negative test that
+            // holds when the mechanism is absent says nothing about the mechanism.
+            accept(params(signed(body))).getOrThrow()
+            assertEquals(1, publishes, "a genuine request through the same fixture was not published")
             db.close().getOrThrow()
         }
 }
