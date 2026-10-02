@@ -21,9 +21,11 @@ This document records **verified facts** (read in code, in published artefact me
 vendor's own documentation), **decisions taken**, and **risks**. Anything unverified is marked as a
 hypothesis and says where it will be checked.
 
-Nothing in this repository is built yet. Every code path named below is a path that the backlog is
-about to create; the facts are read out of **other** people's artefacts, which is what "verified"
-can mean on a greenfield.
+It was started on a greenfield, on 2026-09-15, when every code path named below was one the backlog
+was about to create and the facts could only be read out of **other** people's artefacts. The
+backlog has since been worked to the end ([backlog.md](../../backlog.md)), so the paths in this
+repository exist; a fact that turned out wrong is corrected where it is stated, with the date, rather
+than rewritten.
 
 ---
 

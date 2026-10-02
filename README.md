@@ -36,7 +36,7 @@ divergence rather than tidied away.
 - **[docs/research/research-architecture.md](docs/research/research-architecture.md)** — what was
   verified and against what, which decisions were taken and what was rejected, and twenty-six facts
   that cost something to learn. Read this first; the obvious thing here is frequently wrong.
-- **[backlog.md](backlog.md)** — twenty-nine items, all closed, each carrying what it found.
+- **[backlog.md](backlog.md)** — thirty-one items, all closed, each carrying what it found.
 - **[docs/](docs/)** — features, API reference, and how the service is put together.
 
 A few of those facts, as an index of what is inside:

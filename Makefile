@@ -131,9 +131,11 @@ image-scratch:
 	@echo "--- the control must FAIL ---"
 	@if dev/image-smoke.sh xyk:scratch-nogconv >/dev/null 2>&1; then 		echo "CONTROL PASSED, which means the smoke test cannot see a missing gconv" >&2; exit 1; 	else 		echo "control failed as it must: the smoke test can see an image that does not render"; 	fi
 
-# Non-blocking, on purpose. bdd_report counts scenarios, and demanding a percentage is meaningless
-# while every scenario is a target and acceptance is done by hand. code_anchors cannot tell a live
-# path from one quoted as obsolete — and here it reports the paths the backlog has not created yet.
+# Non-blocking, on purpose. bdd_report counts scenarios, and some are manual by design — a criterion
+# measured by a harness on two machines, a crash between two statements — so a percentage is not a
+# gate. code_anchors cannot tell a live path from one quoted as obsolete — and what it reports here
+# are addresses inside other repositories and artefacts, where a research fact was verified, not
+# paths in this tree.
 report: docs-report
 
 fix: docs-fix
