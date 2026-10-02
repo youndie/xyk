@@ -234,9 +234,10 @@ kotlin {
             implementation(libs.koin.test)
         }
 
-        // CHRONIK IS A TEST DEPENDENCY HERE AND NOTHING MORE, until the delivery half lands.
-        // It publishes `jvm` and `linuxX64` and no `macosArm64`, so where it is declared decides
-        // which hosts can still build this repository at all.
+        // ON THE JVM CHRONIK IS A TEST DEPENDENCY AND NOTHING MORE: the JVM build never delivers,
+        // and the delivery half takes chronik in `nativeMain` below. It publishes `jvm` and
+        // `linuxX64` and no `macosArm64`, so where it is declared decides which hosts can still
+        // build this repository at all.
         jvmTest.dependencies {
             // The jvm variant resolves on every host, which is why the check that xyk's copy of
             // chronik's DDL still matches chronik's own lives in the JVM suite: it is the one

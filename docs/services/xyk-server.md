@@ -15,10 +15,10 @@ coordinates: none — this is an application, not a library
 
 # xyk-server
 
-> **Status: the skeleton exists (B-01, 2026-09-15); the features do not.** Files marked *(B-nn)*
-> below are paths the backlog creates; everything else is in the tree and builds. The layout follows
-> the portfolio's other native services (katcher, metrik), so that a reader who knows one knows this
-> one.
+> **Status: built and published.** Every path below is in the tree; every push runs `make check` and
+> `make build` (`.github/workflows/check.yaml`, `build.yaml`), and a push to `main` publishes the
+> image of section 5 (`publish.yaml`). The layout follows the portfolio's other native services
+> (katcher, metrik), so that a reader who knows one knows this one.
 
 ## 1. Responsibility
 
@@ -67,7 +67,7 @@ What it deliberately does **not** do:
 | `server/src/nativeMain/kotlin/io/github/youndie/xyk/Env.native.kt` | `actual fun readEnv` — Kotlin/Native has no `System.getenv` |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` | the statement list and `PRAGMA user_version`, run before the engine starts |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/health/XykProbes.kt` | the three gates and the checks behind readiness |
-| `server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/IngestRouting.kt` | *(B-06)* `POST /hooks/{endpointId}` |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/IngestRouting.kt` | `POST /hooks/{endpointId}` |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/verify/` | one verifier per scheme + the constant-time compare |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliverySink.kt` | the `TimerSink`: one POST, one timeout, one attempt row |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliveryWorkers.kt` | N `TimerWorker`s and their owner names |
@@ -145,7 +145,7 @@ batches.
 | Kind | Name | What for |
 |---|---|---|
 | Database | SQLite via `io.github.smyrgeorge:sqlx4k-sqlite` | events, subscribers, deliveries, timers — one file |
-| Library | `io.github.youndie.chronik:chronik-core` | the timer contract and the worker; **not yet published for native**, see [research §1.1](../research/research-architecture.md) |
+| Library | `io.github.youndie.chronik:chronik-core`, `chronik-sqlx4k-sqlite` | the timer contract, the worker and the SQLite store; native for `linuxX64` only, so the delivery half exists only there ([B-02](../backlog/B-02-chronik-native-targets.md)); the pin is the snapshot `0.1.0.16` and resolves from reposilite, not Central |
 | Library | `io.github.youndie:kore-core`, `kore-ktor` + `io.github.youndie.kore.build` | ordered shutdown, three probes, `/version`; resolves from reposilite, not Central |
 | Library | `org.kotlincrypto.macs:hmac-sha2`, `org.kotlincrypto.hash:sha2` | HMAC-SHA256 for GitHub and Stripe |
 | Library | `io.ktor:ktor-client-curl` | the only native engine that speaks HTTPS; carries its own static libcurl/OpenSSL |
@@ -205,7 +205,7 @@ batches.
 change when the build moves. `XYK_DB_PATH` is required and the process refuses to start without it.
 
 Nothing else has to be running: the subscribers are whatever is in the database, and `bench/delivery-sink.py`
-*(B-10)* starts a local one that logs what it receives and can be told to be slow.
+starts a local one that counts what it receives and can be told to be slow (`SINK_DELAY_MS`).
 
 **Builds are not cheap and do not belong on a laptop.** A release link is minutes of LLVM, so
 `make build` wants a machine with cores; `macos*` targets are the exception and have to be built on

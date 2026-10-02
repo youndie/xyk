@@ -16,11 +16,10 @@ parent_feature: feature-ingest
 > repository and none planned, so this document is the reference — which is why it lists the shapes
 > of the error bodies as well as the happy path.
 >
-> **The route exists and every status in the table below was
-> observed through real HTTP against the running binary — `200`, `401 signature invalid`,
-> `401 signature missing`, `404 unknown endpoint`, `413 body too large`. It stays `draft` because the
-> feature is not finished: one scheme of five, and the endpoint is configuration until the registry
-> arrives.
+> **The route exists**, and every status in the table below was observed through real HTTP against
+> the running binary — `200`, `401 signature invalid`, `401 signature missing`,
+> `404 unknown endpoint`, `413 body too large`. Which schemes verify and where endpoints come from
+> is the feature's opening note ([feature-ingest](../features/feature-ingest.md)).
 
 ## Routes — all of them, no exceptions
 

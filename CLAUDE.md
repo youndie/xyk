@@ -16,7 +16,8 @@
 ## The invariant
 
 `main` describes what **exists**. An open pull request describes what **will be**. A document about
-unbuilt behaviour is `status: draft` and lives in a branch — which is where all of them are today.
+unbuilt behaviour is `status: draft` and lives in a branch; `main` holds none — a `draft` there fails
+the gate.
 When code lands, the document that described it flips to `active` in the same pull request.
 
 Do not write a number you have not measured, and do not write a status code you have not read out of
