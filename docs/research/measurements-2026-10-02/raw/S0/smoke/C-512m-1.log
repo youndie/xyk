@@ -1,0 +1,24 @@
+time="2026-10-02T12:48:59Z" level=warning msg="Insufficient VUs, reached 50 active VUs and cannot initialize more" executor=constant-arrival-rate scenario=ingest
+
+     ✓ accepted
+
+     checks.........................: 100.00% 1987 out of 1987
+     data_received..................: 229 kB  23 kB/s
+     data_sent......................: 570 kB  57 kB/s
+     dropped_iterations.............: 14      1.391458/s
+     http_req_blocked...............: avg=19.75µs  p(50)=7.97µs  p(95)=15.83µs  p(99)=406.94µs max=1.75ms  
+     http_req_connecting............: avg=8.22µs   p(50)=0s      p(95)=0s       p(99)=307.4µs  max=1.64ms  
+   ✗ http_req_duration..............: avg=37.72ms  p(50)=14.68ms p(95)=152.86ms p(99)=298.8ms  max=345.15ms
+     ✓ { expected_response:true }...: avg=37.72ms  p(50)=14.68ms p(95)=152.86ms p(99)=298.8ms  max=345.15ms
+   ✓ http_req_failed................: 0.00%   0 out of 1987
+     http_req_receiving.............: avg=106.58µs p(50)=94.04µs p(95)=183.86µs p(99)=264.28µs max=5.08ms  
+     http_req_sending...............: avg=53.32µs  p(50)=45.8µs  p(95)=92.91µs  p(99)=161.8µs  max=3ms     
+     http_req_tls_handshaking.......: avg=0s       p(50)=0s      p(95)=0s       p(99)=0s       max=0s      
+     http_req_waiting...............: avg=37.56ms  p(50)=14.54ms p(95)=152.63ms p(99)=298.49ms max=344.99ms
+     http_reqs......................: 1987    197.487637/s
+     iteration_duration.............: avg=38.01ms  p(50)=14.9ms  p(95)=153.26ms p(99)=299.53ms max=345.39ms
+     iterations.....................: 1987    197.487637/s
+     vus............................: 14      min=2            max=50
+     vus_max........................: 50      min=50           max=50
+
+time="2026-10-02T12:49:02Z" level=error msg="thresholds on metrics 'http_req_duration' have been crossed"

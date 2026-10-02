@@ -1,7 +1,7 @@
 ---
 id: B-32
 title: "What MALLOC_ARENA_MAX=2 does on the pagedAllocator=false build"
-status: wip
+status: done
 priority: P1
 size: S
 stage: stage-3-verdict
@@ -29,7 +29,21 @@ first run:
   subject in every round.
 - AC: `bench/paired.py --selftest` passes, and every comparison in the results is its output.
 - AC: a verdict word per question (green, grey, red, not measured) in
-  `docs/research/measurements-2026-10-02/arena-cap.md` and research §1.8, and the
+  [arena-cap.md](../research/measurements-2026-10-02/arena-cap.md) and research §1.8, and the
   `MALLOC_ARENA_MAX` comment in `docker/scratch.Dockerfile` and `docker/native.Dockerfile` states
   it; if the decision rule says remove, the line goes and the image smoke runs green.
 - Anchors: `bench/memory.sh`, `bench/paired.py`, `docker/scratch.Dockerfile`, `docker/native.Dockerfile`
+
+## Measured, 2026-10-02 — [arena-cap.md](../research/measurements-2026-10-02/arena-cap.md)
+
+| Q | verdict |
+|---|---|
+| Q1 memory | **grey** — both arms survive 64 MiB every round, both at the limit; `memory.peak` at 512 MiB cannot separate them |
+| Q2 CPU per request | **grey** — +1.7 % [−1.7, +5.2], one series with a ruler under 5 % |
+| Q3 contention | **grey** — no sign of it at the declared load, resolution ±15–50 % |
+| Q4 `pagedAllocator=false` | **green** — the default allocator killed 6/6 twice |
+
+The std hazard did not reproduce on this build, and an exploratory `memory.stat` column shows the
+cap leaving a third less anonymous memory. **Decision by the declared rule: `MALLOC_ARENA_MAX=2`
+stays**, its comment in both Dockerfiles carries these verdicts. Two of the six series ran beside
+CI jobs and count for survival only; each was re-run once, as the brief allowed.

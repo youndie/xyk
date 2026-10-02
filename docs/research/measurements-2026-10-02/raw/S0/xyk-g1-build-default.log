@@ -1,0 +1,106 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from scratch.Dockerfile
+#1 transferring dockerfile: 6.19kB done
+#1 WARN: FromPlatformFlagConstDisallowed: FROM --platform flag should not use constant value "linux/amd64" (line 23)
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/gradle:9.8.0-jdk25-noble
+#2 DONE 0.7s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 1.57kB done
+#3 DONE 0.0s
+
+#4 [stage-1 1/9] WORKDIR /data
+#4 DONE 0.0s
+
+#5 [build 1/5] FROM docker.io/library/gradle:9.8.0-jdk25-noble@sha256:c5c95b6e0b7828174efc6999515ced1f6d3084f3267b3b0250fdefa8e8336ec2
+#5 resolve docker.io/library/gradle:9.8.0-jdk25-noble@sha256:c5c95b6e0b7828174efc6999515ced1f6d3084f3267b3b0250fdefa8e8336ec2 0.0s done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 20.90kB 0.0s done
+#6 DONE 0.0s
+
+#7 [build 3/5] WORKDIR /app
+#7 CACHED
+
+#8 [build 2/5] RUN apt-get update  && apt-get install -y --no-install-recommends g++ zlib1g-dev  && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [build 4/5] COPY . .
+#9 CACHED
+
+#10 [build 5/5] RUN --mount=type=cache,target=/root/.konan     --mount=type=cache,target=/root/.gradle     gradle :server:linkReleaseExecutableNative       -Pxyk.staticLink=true -Pxyk.httpClient=true -Pxyk.outbound=real       -Pxyk.allocator=default --max-workers=2 --no-daemon  && cp server/build/bin/native/releaseExecutable/server.kexe /app/server.kexe  && readelf -d /app/server.kexe | head -20
+#10 1.722 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+#10 4.321 Daemon will be stopped at the end of the build 
+#10 7.521 Calculating task graph as no cached configuration is available for tasks: :server:linkReleaseExecutableNative
+#10 11.42 Type-safe project accessors is an incubating feature.
+#10 17.92 
+#10 17.92 > Configure project :server
+#10 17.92 xyk build: httpClient=true outbound=real staticLink=true allocator=default
+#10 21.72 
+#10 21.72 > Task :server:kmpPartiallyResolvedDependenciesChecker
+#10 21.72 > Task :server:checkKotlinGradlePluginConfigurationErrors SKIPPED
+#10 21.82 > Task :server:downloadKotlinNativeDistribution
+#10 21.82 > Task :server:generateKoreBuildIdentity
+#10 42.12 > Task :server:compileKotlinNative
+#10 72.13 > Task :server:linkReleaseExecutableNative
+#10 221.3 
+#10 221.3 [Incubating] Problems report is available at: file:///app/build/reports/problems/problems-report.html
+#10 221.3 
+#10 221.3 Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+#10 221.3 
+#10 221.3 You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+#10 221.3 
+#10 221.3 For more on this, please refer to https://docs.gradle.org/9.8.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+#10 221.3 
+#10 221.3 BUILD SUCCESSFUL in 3m 40s
+#10 221.3 5 actionable tasks: 5 executed
+#10 221.3 Configuration cache entry stored.
+#10 221.5 
+#10 221.5 There is no dynamic section in this file.
+#10 DONE 221.7s
+
+#11 [stage-1 2/9] WORKDIR /app
+#11 CACHED
+
+#12 [stage-1 3/9] COPY --from=build /etc/ld.so.cache /etc/ld.so.cache
+#12 CACHED
+
+#13 [stage-1 4/9] COPY --from=build /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+#13 CACHED
+
+#14 [stage-1 5/9] COPY --from=build /lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/libc.so.6
+#14 CACHED
+
+#15 [stage-1 6/9] COPY --from=build /usr/lib/x86_64-linux-gnu/gconv /usr/lib/x86_64-linux-gnu/gconv
+#15 CACHED
+
+#16 [stage-1 7/9] COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
+#16 CACHED
+
+#17 [stage-1 8/9] COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+#17 CACHED
+
+#18 [stage-1 9/9] COPY --from=build /app/server.kexe /app/server
+#18 DONE 0.3s
+
+#19 exporting to image
+#19 exporting layers
+#19 exporting layers 1.1s done
+#19 exporting manifest sha256:081b3fd804af493cc58ef66dc8bfbb7c21fc6ef43f1f91f2bda60bb7ccc78065 0.1s done
+#19 exporting config sha256:134f1803d613ff538f8bab0ee09e408eb7f24b6b48db234ac690dcd0ac7829df 0.1s done
+#19 exporting attestation manifest sha256:a759f586819e1a0530f47767809792ea97476a6f76cb42b623937140033cd0fe
+#19 exporting attestation manifest sha256:a759f586819e1a0530f47767809792ea97476a6f76cb42b623937140033cd0fe 0.2s done
+#19 exporting manifest list sha256:800314f9c753deb2cc353148c44f1829c73f75f69f64556011c19a557422d27c
+#19 exporting manifest list sha256:800314f9c753deb2cc353148c44f1829c73f75f69f64556011c19a557422d27c 0.1s done
+#19 naming to docker.io/library/xyk-g1:default-ship
+#19 naming to docker.io/library/xyk-g1:default-ship 0.0s done
+#19 unpacking to docker.io/library/xyk-g1:default-ship
+#19 unpacking to docker.io/library/xyk-g1:default-ship 0.3s done
+#19 DONE 2.0s
+
+ [33m1 warning found (use docker --debug to expand):
+[0m - FromPlatformFlagConstDisallowed: FROM --platform flag should not use constant value "linux/amd64" (line 23)

@@ -1,0 +1,203 @@
+## S1 cpu_per_req
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A0b']
+  round 3: excluded, under 95 % of 6000 answered: ['A0b']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 4: A0b=7508 A0=6878 diff=+9.17 %
+A0b vs A0, cpu_per_req: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, under 95 % of 6000 answered: ['A1']
+  round 4: excluded, the host was busy beside the subject: ['A1']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 3: A0=6521 A1=7268 diff=-10.28 %
+A0 vs A1, cpu_per_req: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A1=false C=true
+  round 3: excluded, A1=false C=true
+  round 4: excluded, A1=false C=true
+  round 5: excluded, A1=false C=true
+  round 6: excluded, A1=false C=true
+A1 vs C, cpu_per_req: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A0=false C=true
+  round 3: excluded, A0=false C=true
+  round 4: excluded, A0=false C=true
+  round 5: excluded, A0=false C=true
+  round 6: excluded, A0=false C=true
+A0 vs C, cpu_per_req: 0 counted round(s) — no interval
+## S1 p50_ms
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A0b']
+  round 3: excluded, under 95 % of 6000 answered: ['A0b']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 4: A0b=20.52 A0=19.85 diff=+3.36 %
+A0b vs A0, p50_ms: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, under 95 % of 6000 answered: ['A1']
+  round 4: excluded, the host was busy beside the subject: ['A1']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 3: A0=11.62 A1=16.2 diff=-28.29 %
+A0 vs A1, p50_ms: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A1=false C=true
+  round 3: excluded, A1=false C=true
+  round 4: excluded, A1=false C=true
+  round 5: excluded, A1=false C=true
+  round 6: excluded, A1=false C=true
+A1 vs C, p50_ms: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A0=false C=true
+  round 3: excluded, A0=false C=true
+  round 4: excluded, A0=false C=true
+  round 5: excluded, A0=false C=true
+  round 6: excluded, A0=false C=true
+A0 vs C, p50_ms: 0 counted round(s) — no interval
+## S1 p99_ms
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A0b']
+  round 3: excluded, under 95 % of 6000 answered: ['A0b']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 4: A0b=354.9 A0=181.2 diff=+95.85 %
+A0b vs A0, p99_ms: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, under 95 % of 6000 answered: ['A1']
+  round 4: excluded, the host was busy beside the subject: ['A1']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 3: A0=179.4 A1=484.2 diff=-62.95 %
+A0 vs A1, p99_ms: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A1=false C=true
+  round 3: excluded, A1=false C=true
+  round 4: excluded, A1=false C=true
+  round 5: excluded, A1=false C=true
+  round 6: excluded, A1=false C=true
+A1 vs C, p99_ms: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A0=false C=true
+  round 3: excluded, A0=false C=true
+  round 4: excluded, A0=false C=true
+  round 5: excluded, A0=false C=true
+  round 6: excluded, A0=false C=true
+A0 vs C, p99_ms: 0 counted round(s) — no interval
+## S1 reqs_ok
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A0b']
+  round 3: excluded, under 95 % of 6000 answered: ['A0b']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 4: A0b=5873 A0=6001 diff=-2.13 %
+A0b vs A0, reqs_ok: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, under 95 % of 6000 answered: ['A1']
+  round 4: excluded, the host was busy beside the subject: ['A1']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+  round 3: A0=6001 A1=5795 diff=+3.55 %
+A0 vs A1, reqs_ok: 1 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A1=false C=true
+  round 3: excluded, A1=false C=true
+  round 4: excluded, A1=false C=true
+  round 5: excluded, A1=false C=true
+  round 6: excluded, A1=false C=true
+A1 vs C, reqs_ok: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A0=false C=true
+  round 3: excluded, A0=false C=true
+  round 4: excluded, A0=false C=true
+  round 5: excluded, A0=false C=true
+  round 6: excluded, A0=false C=true
+A0 vs C, reqs_ok: 0 counted round(s) — no interval
+## S1 peak_rss_kb
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A0b']
+  round 5: excluded, the host was busy beside the subject: ['A0b', 'A0']
+  round 3: A0b=6.554e+04 A0=6.557e+04 diff=-0.05 %
+  round 4: A0b=6.555e+04 A0=6.555e+04 diff=-0.01 %
+  round 6: A0b=6.554e+04 A0=6.558e+04 diff=-0.05 %
+A0b vs A0, peak_rss_kb: -0.04 % [-0.10, +0.03] 95 % CI, n=3, median A0b=6.554e+04 A0=6.557e+04 — below resolution, effect under 0.1 %
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A1']
+  round 4: excluded, the host was busy beside the subject: ['A1']
+  round 5: excluded, the host was busy beside the subject: ['A0']
+  round 3: A0=6.557e+04 A1=6.554e+04 diff=+0.04 %
+  round 6: A0=6.558e+04 A1=6.555e+04 diff=+0.04 %
+A0 vs A1, peak_rss_kb: +0.04 % [+0.04, +0.04] 95 % CI, n=2, median A0=6.558e+04 A1=6.555e+04 — distinguishable
+  round 1: discarded (warm-up)
+  round 2: excluded, A1=false C=true
+  round 3: excluded, A1=false C=true
+  round 4: excluded, A1=false C=true
+  round 5: excluded, A1=false C=true
+  round 6: excluded, A1=false C=true
+A1 vs C, peak_rss_kb: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A0=false C=true
+  round 3: excluded, A0=false C=true
+  round 4: excluded, A0=false C=true
+  round 5: excluded, A0=false C=true
+  round 6: excluded, A0=false C=true
+A0 vs C, peak_rss_kb: 0 counted round(s) — no interval
+## S1 anon_kb
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A0b']
+  round 3: excluded, under 95 % of 6000 answered: ['A0b']
+  round 4: excluded, anon_kb not readable
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+A0b vs A0, anon_kb: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, under 95 % of 6000 answered: ['A1']
+  round 3: excluded, anon_kb not readable
+  round 4: excluded, the host was busy beside the subject: ['A1']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+A0 vs A1, anon_kb: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A1=false C=true
+  round 3: excluded, A1=false C=true
+  round 4: excluded, A1=false C=true
+  round 5: excluded, A1=false C=true
+  round 6: excluded, A1=false C=true
+A1 vs C, anon_kb: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A0=false C=true
+  round 3: excluded, A0=false C=true
+  round 4: excluded, A0=false C=true
+  round 5: excluded, A0=false C=true
+  round 6: excluded, A0=false C=true
+A0 vs C, anon_kb: 0 counted round(s) — no interval
+## S1 file_kb
+  round 1: discarded (warm-up)
+  round 2: excluded, the host was busy beside the subject: ['A0b']
+  round 3: excluded, under 95 % of 6000 answered: ['A0b']
+  round 4: excluded, file_kb not readable
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+A0b vs A0, file_kb: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, under 95 % of 6000 answered: ['A1']
+  round 3: excluded, file_kb not readable
+  round 4: excluded, the host was busy beside the subject: ['A1']
+  round 5: excluded, under 95 % of 6000 answered: ['A0']
+  round 6: excluded, under 95 % of 6000 answered: ['A0']
+A0 vs A1, file_kb: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A1=false C=true
+  round 3: excluded, A1=false C=true
+  round 4: excluded, A1=false C=true
+  round 5: excluded, A1=false C=true
+  round 6: excluded, A1=false C=true
+A1 vs C, file_kb: 0 counted round(s) — no interval
+  round 1: discarded (warm-up)
+  round 2: excluded, A0=false C=true
+  round 3: excluded, A0=false C=true
+  round 4: excluded, A0=false C=true
+  round 5: excluded, A0=false C=true
+  round 6: excluded, A0=false C=true
+A0 vs C, file_kb: 0 counted round(s) — no interval

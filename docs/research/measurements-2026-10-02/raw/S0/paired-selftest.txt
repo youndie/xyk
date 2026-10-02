@@ -1,0 +1,1 @@
+paired.py selftest: 3 of 3 known inputs read as they must
