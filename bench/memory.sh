@@ -78,7 +78,9 @@ while [ $# -gt 0 ]; do
 done
 
 mkdir -p "$OUT"
-cleanup() { docker rm -f mem-arm >/dev/null 2>&1 || true; }
+# `-v` BECAUSE THE IMAGE DECLARES `VOLUME /data`: every run gets an anonymous volume holding its
+# database, and `rm -f` alone left one behind per run — 149 of them after B-32's series.
+cleanup() { docker rm -fv mem-arm >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 BODY='{"zen":"Non-blocking is better than blocking."}'
@@ -102,7 +104,7 @@ LEVER=no; sudo -n true 2>/dev/null && LEVER=yes
 run_once() {
   local arm=$1 limit=$2 round=$3
   local image; image=$(arm_image "$arm")
-  docker rm -f mem-arm >/dev/null 2>&1
+  docker rm -fv mem-arm >/dev/null 2>&1
   # shellcheck disable=SC2046
   docker run -d --name mem-arm --memory="$limit" --memory-swap="$limit" \
     --cpuset-cpus="$SUBJECT_CPUS" \
@@ -150,7 +152,7 @@ run_once() {
   if ! grep -q "http_reqs" "$OUT/$arm-$limit-$round.log"; then
     printf '%s,%s,%s,no-load,,%s\n' "$arm" "$limit" "$round" ",,,,,,,,,,,,," >> "$OUT/results.csv"
     echo "$arm round $round: THE GENERATOR PRODUCED NO REQUESTS (see $OUT/$arm-$limit-$round.log)" >&2
-    docker rm -f mem-arm >/dev/null 2>&1
+    docker rm -fv mem-arm >/dev/null 2>&1
     return
   fi
 
@@ -194,7 +196,7 @@ PY
   printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' "$arm" "$limit" "$round" "${killed:-unknown}" \
     "${peak:-}" "${threads:-}" "$(( ${cpu1:-0} - ${cpu0:-0} ))" "$k6" "$(( host1 - host0 ))" \
     "$arena_env" "$arenas" "$(cut -d' ' -f1 /proc/loadavg)" "$nproc_in" "${anon:-}" "${file:-}" >> "$OUT/results.csv"
-  docker rm -f mem-arm >/dev/null 2>&1
+  docker rm -fv mem-arm >/dev/null 2>&1
 }
 
 # The header every log of a measurement carries: where, on what, with what — so that two tables are
