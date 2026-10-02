@@ -17,7 +17,7 @@
 # Kotlin/Native *is* glibc `iconv`. An image with the binary alone starts, answers `/health/ready`
 # with `200`, and returns `500` on the first rendered page. That is why `dev/image-smoke.sh` insists
 # on reading a timestamp out of the HTML, and why this image carries five things and not one.
-FROM --platform=linux/amd64 gradle:9.7.1-jdk25-noble AS build
+FROM --platform=linux/amd64 gradle:9.8.0-jdk25-noble AS build
 
 # `gradle:*-noble` carries the right glibc and NOT ONE STATIC ARCHIVE: no `libc.a`, no `crt1.o`, no
 # `/usr/lib/gcc/x86_64-linux-gnu` at all. The link then fails with `unable to find library -lc`,
