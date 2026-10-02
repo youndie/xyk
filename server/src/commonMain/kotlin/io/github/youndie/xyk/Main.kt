@@ -259,7 +259,10 @@ fun main() {
     val rejections = koin.koin.get<RejectionCounters>()
     val rejectionFlush =
         RejectionFlush(db, rejections) { failure ->
-            println("xyk: rejection flush failed: ${failure::class.simpleName}")
+            // The message as well as the class: every value reaches SQL bound, so a database message
+            // names the statement's shape and never an id or a count, and the class alone left an
+            // operator with nothing to look up.
+            println("xyk: rejection flush failed: ${failure::class.simpleName}: ${failure.message}")
         }
     val registry = koin.koin.get<RegistryRepository>()
     val createEndpoint = koin.koin.get<CreateEndpointUseCase>()

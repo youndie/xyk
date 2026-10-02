@@ -1,6 +1,7 @@
 package io.github.youndie.xyk.ingest.domain
 
 import io.github.youndie.xyk.db.UnstorableText
+import io.github.youndie.xyk.db.isStorable
 import io.github.youndie.xyk.sink.AcceptedRecord
 import io.github.youndie.xyk.sink.EventSink
 import io.github.youndie.xyk.suspendRunCatching
@@ -78,6 +79,23 @@ class AcceptEventUseCase(
                 stored
             }
         }
+    }
+
+    /**
+     * The endpoint a refusal made **before** [invoke] is counted against: [endpointId] when
+     * [invoke] would have found it, `null` — the global bucket — when it would have answered
+     * [Error.UnknownEndpoint].
+     *
+     * The body limit is that refusal. It is decided before the lookup so that an oversized body is
+     * never read, which leaves the id in the URL unchecked; counting against it as it stands let
+     * every id anybody sent become a row in `rejections`. The check is one primary-key read — the
+     * same read an unknown id already costs on the way to its `404` — and its failure blames nobody
+     * rather than failing the refusal: the count is a diagnostic, the `413` is the answer.
+     */
+    suspend fun endpointToBlame(endpointId: String): String? {
+        if (!isStorable(endpointId)) return null
+        val scheme = suspendRunCatching { repository.enabledScheme(endpointId) }.getOrNull() ?: return null
+        return endpointId.takeIf { scheme in verifiers }
     }
 
     /**

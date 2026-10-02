@@ -60,6 +60,15 @@ class Sqlx4kEventRepository(
         )
     }
 
+    override suspend fun enabledScheme(endpointId: String): String? =
+        db
+            .fetchAll(sql("SELECT scheme FROM endpoints WHERE id = ? AND enabled = 1;", endpointId))
+            .getOrThrow()
+            .rows
+            .firstOrNull()
+            ?.get(0)
+            ?.asString()
+
     /**
      * One transaction, and everything that could fail is inside it.
      *

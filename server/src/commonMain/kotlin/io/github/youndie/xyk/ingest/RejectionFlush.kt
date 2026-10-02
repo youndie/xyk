@@ -77,7 +77,9 @@ class RejectionFlush(
         } catch (failure: Throwable) {
             // The counts are gone either way — `drain` took them — and re-adding them to a map that
             // is being written to concurrently would double-count on the next pass. Losing a
-            // diagnostic count is the smaller harm, and it is reported rather than swallowed.
+            // diagnostic count is the smaller harm, and it is reported rather than swallowed. What
+            // can still get here is the database failing; a key it cannot hold cannot, because
+            // `RejectionCounters.record` never lets one into the map.
             onFailure(failure)
         }
     }

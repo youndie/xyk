@@ -22,12 +22,14 @@ data class ServerConfig(
     /** Bodies above this are refused with `413`, and refused before they are read. */
     val maxBodyBytes: Long,
     /**
-     * How long payloads are kept, in days. **`0` means for ever, and it is the default.**
+     * How long payloads are kept, in days. **Seven by default** ([DEFAULT_RETENTION_DAYS]); `0`
+     * means for ever.
      *
-     * Not seven days, not thirty: deleting somebody's data on a schedule nobody chose is the one
-     * mistake here that cannot be undone, so the horizon is unset until an owner sets it
-     * ([B-19](../../../../../../docs/backlog/B-19-secret-handling.md)). What ships is the machinery,
-     * not a policy.
+     * The default is the owner's answer of 2026-09-16
+     * ([B-19](../../../../../../docs/backlog/B-19-secret-handling.md), research §3, Decision 3): xyk
+     * stores raw bodies by design, and a service whose safe configuration takes an act of
+     * configuration is usually unsafe. It was `0` until then, which is why `fromEnv` says what an
+     * upgrade across that line starts doing.
      */
     val retentionDays: Long,
     val deliveryTimeoutMillis: Long,

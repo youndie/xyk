@@ -3,6 +3,8 @@ package io.github.youndie.xyk.ingest
 import io.github.youndie.xyk.contract.AcceptedResponse
 import io.github.youndie.xyk.contract.ErrorResponse
 import io.github.youndie.xyk.contract.HookResource
+import io.github.youndie.xyk.db.UnstorableText
+import io.github.youndie.xyk.db.isStorable
 import io.github.youndie.xyk.ingest.domain.AcceptEventUseCase
 import io.github.youndie.xyk.verify.SignedRequest
 import io.github.youndie.xyk.verify.VerificationFailure
@@ -33,11 +35,17 @@ fun Route.ingestRouting(
     nowEpochSeconds: () -> Long,
 ) {
     post<HookResource> { hook ->
+        // First, and before anything is counted: no endpoint is named by text the database cannot
+        // hold, and the same `400` the lookup would give is the answer whatever the body's size.
+        if (!isStorable(hook.endpointId)) throw UnstorableText()
+
         // Checked BEFORE the read. A limit that buffers first defends nothing, and the declared
         // length is free when it is there.
         val declared = call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
         if (declared != null && declared > maxBodyBytes) {
-            rejections.record(hook.endpointId, RejectionReason.BODY_TOO_LARGE)
+            // Against the endpoint only if it exists: this refusal comes before the lookup, so the
+            // id is still just what the URL said (see `RejectionCounters`).
+            rejections.record(acceptEvent.endpointToBlame(hook.endpointId), RejectionReason.BODY_TOO_LARGE)
             call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("body too large"))
             return@post
         }
@@ -50,7 +58,7 @@ fun Route.ingestRouting(
                 .readBuffer(maxBodyBytes + 1)
                 .readByteArray()
         if (body.size > maxBodyBytes) {
-            rejections.record(hook.endpointId, RejectionReason.BODY_TOO_LARGE)
+            rejections.record(acceptEvent.endpointToBlame(hook.endpointId), RejectionReason.BODY_TOO_LARGE)
             call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("body too large"))
             return@post
         }
@@ -81,6 +89,7 @@ fun Route.ingestRouting(
             onFailure = { failure ->
                 // Counted against the endpoint when there is one, and against the global bucket when
                 // the id in the URL is not real — otherwise anyone with a URL bar could create rows.
+                // Every failure but `UnknownEndpoint` comes after the lookup found the endpoint.
                 rejections.record(failure.endpointIdToBlame(hook.endpointId), failure.reason())
                 call.respondToFailure(failure)
             },
