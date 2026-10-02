@@ -22,11 +22,13 @@ okio = "3.18.2"
 # code: the jvm jars are byte-identical and the linuxX64 klibs differ only in the source path the
 # build machine recorded, so the timers table (migration v5) did not move.
 chronik = "0.2.0"
-# kafkakn: the Kafka producer, for the optional sink. A SNAPSHOT AND NOTHING ELSE EXISTS — it is
-# published to reposilite's snapshot repository and has never been released, so this line names a
-# moving target on purpose. Every publication is a unique timestamped one underneath, and the run
-# that measures anything through this sink records which one it resolved; the two together are what
-# make a number here reproducible, because the coordinate alone is not.
+# kafkakn: the Kafka producer, for the optional sink. NOT ON MAVEN CENTRAL, and THIS LINE STILL NAMES
+# THE MOVING SNAPSHOT although numbered versions exist: kafkakn tags `v0.1.0.<n>` and publishes each
+# to the same reposilite repository as the snapshot (`/snapshots`, not `/releases`) — 0.1.0.10 to
+# 0.1.0.14 as of 2026-10-02. Moving to one is a dependency change of its own, which Renovate offers
+# through the `kafkakn` rule in renovate.json. Until then the coordinate alone does not say what was
+# built: every snapshot publication is a unique timestamped one underneath, and a run that measures
+# anything through this sink records which one it resolved.
 kafkakn = "0.1.0-SNAPSHOT"
 sqlx4k = "1.13.1"
 
