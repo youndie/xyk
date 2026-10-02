@@ -105,8 +105,12 @@ gate: docs
 	./gradlew check
 
 # The documentation half, at the version the workflow pins: the guard, the backlog index, the
-# documents, the coverage map.
+# documents, the coverage map. Plus the one check of this repository's own: a pre-registration whose
+# bytes were recorded before its measurement still has those bytes (B-32). Its history half
+# (`--history --window`) is not here: squash merges keep no branch commits, so it runs on the branch
+# before the merge and its output is kept with the raw runs.
 docs: docs-gate
+	python3 scripts/brief_freeze.py --brief docs/backlog/B-32-arena-cap-on-paged-off.md
 
 # NOT part of `make check`, and this is the one place that rule is bent, so the reason is here rather
 # than assumed: it links a release binary (a minute of LLVM) and needs a working docker, which a

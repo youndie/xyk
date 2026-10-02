@@ -36,6 +36,12 @@ ARG XYK_HTTP_CLIENT=false
 # `noop` keeps the engine linked and removes the request alone — a B-30 measurement arm, never an
 # image to publish. `real` is the only value that ships and is the default here.
 ARG XYK_OUTBOUND=real
+# Which allocator is linked (`server/build.gradle.kts`, `-Pxyk.allocator=`). `paged-off` is what
+# ships; the others exist so that a measurement can build its arms through this same file and differ
+# from the published image by that one property (B-32).
+ARG XYK_ALLOCATOR=paged-off
+# Extra Gradle flags for the link, empty here. On a shared build machine `--max-workers=2` goes in.
+ARG XYK_GRADLE_FLAGS=
 
 WORKDIR /app
 COPY . .
@@ -45,7 +51,8 @@ COPY . .
 RUN --mount=type=cache,target=/root/.konan \
     --mount=type=cache,target=/root/.gradle \
     gradle :server:linkReleaseExecutableNative \
-      -Pxyk.staticLink=true -Pxyk.httpClient=${XYK_HTTP_CLIENT} -Pxyk.outbound=${XYK_OUTBOUND} --no-daemon \
+      -Pxyk.staticLink=true -Pxyk.httpClient=${XYK_HTTP_CLIENT} -Pxyk.outbound=${XYK_OUTBOUND} \
+      -Pxyk.allocator=${XYK_ALLOCATOR} ${XYK_GRADLE_FLAGS} --no-daemon \
  && cp server/build/bin/native/releaseExecutable/server.kexe /app/server.kexe \
  && readelf -d /app/server.kexe | head -20
 

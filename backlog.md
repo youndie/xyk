@@ -61,9 +61,11 @@ re-prioritising one must never move its file.
 
 <!-- BEGIN INDEX -->
 
-## Open (0)
+## Open (1)
 
-No open tasks.
+| Task | | Priority | Size | Blocked by |
+|---|---|---|---|---|
+| [B-32](docs/backlog/B-32-arena-cap-on-paged-off.md) `[~]` | What MALLOC_ARENA_MAX=2 does on the pagedAllocator=false build | P1 | S | - |
 
 ## Closed (31)
 
