@@ -1,5 +1,6 @@
 package io.github.youndie.xyk.registry.domain
 
+import io.github.youndie.xyk.db.isStorable
 import io.github.youndie.xyk.verify.SchemeConfig
 
 /**
@@ -25,6 +26,27 @@ fun schemeProblem(
     // work. The set grows with B-09 and this message grows with it.
     return if (scheme in implemented) null else "unknown scheme: $scheme"
 }
+
+/**
+ * The first text field of a request that holds NUL (U+0000), named; `null` when none does.
+ *
+ * Refused rather than stored, and **before anything is written**: on Kotlin/Native a NUL ends the
+ * value on its way to the database, so storing would keep a shorter string than the one sent and
+ * say nothing about it. Checked over the whole request first, so that a `PATCH` refused for its
+ * description has not already applied its `enabled`.
+ */
+fun nulProblem(vararg fields: Pair<String, String?>): String? =
+    fields
+        .firstOrNull { (_, value) -> value != null && !isStorable(value) }
+        ?.let { (name, _) -> "$name must not contain NUL" }
+
+/** The text fields of a scheme configuration, named as the request names them. */
+fun SchemeConfig?.textFields(): Array<Pair<String, String?>> =
+    arrayOf(
+        "schemeConfig.header" to this?.header,
+        "schemeConfig.prefix" to this?.prefix,
+        "schemeConfig.encoding" to this?.encoding,
+    )
 
 /**
  * A subscriber is an absolute http(s) URL and nothing else.

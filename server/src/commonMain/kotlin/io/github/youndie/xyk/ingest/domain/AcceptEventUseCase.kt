@@ -1,5 +1,6 @@
 package io.github.youndie.xyk.ingest.domain
 
+import io.github.youndie.xyk.db.UnstorableText
 import io.github.youndie.xyk.sink.AcceptedRecord
 import io.github.youndie.xyk.sink.EventSink
 import io.github.youndie.xyk.suspendRunCatching
@@ -63,7 +64,12 @@ class AcceptEventUseCase(
                             contentType = params.contentType,
                             body = params.request.body,
                         )
-                    }.recoverCatching { failure -> throw Error.NotStored(failure) }
+                    }.recoverCatching { failure ->
+                        // Text the database cannot hold — a NUL in the declared content type — is
+                        // the sender's malformed request, not our failed write: it stays itself and
+                        // is answered `400`, where `NotStored` would be a `500` the sender retries.
+                        throw if (failure is UnstorableText) failure else Error.NotStored(failure)
+                    }
 
                 // AFTER the transaction has committed, and only then. The row is what makes a
                 // publish that never happened visible from outside — an event in the table with

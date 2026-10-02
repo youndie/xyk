@@ -373,6 +373,30 @@ possible characters, so nothing in a body can end it early, and SQLite stores a 
 is that the SQL text is twice the body while the insert runs — which is why the size limit is checked
 before the body is read rather than after.
 
+**Correction, 2026-10-02: sqlx4k binds, on both targets, and the second row of the table is wrong.**
+`renderNativeQuery` writes placeholders, not values: it returns the SQL with `?` in it and the values
+beside it, and both drivers bind them. Read again in the same jar the row cites, `sqlx4k-jvm-1.13.0`:
+the JDBC half calls `Connection.prepareStatement` and then `PreparedStatement.setObject` per value.
+In the sources of the pinned 1.13.1, the native half hands the values to `*_with_params` functions of
+its Rust library, TEXT as a C string and a byte array as a BLOB with its length. The row read a method
+name as a behaviour.
+
+What it cost, found by testing against SQLite on both targets rather than by reading: every value
+had been written into the statement as a quoted literal. **The quoting held** — a quote, a
+backslash, a comment or a second statement inside a value was stored as characters, and a value
+built to close the literal and assign another column did nothing. **NUL did not hold.** The
+statement ended at the NUL, SQLite answered `unrecognized token` with the start of the value in the
+message, and with no handler for unexpected exceptions Ktor wrote that message into the body of a
+`500` and into the log — for a secret, the start of the secret.
+
+**Consequence 3, from 2026-10-02 — every value is bound** (`db/Sql.kt`), the body included, which also
+drops the twice-the-body SQL text above. Binding alone does not make NUL safe: the native half
+passes TEXT as a C string, so a bound NUL would silently store the value cut short. Text holding NUL
+is refused before it is bound and answered `400`; anything else unexpected is answered
+`500 {"error":"internal error"}` with the cause in the log ([endpoint-admin](../api/endpoint-admin.md)).
+The body is still read back through `hex()`: what a driver hands back for a BLOB column differs
+between the two halves, and `hex()` is SQLite's own (`db/Blobs.kt`).
+
 ### 1.14 The gconv gotcha does not reproduce on this service (B-18, 2026-09-15)
 
 §1.7 is inherited from another service in this portfolio: a static Kotlin/Native binary loads its

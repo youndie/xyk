@@ -74,9 +74,21 @@ character replaced by U+FFFD, and one in `US-ASCII` is refused with `400`
 | subscriber URL is not absolute http(s) | `400` | `{"error":"subscriber url must be absolute http or https"}` |
 | `none` requested without `XYK_ALLOW_UNVERIFIED=true` | `400` | `{"error":"scheme none is disabled"}` |
 | a body that cannot be decoded into the request | `400` | plain text, `Failed to convert request body to class …` — Ktor's, not this API's JSON shape |
+| a text field holding NUL (U+0000) | `400` | `{"error":"<field> must not contain NUL"}`, e.g. `description`, `schemeConfig.header` |
+| an id in the path holding NUL | `400` | `{"error":"text must not contain NUL"}` |
+| anything the server did not expect | `500` | `{"error":"internal error"}` — the cause is logged, never put in the body |
 
-The last row is a guard rather than a feature: an endpoint that verifies nothing is a public write
+The `none` row is a guard rather than a feature: an endpoint that verifies nothing is a public write
 endpoint on somebody's database, and it should take a deliberate act to create one.
+
+**NUL is refused, not stored, and before anything is written.** On Kotlin/Native a bound text value
+ends at its NUL on the way to SQLite, so storing one would keep a shorter string than was sent and
+say nothing about it. A `PATCH` refused for one field applies none of the others. Every other
+character arrives as sent — quotes, backslashes, anything that looks like SQL — because every value
+reaches the database as a bound parameter and never as part of the statement's text. Until
+2026-10-02 values were written into the text, quoted; NUL then ended the statement early and the
+answer was a `500` carrying the database's own error, which is also why no `500` from this API has a
+body other than the one above.
 
 **The accepted scheme set is what is implemented, which today is `github` and `none`** — narrower
 than the five this document names, on purpose: an endpoint whose scheme nothing verifies would

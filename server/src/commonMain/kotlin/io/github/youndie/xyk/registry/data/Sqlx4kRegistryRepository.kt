@@ -3,6 +3,8 @@ package io.github.youndie.xyk.registry.data
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asInt
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
+import io.github.youndie.xyk.db.sql
+import io.github.youndie.xyk.newId
 import io.github.youndie.xyk.registry.domain.EndpointRecord
 import io.github.youndie.xyk.registry.domain.RegistryRepository
 import io.github.youndie.xyk.registry.domain.SubscriberRecord
@@ -13,14 +15,14 @@ class Sqlx4kRegistryRepository(
 ) : RegistryRepository {
     override suspend fun list(): List<EndpointRecord> =
         db
-            .fetchAll(SELECT_ENDPOINTS + " ORDER BY e.created_at DESC;")
+            .fetchAll(sql(SELECT_ENDPOINTS + " ORDER BY e.created_at DESC;"))
             .getOrThrow()
             .rows
             .map { row -> row.toRecord() }
 
     override suspend fun find(id: String): EndpointRecord? =
         db
-            .fetchAll(SELECT_ENDPOINTS + " WHERE e.id = ${id.quoted()};")
+            .fetchAll(sql(SELECT_ENDPOINTS + " WHERE e.id = ?;", id))
             .getOrThrow()
             .rows
             .firstOrNull()
@@ -37,9 +39,15 @@ class Sqlx4kRegistryRepository(
     ) {
         db.transaction {
             execute(
-                "INSERT INTO endpoints (id, scheme, enabled, description, created_at, scheme_config) " +
-                    "VALUES (${id.quoted()}, ${scheme.quoted()}, 1, ${description.quoted()}, $createdAt, " +
-                    "${schemeConfig?.quoted() ?: "NULL"});",
+                sql(
+                    "INSERT INTO endpoints (id, scheme, enabled, description, created_at, scheme_config) " +
+                        "VALUES (?, ?, 1, ?, ?, ?);",
+                    id,
+                    scheme,
+                    description,
+                    createdAt,
+                    schemeConfig,
+                ),
             ).getOrThrow()
             if (secret.isNotBlank()) {
                 execute(insertSecret(id, secret, fingerprint, createdAt)).getOrThrow()
@@ -61,9 +69,8 @@ class Sqlx4kRegistryRepository(
         enabled: Boolean,
     ) {
         db
-            .execute(
-                "UPDATE endpoints SET enabled = ${if (enabled) 1 else 0} WHERE id = ${endpointId.quoted()};",
-            ).getOrThrow()
+            .execute(sql("UPDATE endpoints SET enabled = ? WHERE id = ?;", if (enabled) 1 else 0, endpointId))
+            .getOrThrow()
     }
 
     override suspend fun setDescription(
@@ -71,16 +78,14 @@ class Sqlx4kRegistryRepository(
         description: String,
     ) {
         db
-            .execute(
-                "UPDATE endpoints SET description = ${description.quoted()} WHERE id = ${endpointId.quoted()};",
-            ).getOrThrow()
+            .execute(sql("UPDATE endpoints SET description = ? WHERE id = ?;", description, endpointId))
+            .getOrThrow()
     }
 
     override suspend fun listSubscribers(endpointId: String): List<SubscriberRecord> =
         db
             .fetchAll(
-                "SELECT id, url, enabled FROM subscribers WHERE endpoint_id = ${endpointId.quoted()} " +
-                    "ORDER BY created_at;",
+                sql("SELECT id, url, enabled FROM subscribers WHERE endpoint_id = ? ORDER BY created_at;", endpointId),
             ).getOrThrow()
             .rows
             .map { row ->
@@ -99,21 +104,26 @@ class Sqlx4kRegistryRepository(
     ) {
         db
             .execute(
-                "INSERT INTO subscribers (id, endpoint_id, url, enabled, created_at) " +
-                    "VALUES (${id.quoted()}, ${endpointId.quoted()}, ${url.quoted()}, 1, $createdAt);",
+                sql(
+                    "INSERT INTO subscribers (id, endpoint_id, url, enabled, created_at) VALUES (?, ?, ?, 1, ?);",
+                    id,
+                    endpointId,
+                    url,
+                    createdAt,
+                ),
             ).getOrThrow()
     }
 
     override suspend fun removeSubscriber(id: String): Boolean {
         val existed =
             db
-                .fetchAll("SELECT count(*) FROM subscribers WHERE id = ${id.quoted()};")
+                .fetchAll(sql("SELECT count(*) FROM subscribers WHERE id = ?;", id))
                 .getOrThrow()
                 .rows
                 .first()
                 .get(0)
                 .asLong() > 0
-        if (existed) db.execute("DELETE FROM subscribers WHERE id = ${id.quoted()};").getOrThrow()
+        if (existed) db.execute(sql("DELETE FROM subscribers WHERE id = ?;", id)).getOrThrow()
         return existed
     }
 
@@ -144,10 +154,15 @@ class Sqlx4kRegistryRepository(
         secret: String,
         fingerprint: String,
         createdAt: Long,
-    ): String =
+    ) = sql(
         "INSERT INTO endpoint_secrets (id, endpoint_id, secret, fingerprint, created_at, retires_at) " +
-            "VALUES (${io.github.youndie.xyk.newId().quoted()}, ${endpointId.quoted()}, " +
-            "${secret.quoted()}, ${fingerprint.quoted()}, $createdAt, NULL);"
+            "VALUES (?, ?, ?, ?, ?, NULL);",
+        newId(),
+        endpointId,
+        secret,
+        fingerprint,
+        createdAt,
+    )
 
     private fun io.github.smyrgeorge.sqlx4k.ResultSet.Row.toRecord(): EndpointRecord =
         EndpointRecord(
@@ -167,8 +182,6 @@ class Sqlx4kRegistryRepository(
                     .filter { it.isNotEmpty() },
             subscriberCount = get(6).asInt(),
         )
-
-    private fun String.quoted(): String = "'" + replace("'", "''") + "'"
 
     private companion object {
         const val SELECT_ENDPOINTS =

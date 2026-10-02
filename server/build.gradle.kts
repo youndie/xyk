@@ -232,6 +232,9 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.koin.test)
+            // The application through HTTP, in memory: what a client is answered is decided in the
+            // pipeline (StatusPages), where a test of a handler alone does not reach.
+            implementation(ktorLibs.server.testHost)
         }
 
         // ON THE JVM CHRONIK IS A TEST DEPENDENCY AND NOTHING MORE: the JVM build never delivers,

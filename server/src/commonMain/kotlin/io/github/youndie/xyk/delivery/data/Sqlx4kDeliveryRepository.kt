@@ -5,6 +5,7 @@ import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLongOrNull
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.db.fromSqliteHex
+import io.github.youndie.xyk.db.sql
 import io.github.youndie.xyk.delivery.domain.AttemptRecord
 import io.github.youndie.xyk.delivery.domain.DeliveryRepository
 import io.github.youndie.xyk.delivery.domain.DeliveryTarget
@@ -24,14 +25,18 @@ class Sqlx4kDeliveryRepository(
     override suspend fun target(deliveryId: String): DeliveryTarget? =
         db
             .fetchAll(
-                "SELECT d.id, d.event_id, e.endpoint_id, s.url, e.content_type, hex(e.body), d.attempts " +
-                    "FROM deliveries d " +
-                    "JOIN events e ON e.id = d.event_id " +
-                    "JOIN subscribers s ON s.id = d.subscriber_id " +
-                    // A disabled subscriber is not a target. The delivery stays in the journal with
-                    // its history; what stops is sending to an address an operator has switched off,
-                    // and the timer retires rather than retrying against it for five rounds.
-                    "WHERE d.id = ${deliveryId.quoted()} AND s.enabled = 1 AND e.purged_at IS NULL;",
+                sql(
+                    "SELECT d.id, d.event_id, e.endpoint_id, s.url, e.content_type, hex(e.body), d.attempts " +
+                        "FROM deliveries d " +
+                        "JOIN events e ON e.id = d.event_id " +
+                        "JOIN subscribers s ON s.id = d.subscriber_id " +
+                        // A disabled subscriber is not a target. The delivery stays in the journal
+                        // with its history; what stops is sending to an address an operator has
+                        // switched off, and the timer retires rather than retrying against it for
+                        // five rounds.
+                        "WHERE d.id = ? AND s.enabled = 1 AND e.purged_at IS NULL;",
+                    deliveryId,
+                ),
             ).getOrThrow()
             .rows
             .firstOrNull()
@@ -57,14 +62,28 @@ class Sqlx4kDeliveryRepository(
         // behind it.
         db.transaction {
             execute(
-                "INSERT INTO delivery_attempts (id, delivery_id, attempt, status, duration_ms, detail, at) " +
-                    "VALUES (${newId().quoted()}, ${record.deliveryId.quoted()}, ${record.attempt}, " +
-                    "${record.status?.toString() ?: "NULL"}, ${record.durationMs}, " +
-                    "${record.detail.quoted()}, ${record.atEpochSeconds});",
+                sql(
+                    "INSERT INTO delivery_attempts (id, delivery_id, attempt, status, duration_ms, detail, at) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?);",
+                    newId(),
+                    record.deliveryId,
+                    record.attempt,
+                    record.status,
+                    record.durationMs,
+                    // The first bytes of whatever the subscriber answered, which may be binary. A NUL
+                    // in it would refuse the whole record — the attempt an operator most needs to
+                    // see — so it is shown as the replacement character instead.
+                    record.detail.replace('\u0000', '\uFFFD'),
+                    record.atEpochSeconds,
+                ),
             ).getOrThrow()
             execute(
-                "UPDATE deliveries SET attempts = ${record.attempt}, state = ${newState.quoted()} " +
-                    "WHERE id = ${record.deliveryId.quoted()};",
+                sql(
+                    "UPDATE deliveries SET attempts = ?, state = ? WHERE id = ?;",
+                    record.attempt,
+                    newState,
+                    record.deliveryId,
+                ),
             ).getOrThrow()
         }
     }
@@ -73,8 +92,11 @@ class Sqlx4kDeliveryRepository(
     suspend fun attempts(deliveryId: String): List<AttemptRecord> =
         db
             .fetchAll(
-                "SELECT delivery_id, attempt, status, duration_ms, detail, at FROM delivery_attempts " +
-                    "WHERE delivery_id = ${deliveryId.quoted()} ORDER BY attempt;",
+                sql(
+                    "SELECT delivery_id, attempt, status, duration_ms, detail, at FROM delivery_attempts " +
+                        "WHERE delivery_id = ? ORDER BY attempt;",
+                    deliveryId,
+                ),
             ).getOrThrow()
             .rows
             .map { row ->
@@ -87,6 +109,4 @@ class Sqlx4kDeliveryRepository(
                     atEpochSeconds = row.get(5).asLong(),
                 )
             }
-
-    private fun String.quoted(): String = "'" + replace("'", "''") + "'"
 }
