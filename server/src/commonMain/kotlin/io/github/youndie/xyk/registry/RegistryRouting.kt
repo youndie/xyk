@@ -14,7 +14,9 @@ import io.github.youndie.xyk.registry.domain.CreateEndpointUseCase
 import io.github.youndie.xyk.registry.domain.EndpointRecord
 import io.github.youndie.xyk.registry.domain.RegistryRepository
 import io.github.youndie.xyk.registry.domain.RotateSecretUseCase
+import io.github.youndie.xyk.registry.domain.nulProblem
 import io.github.youndie.xyk.registry.domain.subscriberUrlProblem
+import io.github.youndie.xyk.registry.domain.textFields
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.resources.delete
@@ -46,6 +48,15 @@ fun Route.registryRouting(
 
     post<EndpointsResource> {
         val body = call.receive<CreateEndpointRequest>()
+        nulProblem(
+            "scheme" to body.scheme,
+            "secret" to body.secret,
+            "description" to body.description,
+            *body.schemeConfig.textFields(),
+        )?.let { problem ->
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(problem))
+            return@post
+        }
         createEndpoint(
             CreateEndpointUseCase.Params(
                 scheme = body.scheme,
@@ -90,6 +101,10 @@ fun Route.registryRouting(
             return@patch
         }
         val body = call.receive<PatchEndpointRequest>()
+        nulProblem("description" to body.description, "secret" to body.secret)?.let { problem ->
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(problem))
+            return@patch
+        }
         body.enabled?.let { repository.setEnabled(resource.id, it) }
         body.description?.let { repository.setDescription(resource.id, it) }
         body.secret?.let { secret ->
@@ -135,7 +150,7 @@ fun Route.registryRouting(
             return@post
         }
         val body = call.receive<AddSubscriberRequest>()
-        subscriberUrlProblem(body.url)?.let { problem ->
+        (nulProblem("url" to body.url) ?: subscriberUrlProblem(body.url))?.let { problem ->
             call.respond(HttpStatusCode.BadRequest, ErrorResponse(problem))
             return@post
         }

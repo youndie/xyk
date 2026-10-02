@@ -62,10 +62,12 @@ What it deliberately does **not** do:
 | File | What is there |
 |---|---|
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/Main.kt` | `main`: the deadlines, the start order, and kore's stop sequence |
-| `server/src/commonMain/kotlin/io/github/youndie/xyk/Application.kt` | the Ktor module — the three installs, content negotiation, and every route mount with its tier |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/Application.kt` | the Ktor module — the three installs, content negotiation, the error responses, and every route mount with its tier |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/ErrorResponses.kt` | `StatusPages`: text the database cannot hold is a `400`, an unexpected failure a `500` whose body says nothing and whose cause goes to the log |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/ServerConfig.kt` | typed configuration, `fromEnv()` and the `require` calls that refuse to start |
 | `server/src/nativeMain/kotlin/io/github/youndie/xyk/Env.native.kt` | `actual fun readEnv` — Kotlin/Native has no `System.getenv` |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` | the statement list and `PRAGMA user_version`, run before the engine starts |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Sql.kt` | `sql(text, values…)`: the one way a value reaches SQL — bound, never written into the text — and the NUL check in front of it |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/health/XykProbes.kt` | the three gates and the checks behind readiness |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/IngestRouting.kt` | `POST /hooks/{endpointId}` |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/verify/` | one verifier per scheme + the constant-time compare |

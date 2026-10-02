@@ -43,13 +43,20 @@ handful of endpoints, and running a second one costs a container.
   per-subscriber transformation, no filters.
 * `scheme: none` requires `XYK_ALLOW_UNVERIFIED=true` at startup.
 * Changing configuration never touches timers already scheduled.
+* **Text is stored as it was sent, or refused.** Every value reaches SQLite as a bound parameter, so
+  quotes, backslashes and anything that looks like SQL arrive as characters. A field holding NUL
+  (U+0000) is the one exception: it is refused with `400` before anything is written, because on
+  Kotlin/Native it would be stored cut short at the NUL without a word.
+* **A failure nobody expected says nothing about itself.** The answer is
+  `500 {"error":"internal error"}` and the cause goes to the log.
 
 ## 3. Flow
 
 1. `POST /api/endpoints` with a scheme and a secret → `201` with the id and the full hook URL.
 2. `POST /api/endpoints/{id}/subscribers` with a URL → the subscriber is enabled immediately, which
    means the **next** event, not the ones already stored.
-3. `PATCH` to rotate, disable, or change the Stripe tolerance.
+3. `PATCH` to rotate, disable, or change the description. The Stripe tolerance is set at creation,
+   through `schemeConfig`, and nothing changes it afterwards.
 4. `DELETE /api/subscribers/{id}` stops future timers; the ones in flight still fire and fail.
 
 ## 4. Code anchors
@@ -111,6 +118,32 @@ handful of endpoints, and running a second one costs a container.
 * **Given:** a subscriber with delivery attempts recorded
 * **When:** it is removed
 * **Then:** the attempts remain visible on each event's page, attributed to the removed subscriber
+
+### Scenario: text that looks like SQL is stored as text
+
+* **Given:** descriptions, secrets and subscriber URLs holding quotes, backslashes, comments,
+  statement separators, the placeholders of three SQL dialects, every UTF-8 width and 100 000
+  characters
+* **When:** each is created, changed, read back and used as a journal filter
+* **Then:** each comes back exactly as sent, and no other column or row has changed
+* **Automated:** `BoundValuesTest`, on both targets — with a control that writes one of them into the
+  text of a statement, unescaped, and sees it change the endpoint's scheme
+
+### Scenario: a field holding NUL is refused before anything is written
+
+* **Given:** an enabled endpoint
+* **When:** it is patched with `enabled: false` and a description holding NUL (U+0000)
+* **Then:** the response is `400` with `{"error":"description must not contain NUL"}`
+* **And:** the endpoint is still enabled and keeps its description
+* **Automated:** `ErrorResponsesTest` and `BoundValuesTest`; on the image, `dev/image-smoke.sh`
+  (run by `make build`), which exits `5` otherwise
+
+### Scenario: a failure nobody expected is a 500 that says nothing about itself
+
+* **Given:** a handler that fails with a database error
+* **When:** it is called
+* **Then:** the response is `500` with `{"error":"internal error"}` and none of the error's text
+* **Automated:** `ErrorResponsesTest`
 
 ### Scenario: a body in another charset is decoded inside the image
 

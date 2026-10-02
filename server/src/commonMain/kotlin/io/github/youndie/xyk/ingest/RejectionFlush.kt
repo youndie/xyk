@@ -1,6 +1,7 @@
 package io.github.youndie.xyk.ingest
 
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
+import io.github.youndie.xyk.db.sql
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -61,9 +62,13 @@ class RejectionFlush(
                 for ((key, count) in pending) {
                     val (endpointId, reason) = key
                     execute(
-                        "INSERT INTO rejections (endpoint_id, reason, count, last_at) " +
-                            "VALUES ('${endpointId.replace("'", "''")}', '${reason.name}', $count, 0) " +
-                            "ON CONFLICT(endpoint_id, reason) DO UPDATE SET count = count + $count;",
+                        sql(
+                            "INSERT INTO rejections (endpoint_id, reason, count, last_at) VALUES (?, ?, ?, 0) " +
+                                "ON CONFLICT(endpoint_id, reason) DO UPDATE SET count = count + excluded.count;",
+                            endpointId,
+                            reason.name,
+                            count,
+                        ),
                     ).getOrThrow()
                 }
             }

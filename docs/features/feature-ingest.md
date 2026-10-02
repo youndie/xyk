@@ -102,6 +102,15 @@ not at all, and that asymmetry is worth seeing.** The
   yet. The transaction is real — the tests above show event and deliveries arriving together — but
   "and not at all" is unproven until something makes it fail.)*
 
+### Scenario: NUL in the endpoint id is the sender's error, not a database's
+
+* **Given:** an enabled endpoint
+* **When:** a POST arrives at its id followed by an encoded NUL (`%00`) and more text
+* **Then:** the response is `400` with `{"error":"text must not contain NUL"}` — not the endpoint
+  the id begins with, and not a `500`
+* **Automated:** `ErrorResponsesTest`; `BoundValuesTest` for the lookup and `AcceptEventTest` for a
+  NUL in the declared `Content-Type`
+
 ### Scenario: an unknown endpoint is indistinguishable from a disabled one
 
 * **Given:** endpoint `A` disabled, endpoint `B` never created

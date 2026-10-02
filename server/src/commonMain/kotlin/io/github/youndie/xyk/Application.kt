@@ -68,6 +68,10 @@ fun Application.module(
         )
     }
 
+    // Before any route, so that nothing a handler did not expect reaches the client as the text of
+    // an exception — a database error included.
+    installErrorResponses()
+
     install(Resources)
 
     // THE TIER IS DECIDED HERE, AT THE MOUNT, and for this route the tier is "none": the signature

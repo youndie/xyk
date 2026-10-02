@@ -22,21 +22,29 @@ suspend fun ISQLite.applyBootstrap(
     endpoint: BootstrapEndpoint,
     nowEpochSeconds: Long,
 ) {
-    val id = endpoint.id.sqlQuoted()
+    val id = endpoint.id
     transaction {
         execute(
-            "INSERT INTO endpoints (id, scheme, enabled, description, created_at, scheme_config) " +
-                "VALUES ($id, ${endpoint.scheme.sqlQuoted()}, 1, 'bootstrap endpoint (B-06)', " +
-                "$nowEpochSeconds, ${endpoint.schemeConfig?.sqlQuoted() ?: "NULL"}) " +
-                "ON CONFLICT(id) DO UPDATE SET scheme = excluded.scheme, enabled = 1, " +
-                "scheme_config = excluded.scheme_config;",
+            sql(
+                "INSERT INTO endpoints (id, scheme, enabled, description, created_at, scheme_config) " +
+                    "VALUES (?, ?, 1, 'bootstrap endpoint (B-06)', ?, ?) " +
+                    "ON CONFLICT(id) DO UPDATE SET scheme = excluded.scheme, enabled = 1, " +
+                    "scheme_config = excluded.scheme_config;",
+                id,
+                endpoint.scheme,
+                nowEpochSeconds,
+                endpoint.schemeConfig,
+            ),
         ).getOrThrow()
 
         val fingerprint = fingerprintOf(endpoint.secret)
         val existing =
             fetchAll(
-                "SELECT count(*) FROM endpoint_secrets WHERE endpoint_id = $id " +
-                    "AND fingerprint = ${fingerprint.sqlQuoted()};",
+                sql(
+                    "SELECT count(*) FROM endpoint_secrets WHERE endpoint_id = ? AND fingerprint = ?;",
+                    id,
+                    fingerprint,
+                ),
             ).getOrThrow()
                 .rows
                 .first()
@@ -44,25 +52,35 @@ suspend fun ISQLite.applyBootstrap(
                 .asLong()
         if (existing == 0L) {
             execute(
-                "INSERT INTO endpoint_secrets (id, endpoint_id, secret, fingerprint, created_at, retires_at) " +
-                    "VALUES (${newId().sqlQuoted()}, $id, ${endpoint.secret.sqlQuoted()}, " +
-                    "${fingerprint.sqlQuoted()}, $nowEpochSeconds, NULL);",
+                sql(
+                    "INSERT INTO endpoint_secrets (id, endpoint_id, secret, fingerprint, created_at, retires_at) " +
+                        "VALUES (?, ?, ?, ?, ?, NULL);",
+                    newId(),
+                    id,
+                    endpoint.secret,
+                    fingerprint,
+                    nowEpochSeconds,
+                ),
             ).getOrThrow()
         }
 
         for (url in endpoint.subscriberUrls) {
             val known =
-                fetchAll(
-                    "SELECT count(*) FROM subscribers WHERE endpoint_id = $id AND url = ${url.sqlQuoted()};",
-                ).getOrThrow()
+                fetchAll(sql("SELECT count(*) FROM subscribers WHERE endpoint_id = ? AND url = ?;", id, url))
+                    .getOrThrow()
                     .rows
                     .first()
                     .get(0)
                     .asLong()
             if (known == 0L) {
                 execute(
-                    "INSERT INTO subscribers (id, endpoint_id, url, enabled, created_at) " +
-                        "VALUES (${newId().sqlQuoted()}, $id, ${url.sqlQuoted()}, 1, $nowEpochSeconds);",
+                    sql(
+                        "INSERT INTO subscribers (id, endpoint_id, url, enabled, created_at) VALUES (?, ?, ?, 1, ?);",
+                        newId(),
+                        id,
+                        url,
+                        nowEpochSeconds,
+                    ),
                 ).getOrThrow()
             }
         }
@@ -86,5 +104,3 @@ fun fingerprintOf(secret: String): String {
     }
     return hex.toString()
 }
-
-private fun String.sqlQuoted(): String = "'" + replace("'", "''") + "'"

@@ -25,7 +25,8 @@
 #
 # Exit codes: 0 the page rendered and no secret was found, 1 it did not render, 2 the harness could
 # not run the subject, 3 a secret appeared in a response or in the log, 4 a body in another charset
-# was not decoded — the image is missing its charset converters.
+# was not decoded — the image is missing its charset converters, 5 text the database cannot hold was
+# not refused as the client's error.
 set -uo pipefail
 
 IMAGE=${1:-xyk:dev}
@@ -157,6 +158,23 @@ case "$STATUS:$BODY" in
     ;;
 esac
 
+# --- Text the database cannot hold is the client's error. -------------------------------------------
+#
+# A field with NUL (U+0000) in it. Until 2026-10-02 it reached SQLite inside the statement's text,
+# ended the statement early, and the answer was a `500` whose body was the database's own error. It is
+# refused now, before anything is written, with a `400` that names the field and nothing else. Run
+# against an image from before the fix, this step exits 5.
+call POST /api/endpoints -H 'Content-Type: application/json' \
+  -d '{"scheme":"github","secret":"s","description":"before\u0000after"}' || exit 2
+case "$STATUS:$BODY" in
+  '400:{"error":"description must not contain NUL"}') ;;
+  *)
+    echo "image-smoke: a NUL in a field was answered $STATUS rather than refused as input" >&2
+    printf '%s\n' "$BODY" | head -3 >&2
+    exit 5
+    ;;
+esac
+
 # --- No secret is ever rendered. ---------------------------------------------------------------------
 
 ROTATED=github-rotated-$(rand)
@@ -258,5 +276,5 @@ done
 [ "$leaked" = 0 ] || exit 3
 
 echo "image-smoke: the journal rendered a timestamp and an event page from $IMAGE," \
-  "a windows-1251 body came back decoded," \
+  "a windows-1251 body came back decoded, a NUL in a field was refused with 400," \
   "and none of ${#VALUES[@]} secrets is in $responses responses or the log"

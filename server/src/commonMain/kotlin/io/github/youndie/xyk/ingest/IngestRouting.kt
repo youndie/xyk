@@ -10,6 +10,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.contentType
+import io.ktor.server.request.path
 import io.ktor.server.request.receiveChannel
 import io.ktor.server.resources.post
 import io.ktor.server.response.respond
@@ -139,6 +140,11 @@ private suspend fun io.ktor.server.application.ApplicationCall.respondToFailure(
         }
 
         is AcceptEventUseCase.Error.NotStored -> {
+            // The sender is told nothing more, and the log is told why: without this line a failed
+            // write was a counter that went up and nothing an operator could read.
+            println(
+                "xyk: ${request.path()} not stored — ${failure.cause::class.simpleName}: ${failure.cause.message}",
+            )
             respond(HttpStatusCode.InternalServerError, ErrorResponse("not stored"))
         }
 

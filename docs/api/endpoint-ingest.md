@@ -70,7 +70,9 @@ Headers that matter are the ones the endpoint's scheme names, and nothing else i
 | the signature does not match | `401` | `{"error":"signature invalid"}` |
 | Stripe timestamp outside the tolerance | `401` | `{"error":"signature stale"}` |
 | body above `XYK_MAX_BODY_BYTES` | `413` | `{"error":"body too large"}` |
-| the write failed | `500` | `{"error":"not stored"}` |
+| NUL (U+0000) in the endpoint id or in the declared `Content-Type` | `400` | `{"error":"text must not contain NUL"}` |
+| the write failed | `500` | `{"error":"not stored"}` — the cause is logged |
+| anything else the server did not expect | `500` | `{"error":"internal error"}` — the cause is logged |
 
 Three of these are decisions rather than obvious choices, so they are recorded here:
 
