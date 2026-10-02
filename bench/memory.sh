@@ -117,7 +117,7 @@ run_once() {
     curl -sf -o /dev/null "http://$ip:8080/health/ready" && { ready=yes; break; }
   done
   if [ "$ready" != yes ]; then
-    printf '%s,%s,%s,died-before-serving,,%s\n' "$arm" "$limit" "$round" ",,,,,,,,,,," >> "$OUT/results.csv"
+    printf '%s,%s,%s,died-before-serving,,%s\n' "$arm" "$limit" "$round" ",,,,,,,,,,,,," >> "$OUT/results.csv"
     return
   fi
   local pid cgroup cpu0 host0
@@ -148,7 +148,7 @@ run_once() {
   # flat threads, every probe 200. A round with no load is not a survival and must not be counted
   # as one.
   if ! grep -q "http_reqs" "$OUT/$arm-$limit-$round.log"; then
-    printf '%s,%s,%s,no-load,,%s\n' "$arm" "$limit" "$round" ",,,,,,,,,,," >> "$OUT/results.csv"
+    printf '%s,%s,%s,no-load,,%s\n' "$arm" "$limit" "$round" ",,,,,,,,,,,,," >> "$OUT/results.csv"
     echo "$arm round $round: THE GENERATOR PRODUCED NO REQUESTS (see $OUT/$arm-$limit-$round.log)" >&2
     docker rm -f mem-arm >/dev/null 2>&1
     return
@@ -170,6 +170,13 @@ print(sum(1 for f in (l.split() for l in sys.stdin)
           if len(f) == 5 and f[1] == "rw-p" and int(f[0].split("-")[0], 16) % (64 << 20) == 0))')
   fi
   nproc_in=$(awk '/^Cpus_allowed_list/{print $2}' "/proc/$pid/status" 2>/dev/null)
+  # What `memory.peak` is made of, at the end of the round: anonymous memory (the heap, malloc's
+  # arenas, thread stacks) against file pages (the binary's mapping, SQLite's database and WAL in the
+  # page cache). Under a roomy limit the second grows into whatever room there is and the peak
+  # follows it; under a tight one the kernel takes it back first. Only the first is the allocator's.
+  local anon file
+  anon=$(awk '/^anon /{printf "%d", $2/1024}' "$cgroup/memory.stat" 2>/dev/null)
+  file=$(awk '/^file /{printf "%d", $2/1024}' "$cgroup/memory.stat" 2>/dev/null)
   # requests answered 200, all requests, dropped iterations, p50, p99 — from k6's own export
   k6=$(python3 - "$OUT/$arm-$limit-$round.json" <<'PY'
 import json, sys
@@ -184,9 +191,9 @@ d = m.get("http_req_duration", {})
 print(f"{ok},{reqs},{dropped},{d.get('p(50)', '')},{d.get('p(99)', '')}")
 PY
 )
-  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' "$arm" "$limit" "$round" "${killed:-unknown}" \
+  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' "$arm" "$limit" "$round" "${killed:-unknown}" \
     "${peak:-}" "${threads:-}" "$(( ${cpu1:-0} - ${cpu0:-0} ))" "$k6" "$(( host1 - host0 ))" \
-    "$arena_env" "$arenas" "$(cut -d' ' -f1 /proc/loadavg)" "$nproc_in" >> "$OUT/results.csv"
+    "$arena_env" "$arenas" "$(cut -d' ' -f1 /proc/loadavg)" "$nproc_in" "${anon:-}" "${file:-}" >> "$OUT/results.csv"
   docker rm -f mem-arm >/dev/null 2>&1
 }
 
@@ -201,7 +208,7 @@ PY
   done
 } | tee "$OUT/header.txt"
 
-echo "arm,limit,round,oom_killed,peak_rss_kb,threads,cpu_usec,reqs_ok,reqs,dropped,p50_ms,p99_ms,host_busy_usec,arena_env,arenas,load1,subject_cpus" \
+echo "arm,limit,round,oom_killed,peak_rss_kb,threads,cpu_usec,reqs_ok,reqs,dropped,p50_ms,p99_ms,host_busy_usec,arena_env,arenas,load1,subject_cpus,anon_kb,file_kb" \
   > "$OUT/results.csv"
 
 echo "=== the positive control: $CONTROL_ARM at $CONTROL_LIMIT must be killed ==="
