@@ -67,7 +67,7 @@ class SecretFingerprintTest {
         }
 
     @Test
-    fun `a fingerprint is the same after a restart, and so is the bootstrap secret`() =
+    fun `a restart keeps every fingerprint and adds no second bootstrap secret`() =
         runTest {
             val path = freshPath()
             val bootstrap = BootstrapEndpoint("hook-restart", GithubVerifier.SCHEME, SECRET, emptyList())
@@ -93,7 +93,7 @@ class SecretFingerprintTest {
         }
 
     @Test
-    fun `an upgrade rewrites every stored fingerprint, the events' copies too`() =
+    fun `an upgrade rewrites every stored fingerprint and the copies events carry`() =
         runTest {
             val path = freshPath()
 
