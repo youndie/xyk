@@ -46,13 +46,17 @@ is the reason the product exists.
 ## Secrets
 
 **A secret is written and never read back.** `POST` and `PATCH` accept one; no route returns one;
-the list shows a fingerprint (first eight hex characters of the HMAC of the secret under a
-per-install key) so that an operator can tell two secrets apart without seeing either.
+the list shows a fingerprint — the first eight hex characters of the secret's SHA-256, `fingerprintOf`
+in `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Bootstrap.kt` — so that an operator can
+tell two secrets apart without seeing either. It is a plain hash and not keyed: the same secret gives
+the same fingerprint on every install. An HMAC under a per-install key would not; nothing builds one,
+and no decision asks for it.
 
 **Rotation keeps both secrets for a window**, because Stripe does exactly that — for up to 24 hours
 it signs with every active secret, and an endpoint that dropped the old one the instant a new one
-was created would reject genuine traffic. `PATCH` therefore adds a secret and schedules the
-retirement of the previous one; it does not replace.
+was created would reject genuine traffic. `PATCH` therefore adds a secret and leaves the previous
+one valid; it does not replace. **Nothing retires the previous one yet** — `retires_at` is a column
+nothing writes, and verification tries every secret the endpoint holds.
 
 ## Request bodies
 
@@ -73,6 +77,10 @@ character replaced by U+FFFD, and one in `US-ASCII` is refused with `400`
 | scheme not one the code implements | `400` | `{"error":"unknown scheme: <value>"}` |
 | subscriber URL is not absolute http(s) | `400` | `{"error":"subscriber url must be absolute http or https"}` |
 | `none` requested without `XYK_ALLOW_UNVERIFIED=true` | `400` | `{"error":"scheme none is disabled"}` |
+| a blank secret for any scheme but `none` | `400` | `{"error":"a secret is required for scheme <value>"}` |
+| `hmac-sha256` without `schemeConfig.header` | `400` | `{"error":"scheme hmac-sha256 needs schemeConfig.header"}` |
+| `schemeConfig.encoding` other than `hex` or `base64` | `400` | `{"error":"schemeConfig.encoding must be hex or base64"}` |
+| `PATCH` with a blank `secret` | `400` | `{"error":"secret must not be blank"}` |
 | a body that cannot be decoded into the request | `400` | plain text, `Failed to convert request body to class …` — Ktor's, not this API's JSON shape |
 | a text field holding NUL (U+0000) | `400` | `{"error":"<field> must not contain NUL"}`, e.g. `description`, `schemeConfig.header` |
 | an id in the path holding NUL | `400` | `{"error":"text must not contain NUL"}` |
@@ -90,7 +98,10 @@ reaches the database as a bound parameter and never as part of the statement's t
 answer was a `500` carrying the database's own error, which is also why no `500` from this API has a
 body other than the one above.
 
-**The accepted scheme set is what is implemented, which today is `github` and `none`** — narrower
-than the five this document names, on purpose: an endpoint whose scheme nothing verifies would
-answer `404` to every request it ever received, so it is refused at creation instead. The set is
-read from the verifier list at call time, so B-09 widens it without a change here.
+**The accepted scheme set is the verifier list, read at call time:** `github`, `stripe`, `telegram`,
+`hmac-sha256`, and `none` behind `XYK_ALLOW_UNVERIFIED=true`
+(`server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/IngestModule.kt`; the header each one
+reads is in [endpoint-ingest](endpoint-ingest.md)). A scheme outside it is refused at
+creation rather than stored, on purpose: an endpoint whose scheme nothing verifies would answer `404`
+to every request it ever received. `dev/image-smoke.sh` creates one endpoint of each of the first
+four on every image `make build` makes.

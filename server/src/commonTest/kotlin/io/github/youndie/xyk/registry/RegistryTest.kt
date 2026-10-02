@@ -24,9 +24,9 @@ class RegistryTest {
 
     @Test
     fun `an unimplemented scheme is refused rather than stored`() {
-        // Deliberately stricter than the API document's list of five. Accepting `stripe` today would
-        // create an endpoint whose every request answers 404, because the ingest path refuses a
-        // scheme nothing verifies — configuration that looks accepted and cannot work.
+        // The fixture implements `github` alone, so `stripe` stands for any scheme nothing verifies.
+        // Accepting one would create an endpoint whose every request answers 404, because the ingest
+        // path refuses it — configuration that looks accepted and cannot work.
         assertEquals("unknown scheme: stripe", schemeProblem("stripe", implemented, allowUnverified = false))
         assertNull(schemeProblem("github", implemented, allowUnverified = false))
     }

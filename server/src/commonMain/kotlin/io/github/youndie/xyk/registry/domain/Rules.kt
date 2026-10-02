@@ -20,10 +20,10 @@ fun schemeProblem(
         // Creating one takes a deliberate act at start-up as well as here.
         return if (allowUnverified) null else "scheme none is disabled"
     }
-    // Deliberately the set that is IMPLEMENTED, not the five the documents name. Accepting `stripe`
-    // today would create an endpoint whose every request answers `404 unknown endpoint`, because the
-    // ingest path refuses a scheme nothing verifies — configuration that looks accepted and cannot
-    // work. The set grows with B-09 and this message grows with it.
+    // Deliberately the set that is IMPLEMENTED — the verifier list — and not a list written down
+    // anywhere else. Accepting a scheme nothing verifies would create an endpoint whose every request
+    // answers `404 unknown endpoint`, because the ingest path refuses it: configuration that looks
+    // accepted and cannot work.
     return if (scheme in implemented) null else "unknown scheme: $scheme"
 }
 
