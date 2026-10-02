@@ -22,8 +22,8 @@ def main():
     print()
     print("| arm | survived | peak RSS kB (min–max) | threads (max) |")
     print("|---|---|---|---|")
-    for arm in ("default", "fixed16", "fixed16-arena2", "std"):
-        runs = arms.get(arm, [])
+    for arm in arms:
+        runs = arms[arm]
         if not runs:
             continue
         alive = [r for r in runs if r["oom_killed"] == "false"]

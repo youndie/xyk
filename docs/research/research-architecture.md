@@ -562,6 +562,27 @@ peaked at or above the limit itself, which is the kernel fitting the process rat
 fitting the limit. The claim this service can make is "survives 64 MiB, ten times out of ten, at the
 declared load" — and not "runs in 60 MB".
 
+**The cap on the build that ships, 2026-10-02 ([B-32](../backlog/B-32-arena-cap-on-paged-off.md)).**
+The table at the top of this section put `MALLOC_ARENA_MAX=2` beside `-Xallocator=std` and got a
+tenfold peak; the image ships the cap beside `-Xbinary=pagedAllocator=false`, the same family, and
+nobody had measured that pair. Measured against a pre-registration frozen before the first run,
+three arms from one image — the pair, the pair without the cap, the default allocator — at 64 MiB
+under the light and the declared load, and at 512 MiB:
+
+| question | verdict | the number |
+|---|---|---|
+| memory: does the cap lower it? | **grey** | at 64 MiB both arms survive every round and peak at the limit; at 512 MiB `memory.peak` is page cache, ruler ±92 % |
+| CPU per request: does the cap cost? | **grey** | +1.7 % [−1.7, +5.2] where the ruler held (±3.5 %) |
+| contention under parallel load | **grey** | declared load: delivered +19.7 % [−14.7, +54.2], p50 −1.7 % [−9.3, +5.8] |
+| does `pagedAllocator=false` still earn its place? | **green** | the default allocator killed 6/6 twice at 64 MiB; +18.1 % [+7.7, +28.5] CPU per request is its price |
+
+**The std hazard does not transfer to this build**: no kill in 48 capped runs, and the anonymous
+memory left at the end of a round is a third *lower* with the cap — 16 against 29 MB at the light
+load, 30 against 50 MB at the declared one (exploratory `memory.stat` column, distinguishable,
+ruler ≤ 6.6 %). The lever was read from the subject: 0–1 glibc heaps with the cap, 54–136 without,
+on a four-cpu cpuset — the host-core count again. The cap stays, by the rule declared beforehand
+(nothing red). Full record: [arena-cap.md](measurements-2026-10-02/arena-cap.md).
+
 **Consequence 3 — the SQLite settings are not tuning, they are survival.** Pool of 2 connections,
 `PRAGMA wal_checkpoint(TRUNCATE)` on a timer **and** on file size, and `walBytes` reported separately
 because `page_count * page_size` does not include the journal. The failure mode is a cliff, not a

@@ -36,6 +36,12 @@ ARG XYK_HTTP_CLIENT=false
 # `noop` keeps the engine linked and removes the request alone — a B-30 measurement arm, never an
 # image to publish. `real` is the only value that ships and is the default here.
 ARG XYK_OUTBOUND=real
+# Which allocator is linked (`server/build.gradle.kts`, `-Pxyk.allocator=`). `paged-off` is what
+# ships; the others exist so that a measurement can build its arms through this same file and differ
+# from the published image by that one property (B-32).
+ARG XYK_ALLOCATOR=paged-off
+# Extra Gradle flags for the link, empty here. On a shared build machine `--max-workers=2` goes in.
+ARG XYK_GRADLE_FLAGS=
 
 WORKDIR /app
 COPY . .
@@ -45,7 +51,8 @@ COPY . .
 RUN --mount=type=cache,target=/root/.konan \
     --mount=type=cache,target=/root/.gradle \
     gradle :server:linkReleaseExecutableNative \
-      -Pxyk.staticLink=true -Pxyk.httpClient=${XYK_HTTP_CLIENT} -Pxyk.outbound=${XYK_OUTBOUND} --no-daemon \
+      -Pxyk.staticLink=true -Pxyk.httpClient=${XYK_HTTP_CLIENT} -Pxyk.outbound=${XYK_OUTBOUND} \
+      -Pxyk.allocator=${XYK_ALLOCATOR} ${XYK_GRADLE_FLAGS} --no-daemon \
  && cp server/build/bin/native/releaseExecutable/server.kexe /app/server.kexe \
  && readelf -d /app/server.kexe | head -20
 
@@ -78,12 +85,19 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 COPY --from=build /app/server.kexe /app/server
 
 # `MALLOC_ARENA_MAX=2` because glibc counts the **host's** cores when it decides how many arenas to
-# allow, not the container's quota, and each arena is address space this process never asked for.
-# Measured on this service in B-21: peaks of 42 120 – 56 188 kB against 45 112 – 65 536 without it,
-# at the same limit and the same load. It was held back then pending that measurement; the
-# measurement is done and said take it. The hazard recorded beside it still stands and is not ours:
-# combined with `-Xallocator=std` it multiplied peak RSS tenfold elsewhere, and this image ships
-# `-Xbinary=pagedAllocator=false` (B-28), not that.
+# allow, not the container's quota: without it this binary made 54–136 heaps on a four-cpu cpuset,
+# with it 0–1. B-21 took it on the `fixedBlockPageSize=16` build; B-28 then moved the binary to
+# `pagedAllocator=false`, which sends every Kotlin allocation to malloc — the shape under which the
+# cap had meant a tenfold peak and OOM kills on `-Xallocator=std` elsewhere.
+#
+# MEASURED ON THIS BUILD, B-32 (2026-10-02), verdicts as pre-registered: memory GREY — at 64 MiB the
+# capped and uncapped arms both survive every round and both peak at the limit, and `memory.peak`
+# under a roomy limit is page cache too noisy to separate them; CPU per request GREY (+1.7 %
+# [−1.7, +5.2], nothing distinguishable); contention under the declared load GREY (no sign of it,
+# resolution ±15–50 %). The hazard did NOT reproduce: no kill, and the anonymous memory left at the
+# end of a round is a third LOWER with the cap (30 MB against 50 MB at the declared load) — an
+# exploratory column, not the declared one. Kept by the rule declared before the run: nothing red.
+# docs/research/measurements-2026-10-02/arena-cap.md
 ENV MALLOC_ARENA_MAX=2
 ENV XYK_DB_PATH=/data/xyk.db
 VOLUME ["/data"]

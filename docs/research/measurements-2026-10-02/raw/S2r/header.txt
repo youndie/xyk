@@ -1,0 +1,6 @@
+# host=DESKTOP-85OS64M kernel=6.6.87.2-microsoft-standard-WSL2 nproc_host=20 uptime=" 16:13:33 up 1 day, 17:00, 54 users,  load average: 0.66, 0.91, 1.86"
+# commit=dae1cb8f5816b533601ccc586e2819732cd378cd dirty=0
+# generator=grafana/k6:0.54.0 generator_cpus=12-19 subject_cpus=0-3 rate=2000 connections=200 duration=30s limit=64m control=A0@6m lever=yes
+# arm A0 = xyk-g1:paged-off|MALLOC_ARENA_MAX=2 image_id=sha256:5a352c9e7fdae8bb53446e6b65f6dde4119a3562622a71a614184f5e6dad0d7e
+# arm A0b = xyk-g1:paged-off|MALLOC_ARENA_MAX=2 image_id=sha256:5a352c9e7fdae8bb53446e6b65f6dde4119a3562622a71a614184f5e6dad0d7e
+# arm A1 = xyk-g1:paged-off image_id=sha256:5a352c9e7fdae8bb53446e6b65f6dde4119a3562622a71a614184f5e6dad0d7e

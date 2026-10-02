@@ -1,0 +1,203 @@
+## S3x cpu_per_req
+  round 1: discarded (warm-up)
+  round 4: excluded, the host was busy beside the subject: ['A0b']
+  round 2: A0b=3315 A0=3586 diff=-7.57 %
+  round 3: A0b=3458 A0=3256 diff=+6.19 %
+  round 5: A0b=3243 A0=3328 diff=-2.56 %
+  round 6: A0b=3735 A0=3517 diff=+6.19 %
+A0b vs A0, cpu_per_req: +0.56 % [-10.28, +11.40] 95 % CI, n=4, median A0b=3386 A0=3422 — below resolution, effect under 11.4 %
+  round 1: discarded (warm-up)
+  round 2: A0=3586 A1=2977 diff=+20.47 %
+  round 3: A0=3256 A1=3597 diff=-9.48 %
+  round 4: A0=3648 A1=3067 diff=+18.96 %
+  round 5: A0=3328 A1=3534 diff=-5.82 %
+  round 6: A0=3517 A1=3823 diff=-8.01 %
+A0 vs A1, cpu_per_req: +3.22 % [-15.55, +21.99] 95 % CI, n=5, median A0=3517 A1=3534 — below resolution, effect under 22.0 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A1=2977 C=3086 diff=-3.54 %
+  round 4: A1=3067 C=2754 diff=+11.34 %
+  round 5: A1=3534 C=3140 diff=+12.52 %
+  round 6: A1=3823 C=3364 diff=+13.64 %
+A1 vs C, cpu_per_req: +8.49 % [-4.36, +21.34] 95 % CI, n=4, median A1=3300 C=3113 — below resolution, effect under 21.3 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A0=3586 C=3086 diff=+16.20 %
+  round 4: A0=3648 C=2754 diff=+32.45 %
+  round 5: A0=3328 C=3140 diff=+5.97 %
+  round 6: A0=3517 C=3364 diff=+4.54 %
+A0 vs C, cpu_per_req: +14.79 % [-5.68, +35.26] 95 % CI, n=4, median A0=3552 C=3113 — below resolution, effect under 35.3 %
+## S3x p50_ms
+  round 1: discarded (warm-up)
+  round 4: excluded, the host was busy beside the subject: ['A0b']
+  round 2: A0b=2.019 A0=2.221 diff=-9.12 %
+  round 3: A0b=2.477 A0=2.661 diff=-6.93 %
+  round 5: A0b=1.959 A0=2.071 diff=-5.44 %
+  round 6: A0b=2.809 A0=2.171 diff=+29.42 %
+A0b vs A0, p50_ms: +1.98 % [-27.22, +31.19] 95 % CI, n=4, median A0b=2.248 A0=2.196 — below resolution, effect under 31.2 %
+  round 1: discarded (warm-up)
+  round 2: A0=2.221 A1=1.684 diff=+31.90 %
+  round 3: A0=2.661 A1=2.349 diff=+13.28 %
+  round 4: A0=2.31 A1=1.822 diff=+26.78 %
+  round 5: A0=2.071 A1=2.442 diff=-15.20 %
+  round 6: A0=2.171 A1=2.842 diff=-23.61 %
+A0 vs A1, p50_ms: +6.63 % [-24.28, +37.54] 95 % CI, n=5, median A0=2.221 A1=2.349 — below resolution, effect under 37.5 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A1=1.684 C=2.228 diff=-24.43 %
+  round 4: A1=1.822 C=1.878 diff=-2.97 %
+  round 5: A1=2.442 C=2.45 diff=-0.29 %
+  round 6: A1=2.842 C=2.463 diff=+15.37 %
+A1 vs C, p50_ms: -3.08 % [-29.12, +22.96] 95 % CI, n=4, median A1=2.132 C=2.339 — below resolution, effect under 29.1 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A0=2.221 C=2.228 diff=-0.32 %
+  round 4: A0=2.31 C=1.878 diff=+23.02 %
+  round 5: A0=2.071 C=2.45 diff=-15.44 %
+  round 6: A0=2.171 C=2.463 diff=-11.87 %
+A0 vs C, p50_ms: -1.15 % [-28.77, +26.46] 95 % CI, n=4, median A0=2.196 C=2.339 — below resolution, effect under 28.8 %
+## S3x p99_ms
+  round 1: discarded (warm-up)
+  round 4: excluded, the host was busy beside the subject: ['A0b']
+  round 2: A0b=11.48 A0=10.12 diff=+13.43 %
+  round 3: A0b=17.35 A0=17.01 diff=+2.05 %
+  round 5: A0b=9.765 A0=10.19 diff=-4.13 %
+  round 6: A0b=16.23 A0=10.4 diff=+56.05 %
+A0b vs A0, p99_ms: +16.85 % [-26.31, +60.01] 95 % CI, n=4, median A0b=13.86 A0=10.29 — below resolution, effect under 60.0 %
+  round 1: discarded (warm-up)
+  round 2: A0=10.12 A1=8.629 diff=+17.26 %
+  round 3: A0=17.01 A1=12.83 diff=+32.53 %
+  round 4: A0=11.46 A1=9.289 diff=+23.33 %
+  round 5: A0=10.19 A1=16.1 diff=-36.71 %
+  round 6: A0=10.4 A1=15.95 diff=-34.80 %
+A0 vs A1, p99_ms: +0.32 % [-41.13, +41.77] 95 % CI, n=5, median A0=10.4 A1=12.83 — below resolution, effect under 41.8 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A1=8.629 C=17.36 diff=-50.28 %
+  round 4: A1=9.289 C=13.02 diff=-28.68 %
+  round 5: A1=16.1 C=15.53 diff=+3.61 %
+  round 6: A1=15.95 C=15.51 diff=+2.86 %
+A1 vs C, p99_ms: -18.12 % [-59.79, +23.55] 95 % CI, n=4, median A1=12.62 C=15.52 — below resolution, effect under 59.8 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A0=10.12 C=17.36 diff=-41.69 %
+  round 4: A0=11.46 C=13.02 diff=-12.04 %
+  round 5: A0=10.19 C=15.53 diff=-34.43 %
+  round 6: A0=10.4 C=15.51 diff=-32.93 %
+A0 vs C, p99_ms: -30.27 % [-50.55, -9.99] 95 % CI, n=4, median A0=10.29 C=15.52 — distinguishable
+## S3x reqs_ok
+  round 1: discarded (warm-up)
+  round 4: excluded, the host was busy beside the subject: ['A0b']
+  round 2: A0b=6001 A0=6000 diff=+0.02 %
+  round 3: A0b=6001 A0=6001 diff=+0.00 %
+  round 5: A0b=6001 A0=6001 diff=+0.00 %
+  round 6: A0b=6001 A0=6001 diff=+0.00 %
+A0b vs A0, reqs_ok: +0.00 % [-0.01, +0.02] 95 % CI, n=4, median A0b=6001 A0=6001 — below resolution, effect under 0.0 %
+  round 1: discarded (warm-up)
+  round 2: A0=6000 A1=6001 diff=-0.02 %
+  round 3: A0=6001 A1=6001 diff=+0.00 %
+  round 4: A0=6001 A1=6001 diff=+0.00 %
+  round 5: A0=6001 A1=6001 diff=+0.00 %
+  round 6: A0=6001 A1=6001 diff=+0.00 %
+A0 vs A1, reqs_ok: -0.00 % [-0.01, +0.01] 95 % CI, n=5, median A0=6001 A1=6001 — below resolution, effect under 0.0 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A1=6001 C=6001 diff=+0.00 %
+  round 4: A1=6001 C=6001 diff=+0.00 %
+  round 5: A1=6001 C=6000 diff=+0.02 %
+  round 6: A1=6001 C=6001 diff=+0.00 %
+A1 vs C, reqs_ok: +0.00 % [-0.01, +0.02] 95 % CI, n=4, median A1=6001 C=6001 — below resolution, effect under 0.0 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A0=6000 C=6001 diff=-0.02 %
+  round 4: A0=6001 C=6001 diff=+0.00 %
+  round 5: A0=6001 C=6000 diff=+0.02 %
+  round 6: A0=6001 C=6001 diff=+0.00 %
+A0 vs C, reqs_ok: +0.00 % [-0.02, +0.02] 95 % CI, n=4, median A0=6001 C=6001 — below resolution, effect under 0.0 %
+## S3x peak_rss_kb
+  round 1: discarded (warm-up)
+  round 4: excluded, the host was busy beside the subject: ['A0b']
+  round 2: A0b=4.332e+04 A0=3.977e+04 diff=+8.93 %
+  round 3: A0b=3.48e+05 A0=2.109e+05 diff=+65.06 %
+  round 5: A0b=3.856e+04 A0=3.718e+04 diff=+3.73 %
+  round 6: A0b=2.16e+05 A0=3.841e+04 diff=+462.43 %
+A0b vs A0, peak_rss_kb: +135.04 % [-215.01, +485.10] 95 % CI, n=4, median A0b=1.297e+05 A0=3.909e+04 — below resolution, effect under 485.1 %
+  round 1: discarded (warm-up)
+  round 2: A0=3.977e+04 A1=4.88e+04 diff=-18.51 %
+  round 3: A0=2.109e+05 A1=5.304e+04 diff=+297.53 %
+  round 4: A0=3.975e+04 A1=4.98e+04 diff=-20.17 %
+  round 5: A0=3.718e+04 A1=2.31e+05 diff=-83.90 %
+  round 6: A0=3.841e+04 A1=2.466e+05 diff=-84.42 %
+A0 vs A1, peak_rss_kb: +18.11 % [-179.95, +216.16] 95 % CI, n=5, median A0=3.975e+04 A1=5.304e+04 — below resolution, effect under 216.2 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A1=4.88e+04 C=2.272e+05 diff=-78.52 %
+  round 4: A1=4.98e+04 C=2.143e+05 diff=-76.77 %
+  round 5: A1=2.31e+05 C=2.644e+05 diff=-12.65 %
+  round 6: A1=2.466e+05 C=3.095e+05 diff=-20.33 %
+A1 vs C, peak_rss_kb: -47.07 % [-103.47, +9.34] 95 % CI, n=4, median A1=1.404e+05 C=2.458e+05 — below resolution, effect under 103.5 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A0=3.977e+04 C=2.272e+05 diff=-82.50 %
+  round 4: A0=3.975e+04 C=2.143e+05 diff=-81.45 %
+  round 5: A0=3.718e+04 C=2.644e+05 diff=-85.94 %
+  round 6: A0=3.841e+04 C=3.095e+05 diff=-87.59 %
+A0 vs C, peak_rss_kb: -84.37 % [-88.95, -79.79] 95 % CI, n=4, median A0=3.908e+04 C=2.458e+05 — distinguishable
+## S3x anon_kb
+  round 1: discarded (warm-up)
+  round 4: excluded, the host was busy beside the subject: ['A0b']
+  round 2: A0b=1.643e+04 A0=1.616e+04 diff=+1.68 %
+  round 3: A0b=1.595e+04 A0=1.595e+04 diff=+0.03 %
+  round 5: A0b=1.621e+04 A0=1.609e+04 diff=+0.75 %
+  round 6: A0b=1.666e+04 A0=1.647e+04 diff=+1.14 %
+A0b vs A0, anon_kb: +0.90 % [-0.21, +2.01] 95 % CI, n=4, median A0b=1.632e+04 A0=1.613e+04 — below resolution, effect under 2.0 %
+  round 1: discarded (warm-up)
+  round 2: A0=1.616e+04 A1=2.652e+04 diff=-39.07 %
+  round 3: A0=1.595e+04 A1=2.84e+04 diff=-43.85 %
+  round 4: A0=1.603e+04 A1=2.906e+04 diff=-44.84 %
+  round 5: A0=1.609e+04 A1=2.915e+04 diff=-44.79 %
+  round 6: A0=1.647e+04 A1=2.961e+04 diff=-44.39 %
+A0 vs A1, anon_kb: -43.39 % [-46.42, -40.35] 95 % CI, n=5, median A0=1.609e+04 A1=2.906e+04 — distinguishable
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A1=2.652e+04 C=2.032e+05 diff=-86.95 %
+  round 4: A1=2.906e+04 C=1.979e+05 diff=-85.32 %
+  round 5: A1=2.915e+04 C=1.905e+05 diff=-84.70 %
+  round 6: A1=2.961e+04 C=1.54e+05 diff=-80.77 %
+A1 vs C, anon_kb: -84.44 % [-88.60, -80.27] 95 % CI, n=4, median A1=2.91e+04 C=1.942e+05 — distinguishable
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A0=1.616e+04 C=2.032e+05 diff=-92.05 %
+  round 4: A0=1.603e+04 C=1.979e+05 diff=-91.90 %
+  round 5: A0=1.609e+04 C=1.905e+05 diff=-91.55 %
+  round 6: A0=1.647e+04 C=1.54e+05 diff=-89.31 %
+A0 vs C, anon_kb: -91.20 % [-93.24, -89.17] 95 % CI, n=4, median A0=1.613e+04 C=1.942e+05 — distinguishable
+## S3x file_kb
+  round 1: discarded (warm-up)
+  round 4: excluded, the host was busy beside the subject: ['A0b']
+  round 2: A0b=2.214e+04 A0=1.937e+04 diff=+14.33 %
+  round 3: A0b=7220 A0=7240 diff=-0.28 %
+  round 5: A0b=1.797e+04 A0=1.722e+04 diff=+4.37 %
+  round 6: A0b=6624 A0=1.726e+04 diff=-61.62 %
+A0b vs A0, file_kb: -10.80 % [-65.57, +43.97] 95 % CI, n=4, median A0b=1.26e+04 A0=1.724e+04 — below resolution, effect under 65.6 %
+  round 1: discarded (warm-up)
+  round 2: A0=1.937e+04 A1=1.81e+04 diff=+7.01 %
+  round 3: A0=7240 A1=2.01e+04 diff=-63.98 %
+  round 4: A0=1.949e+04 A1=1.552e+04 diff=+25.56 %
+  round 5: A0=1.722e+04 A1=7272 diff=+136.80 %
+  round 6: A0=1.726e+04 A1=8628 diff=+100.05 %
+A0 vs A1, file_kb: +41.09 % [-57.21, +139.39] 95 % CI, n=5, median A0=1.726e+04 A1=1.552e+04 — below resolution, effect under 139.4 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A1=1.81e+04 C=1.924e+04 diff=-5.94 %
+  round 4: A1=1.552e+04 C=1.459e+04 diff=+6.39 %
+  round 5: A1=7272 C=3.485e+04 diff=-79.13 %
+  round 6: A1=8628 C=1.598e+04 diff=-46.02 %
+A1 vs C, file_kb: -31.18 % [-93.26, +30.90] 95 % CI, n=4, median A1=1.208e+04 C=1.761e+04 — below resolution, effect under 93.3 %
+  round 1: discarded (warm-up)
+  round 3: excluded, the host was busy beside the subject: ['C']
+  round 2: A0=1.937e+04 C=1.924e+04 diff=+0.64 %
+  round 4: A0=1.949e+04 C=1.459e+04 diff=+33.58 %
+  round 5: A0=1.722e+04 C=3.485e+04 diff=-50.59 %
+  round 6: A0=1.726e+04 C=1.598e+04 diff=+7.98 %
+A0 vs C, file_kb: -2.10 % [-58.22, +54.03] 95 % CI, n=4, median A0=1.831e+04 C=1.761e+04 — below resolution, effect under 58.2 %

@@ -65,7 +65,7 @@ re-prioritising one must never move its file.
 
 No open tasks.
 
-## Closed (31)
+## Closed (32)
 
 **Does this work at all**
 
@@ -109,6 +109,7 @@ No open tasks.
 - [B-29](docs/backlog/B-29-memory-with-delivery-on.md) `[x]` - The memory criterion has not been measured on the configuration that ships
 - [B-30](docs/backlog/B-30-delivery-memory-growth.md) `[-]` - The delivery half grows without bound, and the memory criterion cannot see it
 - [B-31](docs/backlog/B-31-subscriber-down.md) `[x]` - What a subscriber being down costs
+- [B-32](docs/backlog/B-32-arena-cap-on-paged-off.md) `[x]` - What MALLOC_ARENA_MAX=2 does on the pagedAllocator=false build
 
 <!-- END INDEX -->
 
