@@ -63,7 +63,7 @@ jobs:
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: konan-${{ runner.os }}-
 
-      - uses: youndie/docs-bootstrap@v0.3.0
+      - uses: youndie/docs-bootstrap@v0.3.5
 
   # Separate from the gate, and on a schedule rather than on a pull request, because an anchor rots
   # when somebody refactors a **different** repository. A pull request here is the least likely
@@ -81,7 +81,7 @@ jobs:
       # this repository - which is exactly what REPOS (`..` by default) expects. What it still
       # reports are addresses inside other repositories and artefacts, which is why this job does
       # not block: a report that is red for a known reason teaches people to ignore a red report.
-      - uses: youndie/docs-bootstrap@v0.3.0
+      - uses: youndie/docs-bootstrap@v0.3.5
         with:
           target: report
 
@@ -104,6 +104,6 @@ jobs:
       #       done
       #     env:
       #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   - uses: youndie/docs-bootstrap@v0.3.0
+      #   - uses: youndie/docs-bootstrap@v0.3.5
       #     with:
       #       target: report REPOS=repos

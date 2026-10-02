@@ -98,7 +98,7 @@ Listed here because there is no screen document; the names are the ones the rend
 * **When:** `GET /journal` is requested from inside the container
 * **Then:** the response is `200` and the body contains the event's timestamp rendered as
   `YYYY-MM-DD HH:MM`
-* **Automated:** `dev/image-smoke.sh`, in `make build`
+* **Automated:** `dev/image-smoke.sh` (run by `make build`)
 * **And:** this check runs in CI against the built image — a smoke test that stops at a status code
   passes on an image that cannot render anything
   ([research §1.7](../research/research-architecture.md))
@@ -141,7 +141,11 @@ Listed here because there is no screen document; the names are the ones the rend
 * **Given:** endpoints of every supported scheme
 * **When:** every page and every JSON route is fetched and searched for the stored secrets
 * **Then:** none of them appears in any response
-* **Automated:** the end-to-end grep in B-07; the page renders no secret field at all
+* *(Manual: the search was a run by hand when the registry landed
+  ([B-07](../backlog/B-07-endpoint-registry.md)), and no script in this repository repeats it. What
+  holds the guarantee is structural — `EndpointRecord` has no secret field and the page renders no
+  secret field at all; `RegistryTest` shows a created endpoint carrying a fingerprint rather than
+  its secret, which is the registry's half, not every route's.)*
 
 ## 6. Out of scope
 

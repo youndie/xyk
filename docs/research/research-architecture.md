@@ -218,7 +218,7 @@ journal, or the operator debugs the wrong thing.
 |---|---|
 | `org.kotlincrypto.macs:hmac-sha2` and `org.kotlincrypto.hash:sha2` (0.8.0) are consumed from `commonMain` by a module that targets `jvm, linuxX64, macosArm64, iosArm64, iosSimulatorArm64, iosX64` | `s3kn/s3-sigv4/build.gradle.kts` |
 | The same group is used by the SMTP client's SASL module for HMAC-MD5/SHA1 | `kmp-smtp-client/smtp-sasl/build.gradle.kts` |
-| katcher takes the group through a published version catalog rather than a version pin | `katcher/settings.gradle.kts` |
+| katcher takes the group through a published version catalog rather than a version pin | `youndie/katcher@4f9b8ba!/settings.gradle.kts` |
 
 **Consequence — the whole verification path is pure Kotlin.** No OpenSSL cinterop, no `dlopen`, and
 therefore nothing that a `FROM scratch` image would have to be taught about (unlike `iconv`, §1.7).
@@ -517,7 +517,7 @@ single-core pod and the whole outbound half silently stalls.
 |---|---|
 | `EmbeddedServer.stop` runs its steps in the **opposite order** on Kotlin/Native and on the JVM, from the same source, and nothing reports it | kore's premise, reproduced: `ApplicationStopping` cut 48 in-flight requests on native and none on the JVM |
 | In katcher this was literal: `SIGTERM` cancelled processing of reports already accepted with `202` while the engine kept accepting new ones | the katcher defect kore was adopted for |
-| kore ships `io.github.youndie:kore-core`, `kore-ktor` and the plugin `io.github.youndie.kore.build`; katcher runs 0.1.4 | `katcher/gradle/libs.versions.toml` |
+| kore ships `io.github.youndie:kore-core`, `kore-ktor` and the plugin `io.github.youndie.kore.build`; katcher runs 0.1.4 | `youndie/katcher@4f9b8ba!/gradle/libs.versions.toml` |
 | They resolve from `reposilite.kotlin.website/snapshots` under the `io.github.youndie` group, **not** from Central | kore's own release notes; katcher's settings |
 | `HealthRegistry.start(scope)` is called by nobody automatically — without it readiness answers `UNKNOWN` forever | kore B-41 |
 
@@ -531,7 +531,7 @@ gets asserted in CI, because "it compiled" says nothing about order.
 
 | Fact | Where verified |
 |---|---|
-| katcher pins `io.github.smyrgeorge:sqlx4k-sqlite` 1.13.0 | `katcher/gradle/libs.versions.toml` |
+| katcher pins `io.github.smyrgeorge:sqlx4k-sqlite` 1.13.0 | `youndie/katcher@4f9b8ba!/gradle/libs.versions.toml` |
 | sqlx4k is a Rust driver on Kotlin/Native and Xerial on the JVM; the JVM half refuses a pool larger than 1 against `:memory:`, and pinned to 1 it deadlocks when a transaction asks for a second connection | katcher's and metrik's test harnesses, the same eight tests moved between them |
 | A `PRAGMA` sent through the pool reaches **one** connection; only `journal_mode` survives that, `synchronous` does not | the pragma probe |
 
