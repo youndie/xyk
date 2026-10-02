@@ -66,7 +66,9 @@ make check
 ```
 
 `make check` is the gate and CI runs exactly that target; `make report` is the two non-blocking
-reports and `make fix` regenerates the backlog index and fills in missing coverage-map lines.
+reports and `make fix` regenerates the backlog index and fills in missing coverage-map lines. The
+checks are [docs-bootstrap](https://github.com/youndie/docs-bootstrap)'s, at the version
+`.github/workflows/check.yaml` pins, fetched into `.docs-bootstrap/` by the first run.
 
 ## Coverage map
 
