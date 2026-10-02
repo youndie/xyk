@@ -3,6 +3,7 @@ package io.github.youndie.xyk
 import io.github.smyrgeorge.sqlx4k.SQLError
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.db.openDatabase
+import io.github.youndie.xyk.db.secretFingerprints
 import io.github.youndie.xyk.health.XykProbes
 import io.github.youndie.xyk.ingest.RejectionCounters
 import io.github.youndie.xyk.ingest.data.Sqlx4kEventRepository
@@ -40,8 +41,9 @@ import kotlin.test.assertTrue
  * its message — a database error included — into the body of the `500`.
  */
 class ErrorResponsesTest {
-    private fun ApplicationTestBuilder.xyk(db: ISQLite) {
+    private suspend fun ApplicationTestBuilder.xyk(db: ISQLite) {
         val registry = Sqlx4kRegistryRepository(db)
+        val fingerprints = db.secretFingerprints()
         application {
             module(
                 config = config(),
@@ -54,8 +56,13 @@ class ErrorResponsesTest {
                 rejections = RejectionCounters(),
                 registry = registry,
                 createEndpoint =
-                    CreateEndpointUseCase(registry, { setOf(GithubVerifier.SCHEME) }, allowUnverified = false),
-                rotateSecret = RotateSecretUseCase(registry),
+                    CreateEndpointUseCase(
+                        registry,
+                        fingerprints,
+                        { setOf(GithubVerifier.SCHEME) },
+                        allowUnverified = false,
+                    ),
+                rotateSecret = RotateSecretUseCase(registry, fingerprints),
                 journal = Sqlx4kJournalRepository(db),
                 deliveryStatus = { DeliveryStatus.NOT_CONFIGURED },
             )

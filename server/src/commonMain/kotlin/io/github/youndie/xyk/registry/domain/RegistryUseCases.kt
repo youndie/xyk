@@ -1,6 +1,6 @@
 package io.github.youndie.xyk.registry.domain
 
-import io.github.youndie.xyk.db.fingerprintOf
+import io.github.youndie.xyk.db.SecretFingerprints
 import io.github.youndie.xyk.newId
 import io.github.youndie.xyk.suspendRunCatching
 import io.github.youndie.xyk.verify.SchemeConfig
@@ -14,6 +14,7 @@ import io.github.youndie.xyk.verify.SchemeConfig
  */
 class CreateEndpointUseCase(
     private val repository: RegistryRepository,
+    private val fingerprints: SecretFingerprints,
     private val implementedSchemes: () -> Set<String>,
     private val allowUnverified: Boolean,
 ) {
@@ -36,7 +37,7 @@ class CreateEndpointUseCase(
                 scheme = params.scheme,
                 description = params.description,
                 secret = params.secret,
-                fingerprint = fingerprintOf(params.secret),
+                fingerprint = fingerprints.of(params.secret),
                 createdAt = params.nowEpochSeconds,
                 schemeConfig = params.schemeConfig?.let { SchemeConfig.encode(it) },
             )
@@ -69,6 +70,7 @@ class CreateEndpointUseCase(
  */
 class RotateSecretUseCase(
     private val repository: RegistryRepository,
+    private val fingerprints: SecretFingerprints,
 ) {
     suspend operator fun invoke(
         endpointId: String,
@@ -76,7 +78,7 @@ class RotateSecretUseCase(
         nowEpochSeconds: Long,
     ): Result<String> {
         if (secret.isBlank()) return Result.failure(IllegalArgumentException("secret must not be blank"))
-        val fingerprint = fingerprintOf(secret)
+        val fingerprint = fingerprints.of(secret)
         return suspendRunCatching {
             repository.addSecret(endpointId, secret, fingerprint, nowEpochSeconds)
             fingerprint

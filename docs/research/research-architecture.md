@@ -698,6 +698,41 @@ the positive control for each. One of them — 64 MiB — is named in §1.8 as t
 evidence says will fail. Declaring that now is the point: a criterion that is quietly relaxed after
 the run measures nothing.
 
+### D7. A secret's fingerprint is an HMAC under the installation's own key (2026-10-02)
+
+**The owner left this one to the implementer**, asked whether the fingerprint should be keyed; the
+answer taken is yes. Until this date the list and the journal showed the first four bytes of a plain
+SHA-256 of the secret (`fingerprintOf`, the description corrected by xyk#18). Two things followed
+from that, and neither is what a fingerprint is for: the same secret gave the same fingerprint on
+every installation, so two deployments sharing one could be matched by their pages; and anyone shown
+a fingerprint could test a guessed secret against it offline, which matters exactly for the weak
+secrets people actually choose.
+
+Decision: the fingerprint is the first four bytes of HMAC-SHA256 of the secret under a 32-byte key
+the installation draws for itself — `SecretFingerprints` in
+`server/src/commonMain/kotlin/io/github/youndie/xyk/db/SecretFingerprints.kt`.
+
+- **The key lives in the database**, in `install_key`, drawn from `CryptoRand` by migration 8 on the
+  first start of a database and read on every start after it. Rejected: a key from the environment.
+  It is one more variable every deployment has to set and keep, and a key that changed between two
+  starts would silently make every stored fingerprint stale — the bootstrap endpoint, idempotent by
+  fingerprint, would gain a copy of its secret on each restart. Beside the secrets is no weaker a
+  place for it: whoever can read the key can read the secrets themselves (Decision 3b).
+- **Four bytes, as before.** The pages and the documents describe eight characters, and the job — two
+  secrets of one endpoint told apart — needs no more.
+- **Stored fingerprints are rewritten by the upgrade**, not left to age out. The secrets are kept as
+  given (Decision 3b), so migration 8 recomputes every `endpoint_secrets.fingerprint` exactly, and each
+  event takes the new fingerprint of the secret whose old one it carries; an event whose fingerprint
+  names no stored secret keeps what it had. Without this, an upgraded database would show plain hashes
+  on every existing row and disagree with itself about the bootstrap secret.
+- **The Go twin keeps the plain hash.** The fingerprint is made at bootstrap, off the ingest path the
+  twin exists to compare (D4), and two installations no longer share a fingerprint's text anyway — so
+  `bench/parity.sh` now compares the secret an event's fingerprint names rather than the text.
+
+Checked by `SecretFingerprintTest` on both targets: one secret on two installations reads
+differently, a restart changes nothing and adds no second bootstrap secret, and a database at schema
+7 with plain hashes comes out of the upgrade with keyed ones in both tables.
+
 ---
 
 ## 3. Risks and open questions

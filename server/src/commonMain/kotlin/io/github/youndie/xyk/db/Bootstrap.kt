@@ -4,7 +4,6 @@ import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.BootstrapEndpoint
 import io.github.youndie.xyk.newId
-import org.kotlincrypto.hash.sha2.SHA256
 
 /**
  * Puts the configured endpoint, its secret and its subscribers into the tables — idempotently.
@@ -37,7 +36,10 @@ suspend fun ISQLite.applyBootstrap(
             ),
         ).getOrThrow()
 
-        val fingerprint = fingerprintOf(endpoint.secret)
+        // Under the installation's key, read inside this transaction: the comparison below is what
+        // keeps a restart from adding the same secret again, and it only holds if the fingerprint
+        // is computed the way the stored one was.
+        val fingerprint = secretFingerprints().of(endpoint.secret)
         val existing =
             fetchAll(
                 sql(
@@ -85,23 +87,4 @@ suspend fun ISQLite.applyBootstrap(
             }
         }
     }
-}
-
-/**
- * What the journal shows instead of a secret: the first eight hex characters of its SHA-256.
- *
- * It exists to tell two secrets apart and for nothing else. It is not keyed, so the same secret
- * gives the same fingerprint at two installations; an HMAC under a per-install key would not, and
- * would need a key with somewhere to live. Nothing asks for that today — B-19 decided that secrets
- * are not encrypted at rest and said nothing about how a fingerprint is made.
- */
-fun fingerprintOf(secret: String): String {
-    val digest = SHA256().digest(secret.encodeToByteArray())
-    val hex = StringBuilder()
-    for (byte in digest.take(4)) {
-        val value = byte.toInt() and 0xFF
-        hex.append("0123456789abcdef"[value ushr 4])
-        hex.append("0123456789abcdef"[value and 0x0F])
-    }
-    return hex.toString()
 }
