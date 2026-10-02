@@ -115,7 +115,12 @@ fun main() {
             intervalSeconds = config.walCheckpointSeconds,
             ceilingBytes = config.walMaxBytes,
             onBusy = { state -> println("wal: checkpoint left ${state.framesInLog} frames, ${state.bytes} bytes") },
-            onFailure = { failure -> println("wal: checkpoint failed: ${failure::class.simpleName}") },
+            // The message as well as the class, as the rejection flush below does: every value
+            // reaches SQL bound, so a database message names the statement's shape and nothing a
+            // request carried, and the class alone left an operator with nothing to look up.
+            onFailure = { failure ->
+                println("wal: checkpoint failed: ${failure::class.simpleName}: ${failure.message}")
+            },
         )
 
     val retentionSweep =
@@ -124,7 +129,9 @@ fun main() {
             retentionDays = config.retentionDays,
             nowEpochSeconds = { hostNowEpochSeconds() },
             onPurged = { count -> println("xyk: retention purged $count payloads") },
-            onFailure = { failure -> println("xyk: retention failed: ${failure::class.simpleName}") },
+            onFailure = { failure ->
+                println("xyk: retention failed: ${failure::class.simpleName}: ${failure.message}")
+            },
         )
 
     // THE DELIVERY HALF, BUILT BEFORE THE PROBES because readiness watches it. Both pieces can be
