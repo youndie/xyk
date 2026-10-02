@@ -90,9 +90,10 @@ suspend fun ISQLite.applyBootstrap(
 /**
  * What the journal shows instead of a secret: the first eight hex characters of its SHA-256.
  *
- * It exists to tell two secrets apart and for nothing else. **It is not the design of B-19**, which
- * asks for an HMAC under a per-install key so that the same secret at two installations does not
- * produce the same fingerprint; that needs a key, and where the key lives is the open question there.
+ * It exists to tell two secrets apart and for nothing else. It is not keyed, so the same secret
+ * gives the same fingerprint at two installations; an HMAC under a per-install key would not, and
+ * would need a key with somewhere to live. Nothing asks for that today — B-19 decided that secrets
+ * are not encrypted at rest and said nothing about how a fingerprint is made.
  */
 fun fingerprintOf(secret: String): String {
     val digest = SHA256().digest(secret.encodeToByteArray())
