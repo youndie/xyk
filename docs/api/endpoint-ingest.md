@@ -70,7 +70,7 @@ Headers that matter are the ones the endpoint's scheme names, and nothing else i
 | the signature does not match | `401` | `{"error":"signature invalid"}` |
 | Stripe timestamp outside the tolerance | `401` | `{"error":"signature stale"}` |
 | body above `XYK_MAX_BODY_BYTES` | `413` | `{"error":"body too large"}` |
-| NUL (U+0000) in the endpoint id or in the declared `Content-Type` | `400` | `{"error":"text must not contain NUL"}` |
+| NUL (U+0000) in the endpoint id — checked first, whatever the body's size — or in the declared `Content-Type` | `400` | `{"error":"text must not contain NUL"}` |
 | the write failed | `500` | `{"error":"not stored"}` — the cause is logged |
 | anything else the server did not expect | `500` | `{"error":"internal error"}` — the cause is logged |
 
@@ -85,6 +85,23 @@ Three of these are decisions rather than obvious choices, so they are recorded h
 * **`signature stale` is its own code and not `signature invalid`.** A skewed clock and a wrong
   secret are different incidents, and an operator who cannot tell them apart debugs the wrong one
   ([research, Risk 5](../research/research-architecture.md)).
+
+## What a refusal leaves behind
+
+A count, and nothing else: no body, no row in `events`. Each refusal is counted by reason, and the
+counts are the `rejections` of the endpoint's row in `GET /api/endpoints`
+([endpoint-admin](endpoint-admin.md)).
+
+**A count is kept against the endpoint only when it exists and is enabled** — the same test that
+decides the `404`. A refusal for any other id is counted against one shared bucket, `(unknown)`, so
+no id a request names becomes a row unless somebody created it. The `413` is the refusal this takes
+care over: it is decided before the endpoint is looked up, so that an oversized body is never read,
+and blaming it costs one primary-key read of `endpoints` — the same read an unknown id costs on its
+way to the `404`. Until 2026-10-02 it was counted against whatever id the URL held. A NUL in the id
+is answered `400` before the body limit and is counted nowhere.
+
+The counts are held in memory and written every ten seconds and at shutdown, so a crash loses at
+most one interval of them ([feature-ingest](../features/feature-ingest.md)).
 
 **`200` means committed**, not "queued". The response is written after the transaction holding the
 event row and its timer commits. Answering earlier would make the number in the throughput criterion

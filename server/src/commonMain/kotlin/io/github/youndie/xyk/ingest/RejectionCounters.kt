@@ -1,5 +1,6 @@
 package io.github.youndie.xyk.ingest
 
+import io.github.youndie.xyk.db.isStorable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -25,17 +26,28 @@ enum class RejectionReason {
  *
  * A rejection for an endpoint that does not exist is counted against [GLOBAL], not against the id in
  * the URL. Anything else would let anyone with a URL bar create unbounded rows in somebody else's
- * database.
+ * database — and, before that, unbounded keys in this map between two flushes. **The caller passes
+ * an id only once it knows the endpoint exists**: the route does, after its lookup or through
+ * `AcceptEventUseCase.endpointToBlame` for the refusal that comes before it. So the map holds at most
+ * one key per existing endpoint and reason, and six more for [GLOBAL].
  */
 class RejectionCounters {
     private val mutex = Mutex()
     private val counts = mutableMapOf<Pair<String, RejectionReason>, Long>()
 
+    /**
+     * Counts one rejection against [endpointId], which must name an endpoint that exists, or against
+     * [GLOBAL] when it is `null`.
+     *
+     * An id the database cannot hold is counted against [GLOBAL] as well. No endpoint can be named by
+     * one, and a key that cannot be written would fail the whole flush it is in — every other
+     * endpoint's counts with it.
+     */
     suspend fun record(
         endpointId: String?,
         reason: RejectionReason,
     ) {
-        val key = (endpointId ?: GLOBAL) to reason
+        val key = (endpointId?.takeIf(::isStorable) ?: GLOBAL) to reason
         mutex.withLock { counts[key] = (counts[key] ?: 0L) + 1L }
     }
 

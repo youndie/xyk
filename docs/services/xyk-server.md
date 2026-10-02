@@ -142,6 +142,18 @@ POST finishes: `deliver` throwing is the only retry signal chronik has
 timeout itself, and parallelism comes from workers with distinct `owner` values claiming separate
 batches.
 
+**Refusals are counted in memory, keyed only by endpoints that exist.** A rejected request costs no
+write: `RejectionCounters` holds the counts and `RejectionFlush` writes them every ten seconds and in
+the stop sequence, one upsert per endpoint and reason, so a flood of bad signatures cannot take the
+writer lock from genuine traffic, and a crash loses at most one interval. The map and the
+`rejections` table are bounded by the endpoints in the registry rather than by what requests send:
+an id is a key only once the endpoint is known to exist and be enabled, and every other refusal goes
+to the shared `(unknown)` key. The `413` is decided before the endpoint lookup, so it pays for that
+with one primary-key read of its own
+([endpoint-ingest](../api/endpoint-ingest.md#what-a-refusal-leaves-behind)). A flush that fails
+loses its batch — re-adding it would double-count — and logs the class and the message, which name
+the statement's shape and never a value, since every value is bound.
+
 ## 4. Dependencies
 
 | Kind | Name | What for |
