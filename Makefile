@@ -89,7 +89,7 @@ help:
 	@echo "make check   - the gate and the reports: documents + ./gradlew check. Exactly what CI runs"
 	@echo "make gate    - the blocking half alone"
 	@echo "make docs    - the documentation half of the gate only; runs anywhere"
-	@echo "make build   - link, image, stop order, and a rendered page out of the image (needs docker)"
+	@echo "make build   - link, image, stop order, a rendered page and no secret out of the image (needs docker)"
 	@echo "make image-scratch - the FROM scratch image, its size, and the gconv control (minutes)"
 	@echo "make twin    - the Go twin's image, for the second column"
 	@echo "make parity  - rebuild both arms and refuse to measure until they agree"
@@ -116,9 +116,18 @@ docs: docs-gate
 # The stop order is asserted rather than printed. `EmbeddedServer.stop` runs its steps in the
 # opposite order on Kotlin/Native and on the JVM from identical source, and the failure that produces
 # here is a webhook answered `200` and never delivered.
+#
+# The smoke test runs twice. The second run is its positive control for the secret search: it puts a
+# secret where the pages render it by design, and must exit 3 — any other code, including a pass, is a
+# search that would not have seen a leak. Exactly 3, because a run that died for another reason also
+# "fails", and that is not the failure being asked for.
 build: image
 	dev/shutdown-check.sh xyk:dev
 	dev/image-smoke.sh xyk:dev
+	@echo "--- the leak control must exit 3 ---"
+	@SECRET_IN_DESCRIPTION=1 dev/image-smoke.sh xyk:dev >/dev/null 2>&1; rc=$$?; \
+	if [ $$rc -eq 3 ]; then echo "leak control exited 3 as it must: the search finds a secret that is in a response"; \
+	else echo "LEAK CONTROL exited $$rc, not 3: the secret search cannot see a secret it was shown" >&2; exit 1; fi
 
 image:
 	./gradlew :server:linkReleaseExecutableNative

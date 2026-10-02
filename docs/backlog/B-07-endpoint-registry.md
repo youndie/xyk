@@ -27,14 +27,16 @@ subscribers with URLs, and the routes to manage both.
 - AC: the scenarios of [feature-endpoint-registry](../features/feature-endpoint-registry.md) pass.
   **Done**, seven tests on both targets plus an end-to-end pass through real HTTP.
 - AC: a test fetches every route and greps every response for the configured secrets and finds none.
-  **Done as a run, not as a test**: the end-to-end script fetches every response body and greps for
-  both secrets, and finds neither. It is a script rather than a suite case because the guarantee is
+  **Done as a script against the image, not as a suite case**: `dev/image-smoke.sh`, run by
+  `make build` on every push, fetches every route with every id it made and the container's log,
+  and searches all of it for every secret it set — five, across the four schemes an operator can
+  create and one rotation. It is a script rather than a suite case because the guarantee is
   structural — `EndpointRecord` has no secret field, so there is nothing in the mapping to forget to
   drop — and a test asserting the absence of a field that does not exist would pass for the wrong
-  reason. The grep stays in the script as the check that the structure has not changed.
-  *Corrected 2026-10-02: the script was never committed — no file in the repository greps a response
-  for a secret, so nothing repeats the check; feature-journal's scenario is marked manual for that
-  reason.*
+  reason. The search from outside is the check that the structure has not changed, and its positive
+  control (`SECRET_IN_DESCRIPTION=1`, which must exit `3`) runs beside it. The first search, when
+  this item closed, was a run by hand; its script was not kept, and the committed one replaced it on
+  2026-10-02.
 
 ## Closed 2026-09-15
 

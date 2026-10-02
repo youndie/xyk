@@ -141,11 +141,15 @@ Listed here because there is no screen document; the names are the ones the rend
 * **Given:** endpoints of every supported scheme
 * **When:** every page and every JSON route is fetched and searched for the stored secrets
 * **Then:** none of them appears in any response
-* *(Manual: the search was a run by hand when the registry landed
-  ([B-07](../backlog/B-07-endpoint-registry.md)), and no script in this repository repeats it. What
-  holds the guarantee is structural — `EndpointRecord` has no secret field and the page renders no
-  secret field at all; `RegistryTest` shows a created endpoint carrying a fingerprint rather than
-  its secret, which is the registry's half, not every route's.)*
+* **And:** none of them appears in the container's log, read after a stop
+* **Automated:** `dev/image-smoke.sh` (run by `make build`) — against the built image: a GitHub
+  endpoint rotated to a second secret, a Stripe, a Telegram and an `hmac-sha256` one, each with a
+  secret the script invents and a signed event through every secret; then every route in
+  `docs/api/` with every id the run made — status line, headers and body — and the log, searched
+  for all five secrets. A hit exits `3`, and `make build` also runs the script's positive control
+  (`SECRET_IN_DESCRIPTION=1`, a secret placed where the pages render it by design), which must
+  exit exactly `3`. `none` is not covered: it is off unless the deployment allows it, and it needs
+  no secret.
 
 ## 6. Out of scope
 
