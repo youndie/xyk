@@ -21,14 +21,16 @@ SECRET=parity-secret
 ENDPOINT=hook-1
 WORK=$(mktemp -d)
 
-cleanup() { docker rm -f parity-kotlin parity-go >/dev/null 2>&1 || true; rm -rf "$WORK"; }
+# `-v`: both images declare a VOLUME, and both arms are started afresh for every scheme — without it
+# each run leaves two anonymous volumes per start behind.
+cleanup() { docker rm -f -v parity-kotlin parity-go >/dev/null 2>&1 || true; rm -rf "$WORK"; }
 trap cleanup EXIT
 
 fail() { echo "parity: $*" >&2; exit 1; }
 
 start() {
   local scheme=$1 config=${2:-}
-  docker rm -f parity-kotlin parity-go >/dev/null 2>&1
+  docker rm -f -v parity-kotlin parity-go >/dev/null 2>&1
   local env_common=(
     -e XYK_BOOTSTRAP_ENDPOINT_ID="$ENDPOINT"
     -e XYK_BOOTSTRAP_SECRET="$SECRET"

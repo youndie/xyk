@@ -120,7 +120,8 @@ docs: docs-gate
 # The smoke test runs twice. The second run is its positive control for the secret search: it puts a
 # secret where the pages render it by design, and must exit 3 — any other code, including a pass, is a
 # search that would not have seen a leak. Exactly 3, because a run that died for another reason also
-# "fails", and that is not the failure being asked for.
+# "fails", and that is not the failure being asked for. Its other control — an image without charset
+# converters, which must exit 4 — is in `image-scratch`, because that image is linked inside docker.
 build: image
 	dev/shutdown-check.sh xyk:dev
 	dev/image-smoke.sh xyk:dev
@@ -151,14 +152,22 @@ parity: image-scratch twin
 # rather than the second the assembly takes. The control is the point of the second half: an image
 # with everything except the charset converters must fail the smoke test, or the smoke test has
 # never been shown able to see what it was written for.
+#
+# It must fail with EXACTLY 4 — "a body in another charset was not decoded" — and not merely fail.
+# That image renders every page (research §1.14), so a 1 would be some other breakage, and a 2 a
+# harness that never reached the subject; neither shows the smoke test seeing missing converters.
+# Until 2026-10-02 the smoke test had no step that reached a converter, the control passed, and this
+# target — and `parity` behind it — failed on every run.
 image-scratch:
 	docker build -f docker/scratch.Dockerfile -t xyk:scratch .
 	docker build -f docker/scratch-control.Dockerfile -t xyk:scratch-nogconv .
 	@echo "scratch image: $$(docker save xyk:scratch | wc -c) pull bytes"
 	dev/shutdown-check.sh xyk:scratch
 	dev/image-smoke.sh xyk:scratch
-	@echo "--- the control must FAIL ---"
-	@if dev/image-smoke.sh xyk:scratch-nogconv >/dev/null 2>&1; then 		echo "CONTROL PASSED, which means the smoke test cannot see a missing gconv" >&2; exit 1; 	else 		echo "control failed as it must: the smoke test can see an image that does not render"; 	fi
+	@echo "--- the gconv control must exit 4 ---"
+	@dev/image-smoke.sh xyk:scratch-nogconv >/dev/null 2>&1; rc=$$?; \
+	if [ $$rc -eq 4 ]; then echo "gconv control exited 4 as it must: the smoke test sees an image without its charset converters"; \
+	else echo "GCONV CONTROL exited $$rc, not 4: the smoke test cannot see missing charset converters" >&2; exit 1; fi
 
 # Non-blocking, on purpose. bdd_report counts scenarios, and some are manual by design — a criterion
 # measured by a harness on two machines, a crash between two statements — so a percentage is not a

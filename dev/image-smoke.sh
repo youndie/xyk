@@ -4,10 +4,12 @@
 #
 # WHY IT EXISTS IN THIS SHAPE. A statically linked Kotlin/Native binary is not self-contained: Ktor's
 # charset layer is glibc `iconv`, which loads its converters with `dlopen`, and an image without the
-# gconv modules starts, answers `/health/ready` with `200`, and returns `500` on the first rendered
-# page. A smoke test that stops at a status code passes on an image that cannot render anything —
-# which is exactly what happened elsewhere in this portfolio, and the reason this script insists on
-# reading a timestamp out of the HTML.
+# gconv modules starts and answers `/health/ready` with `200` all the same. Elsewhere in this
+# portfolio such an image returned `500` on the first rendered page — the reason this script insists
+# on reading a timestamp out of the HTML rather than stopping at a status code. Here no page reaches a
+# converter (research §1.14); a request body declared in a charset other than UTF-8 does, and on an
+# image without them it is not refused but stored as replacement characters with a `201`. So the
+# script also sends one and requires the text back intact.
 #
 # THE SECOND HALF: NO SECRET IS EVER RENDERED. Secrets are write-only (B-07): `POST` and `PATCH` take
 # one, no route returns one, and the journal names a secret by its fingerprint. What holds that is
@@ -22,7 +24,8 @@
 #   dev/image-smoke.sh [image]
 #
 # Exit codes: 0 the page rendered and no secret was found, 1 it did not render, 2 the harness could
-# not run the subject, 3 a secret appeared in a response or in the log.
+# not run the subject, 3 a secret appeared in a response or in the log, 4 a body in another charset
+# was not decoded — the image is missing its charset converters.
 set -uo pipefail
 
 IMAGE=${1:-xyk:dev}
@@ -47,9 +50,11 @@ SECRET=${SECRET:-github-$(rand)}
 # and `GET /api/endpoints` render by design. The server does nothing wrong there, and that is the
 # point: a secret that IS in a response has to be found, or the search is looking at nothing.
 #
-# The branch this does NOT exercise is the one the script was written for: an image that starts,
-# answers `200`, and renders nothing because its charset converters are missing. The natural negative
-# for that is a `scratch` image without the gconv tree, which arrives with B-18.
+# AND ONE NEGATIVE CONTROL, for the failure the script was written for: an image whose charset
+# converters are missing. It is `make image-scratch`, which builds the `scratch` image without the
+# gconv tree and requires this script to exit exactly 4 on it. B-18 built that image first and it
+# rendered every page, so the negative never fired and the target that demanded it failed on every
+# run; since 2026-10-02 the charset step below is what it fires on (research §1.14, the correction).
 SIGN_SECRET=${SIGN_SECRET:-$SECRET}
 DESCRIPTION="image smoke"
 [ "${SECRET_IN_DESCRIPTION:-0}" = 1 ] && DESCRIPTION="image smoke $SECRET"
@@ -109,8 +114,9 @@ call POST "/hooks/$id" -H "X-Hub-Signature-256: sha256=$(hmac_hex "$SIGN_SECRET"
 [ "$STATUS" = 200 ] || { echo "image-smoke: the webhook was not accepted ($STATUS)" >&2; exit 1; }
 EVENTS=("$(field event)")
 
-# THE ACTUAL CHECK: a rendered page carrying a rendered date. Anything that goes through a charset
-# conversion fails here and nowhere earlier.
+# A rendered page carrying a rendered date — what a status code does not show. On another service of
+# this shape a missing converter failed right here; on this one no page reaches a converter, and the
+# check that does is the next one.
 call GET /journal || exit 2
 page=$BODY
 if [ "$STATUS" != 200 ] || ! printf '%s' "$page" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}'; then
@@ -125,6 +131,30 @@ call GET "/journal/$(printf '%s' "$page" | sed -E 's/.*journal\/([0-9a-f]{32}).*
 case "$BODY" in
   *"verified by"*) ;;
   *) echo "image-smoke: the event page did not render" >&2; exit 1 ;;
+esac
+
+# --- A body in another charset is decoded. -----------------------------------------------------------
+#
+# The one place on this service that reaches glibc's converters. JSON is UTF-8 by its RFC, but a
+# client may declare another charset in `Content-Type`, Ktor honours the declaration, and for anything
+# but UTF-8 it decodes through `iconv`. Without the gconv tree the request is NOT refused: measured on
+# 2026-10-02, `windows-1251`, `KOI8-R` and `ISO-8859-1` bodies were answered `201` with every
+# non-ASCII character stored as U+FFFD — corruption a status check sails past. So the description
+# goes in as windows-1251 bytes and has to come back as the same word in UTF-8. windows-1251 rather
+# than Latin-1 because nothing but glibc converts it here: a runtime that one day decodes Latin-1 by
+# itself would leave this check passing and proving nothing.
+#
+# The description keeps its prefix, so `SECRET_IN_DESCRIPTION=1` still finds its secret on the pages.
+CP1251_WORD=$'\xef\xf0\xe8\xe2\xe5\xf2'
+call PATCH "/api/endpoints/$id" -H 'Content-Type: application/json; charset=windows-1251' \
+  --data-binary "{\"description\":\"$DESCRIPTION $CP1251_WORD\"}" || exit 2
+case "$STATUS:$BODY" in
+  200:*"\"description\":\"$DESCRIPTION привет\""*) ;;
+  *)
+    echo "image-smoke: a windows-1251 body was not decoded ($STATUS) — the image is missing its charset converters" >&2
+    printf '%s\n' "$BODY" | head -5 >&2
+    exit 4
+    ;;
 esac
 
 # --- No secret is ever rendered. ---------------------------------------------------------------------
@@ -228,4 +258,5 @@ done
 [ "$leaked" = 0 ] || exit 3
 
 echo "image-smoke: the journal rendered a timestamp and an event page from $IMAGE," \
+  "a windows-1251 body came back decoded," \
   "and none of ${#VALUES[@]} secrets is in $responses responses or the log"

@@ -75,6 +75,12 @@ site is not. Full table and consequences in
 **So the image smoke test still has no working negative control**, which B-12 expected this item to
 supply. Said plainly rather than left implied.
 
+**2026-10-02: it has one now, on this image.** What reaches the converters here is a request body
+declared in a charset other than UTF-8 — the image without gconv stores it as U+FFFD under a `201` —
+so the smoke test sends one in windows-1251 and exits `4` when it does not come back intact, and
+`make image-scratch` requires exactly `4` from this image
+([research §1.14](../research/research-architecture.md), the correction).
+
 **And the criterion is now a decision rather than a distance.** 11 822 592 with gconv misses the
 10 MB line by 1.82 MB; 8 990 720 without it meets the line with a megabyte to spare, on an image
 that renders everything this service serves. Whether to spend 2 831 872 bytes on insurance against a

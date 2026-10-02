@@ -413,6 +413,40 @@ pages render; what it has never been shown able to catch is an image that cannot
 is written here rather than quietly forgotten, and the next candidate for such a control is a base
 image genuinely missing something the binary needs — not this one.
 
+**Correction, 2026-10-02: the control fires — on a request body, not on a page, and it is this image
+after all.** Every request in the table above carried UTF-8 or nothing to decode, so "negative on
+every route this service has" was true of those requests and not of the routes. A body whose
+`Content-Type` declares another charset reaches glibc `iconv`: Ktor honours the declaration and
+decodes anything but UTF-8 through the converters. Measured on `xyk:scratch` and
+`xyk:scratch-nogconv` built from `02305a2` (Ktor 3.6.0): `POST /api/endpoints` with the description
+encoded in the declared charset, read back with `GET /api/endpoints/{id}`.
+
+| declared charset | with gconv | without gconv |
+|---|---|---|
+| `utf-8` | `201`, text intact | `201`, text intact |
+| `ISO-8859-1` | `201`, text intact | `201`, every non-ASCII character stored as U+FFFD (`ef bf bd`) |
+| `windows-1251` | `201`, text intact | `201`, U+FFFD |
+| `KOI8-R` | `201`, text intact | `201`, U+FFFD |
+| `US-ASCII` | `201` | `400`, `Failed to convert request body` |
+
+Each consequence above changes with it:
+
+- **Consequence 2** — "a call site this service does not have *yet*" is wrong. It has one today:
+  any admin request in a declared charset other than UTF-8. And what the gconv tree prevents is
+  worse than the `500` it was priced against: for the single-byte charsets it is corruption answered
+  with `201`. The owner's decision to keep the tree
+  ([B-23](../backlog/B-23-criterion-image-size.md)) now rests on a measured failure rather than a
+  hypothetical one.
+- **Consequence 3** no longer holds. `dev/image-smoke.sh` sets a description in windows-1251 and
+  requires it back in UTF-8, exiting `4` otherwise; `make image-scratch` requires exactly `4` from
+  the image without gconv, and got it. Until this change that target demanded a failure that never
+  came: on `02305a2` every run stopped on "CONTROL PASSED", and `make parity`, which depends on it,
+  never reached `bench/parity.sh`.
+- **Ktor 3.6.0 changed nothing here.** This section was measured on 3.5.2, two days before the bump,
+  and already found no page that reaches a converter; the 3.6.0 change that removed such a call site
+  on another service concerns percent-encoding, which nothing here does on a page. Whether 3.5.2
+  decoded these bodies the same way was not measured.
+
 ### 1.8 What a 64 MiB limit means for Ktor on Kotlin/Native — and why the declared criterion is the one most likely to fail
 
 Measured 2026-09-15 on a Ktor service with **no database at all**: one route, one JSON object,
@@ -685,6 +719,17 @@ cannot keep.
 stores raw bodies by design (§1.4). Mitigation: secrets come from the environment and are never
 logged or rendered; the journal shows *which* secret verified a request, never its value; and
 payloads are purged on a retention schedule — **seven days by default since 2026-09-16**, Decision 3 below.
+
+**Correction, 2026-10-02: secrets do not come from the environment.** They arrive through the admin
+API — `POST /api/endpoints` creates an endpoint with one, `PATCH /api/endpoints/{id}` adds another
+on rotation ([endpoint-admin](../api/endpoint-admin.md)) — and are kept in the database, in
+`endpoint_secrets`, unencrypted (Decision 3b below). The environment carries at most one,
+`XYK_BOOTSTRAP_SECRET` for the optional bootstrap endpoint, and that one is written into the same
+table at start. So what has to be protected is the volume, as Decision 3b says, and not the process
+environment. The rest of the mitigation stands, and since the same day it is checked from outside
+the image: `dev/image-smoke.sh` creates an endpoint of every scheme an operator can create, rotates
+one, signs an event through every secret, and finds none of the five in any response or in the log
+— with a positive control that has to find one.
 
 **Open question 1.** Will chronik take native targets, and at what cost to its own gate? The
 Postgres module's tests need Docker and stay JVM-only either way. Settled by

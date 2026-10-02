@@ -53,7 +53,9 @@ breaks only the signing side: the control exits 1 with "the webhook was not acce
 real run exits 0. What that control still does **not** exercise is the branch the script was written
 for — an image that starts, answers `200` and renders nothing because its charset converters are
 missing. The natural negative for that is a `scratch` image without the gconv tree, and it arrives
-with [B-18](B-18-scratch-image.md).
+with [B-18](B-18-scratch-image.md). **2026-10-02:** it did not arrive with B-18 — that image rendered
+every page — and arrived with a request body in another charset instead
+([research §1.14](../research/research-architecture.md), the correction).
 
 **Size, measured after the page landed:** binary 9 662 208 → **10 145 072** bytes, image
 14 163 968 → **14 288 384** pull bytes. The journal cost 483 KB of binary.
