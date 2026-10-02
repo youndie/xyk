@@ -33,7 +33,8 @@ handful of endpoints, and running a second one costs a container.
 * An endpoint has an opaque unguessable id, a scheme, one or more active secrets, an enabled flag,
   and a description an operator writes for themselves.
 * **A secret is written and never read back.** The list shows a fingerprint so two can be told
-  apart.
+  apart. The fingerprint is keyed per installation: the same secret reads differently on two
+  installs, and stays the same across restarts of one.
 * **Rotation adds rather than replaces**, keeping the previous secret valid for a window. Stripe
   signs with every active secret for up to 24 hours while a secret is being rolled; an endpoint that
   dropped the old one immediately would reject genuine traffic.
@@ -67,7 +68,8 @@ handful of endpoints, and running a second one costs a container.
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/registry/domain/Rules.kt` — the URL and scheme checks |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/registry/data/Sqlx4kRegistryRepository.kt` |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/contract/AdminResource.kt` |
-| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` — `endpoints`, `endpoint_secrets`, `subscribers` |
+| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` — `endpoints`, `endpoint_secrets`, `subscribers`, `install_key` |
+| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/SecretFingerprints.kt` — the keyed fingerprint |
 
 ## 5. Scenarios (BDD / test cases)
 
@@ -88,6 +90,25 @@ handful of endpoints, and running a second one costs a container.
 * **Then:** requests signed with either are accepted until the window closes
 * **And:** the journal shows a different fingerprint for each
 * **Automated:** `RegistryTest`
+
+### Scenario: one secret reads differently on two installations
+
+* **Given:** two installations, each with its own database
+* **When:** each creates an endpoint with the same secret
+* **Then:** the two fingerprints differ, and neither is the plain SHA-256 of the secret
+* **And:** after a restart each installation shows the fingerprint it showed before, and the
+  bootstrap endpoint still holds its secret once
+* **Automated:** `SecretFingerprintTest`
+
+### Scenario: an upgrade re-fingerprints what is already stored
+
+* **Given:** a database left by a binary from before 2026-10-02, whose secrets and events carry plain
+  SHA-256 fingerprints
+* **When:** the current binary starts on it
+* **Then:** every secret's fingerprint is the keyed one, and every event shows the keyed fingerprint of
+  the secret that verified it
+* **And:** an event nothing verified still has none
+* **Automated:** `SecretFingerprintTest`
 
 ### Scenario: an unverified endpoint cannot be created without the flag
 

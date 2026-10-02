@@ -13,6 +13,7 @@ import io.github.youndie.xyk.db.WalSweep
 import io.github.youndie.xyk.db.applyBootstrap
 import io.github.youndie.xyk.db.lastCheckpoint
 import io.github.youndie.xyk.db.openDatabase
+import io.github.youndie.xyk.db.secretFingerprints
 import io.github.youndie.xyk.delivery.DeliverySink
 import io.github.youndie.xyk.delivery.data.Sqlx4kDeliveryRepository
 import io.github.youndie.xyk.delivery.deliveryWorkers
@@ -97,6 +98,9 @@ fun main() {
     // Here, before the engine: a server that opened its port ahead of a ready schema would answer
     // the first requests with errors, and those requests are webhooks nobody sends twice.
     val db = openDatabase(config)
+    // Read once, after the migrations that guarantee it is there: every fingerprint this process
+    // computes is under this installation's key (research D7).
+    val fingerprints = runBlocking { db.secretFingerprints() }
 
     // Printed rather than logged, and printed early: it names which engine variant this binary was
     // linked with, which is the one fact a size measurement of it cannot be read without.
@@ -251,7 +255,7 @@ fun main() {
                         println("xyk: kafka sink refused $eventId — ${failure::class.simpleName}: ${failure.message}")
                     },
                 ),
-                registryModule(db, config.allowUnverified),
+                registryModule(db, fingerprints, config.allowUnverified),
                 journalModule(db, scheduler),
             )
         }

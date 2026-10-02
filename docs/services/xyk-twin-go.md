@@ -25,6 +25,11 @@ What it deliberately does **not** do: delivery, retries, the journal, the admin 
 else that would make it a product. A fuller port would measure how well the author writes Go; this
 one measures the floor.
 
+**One stored value differs on purpose:** the secret fingerprint. The twin keeps the plain SHA-256
+prefix xyk had until 2026-10-02, while xyk's is an HMAC under a key each installation draws for
+itself ([research, D7](../research/research-architecture.md)). It is made at bootstrap, off the
+ingest path, and `bench/parity.sh` compares the secret a fingerprint names rather than its text.
+
 **It is not shipped.** No chart, no registry, no versioning. It is a fixture.
 
 ## 2. API contracts

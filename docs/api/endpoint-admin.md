@@ -46,11 +46,16 @@ is the reason the product exists.
 ## Secrets
 
 **A secret is written and never read back.** `POST` and `PATCH` accept one; no route returns one;
-the list shows a fingerprint — the first eight hex characters of the secret's SHA-256, `fingerprintOf`
-in `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Bootstrap.kt` — so that an operator can
-tell two secrets apart without seeing either. It is a plain hash and not keyed: the same secret gives
-the same fingerprint on every install. An HMAC under a per-install key would not; nothing builds one,
-and no decision asks for it.
+the list shows a fingerprint — the first eight hex characters of an HMAC-SHA256 of the secret under
+this installation's own key, `SecretFingerprints` in
+`server/src/commonMain/kotlin/io/github/youndie/xyk/db/SecretFingerprints.kt` — so that an operator
+can tell two secrets apart without seeing either. **It is keyed, so it is local to one install:** the
+same secret gives a different fingerprint on every installation, and a fingerprint cannot be checked
+against a guessed secret by anyone who does not hold the key. The key is drawn on the first start of
+a database (schema version 8) and kept in it, in `install_key`, so fingerprints are stable across
+restarts and a restored backup shows the ones it was taken with. Until 2026-10-02 the fingerprint was
+a plain SHA-256 of the secret; the upgrade rewrites every stored one, the journal's included
+([research D7](../research/research-architecture.md)).
 
 **Rotation keeps both secrets for a window**, because Stripe does exactly that — for up to 24 hours
 it signs with every active secret, and an endpoint that dropped the old one the instant a new one

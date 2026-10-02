@@ -55,7 +55,13 @@ class BoundValuesTest {
         runTest {
             val db = openDatabase(freshPath(), maxConnections = 2)
             val registry = Sqlx4kRegistryRepository(db)
-            val create = CreateEndpointUseCase(registry, { setOf(GithubVerifier.SCHEME) }, allowUnverified = false)
+            val create =
+                CreateEndpointUseCase(
+                    registry,
+                    db.secretFingerprints(),
+                    { setOf(GithubVerifier.SCHEME) },
+                    allowUnverified = false,
+                )
             val journal = Sqlx4kJournalRepository(db)
 
             for (value in hostile) {
@@ -66,7 +72,7 @@ class BoundValuesTest {
                 val record = assertNotNull(registry.find(id))
                 assertEquals(value, record.description, "the description changed on the way in")
                 assertEquals(GithubVerifier.SCHEME, record.scheme, "a description rewrote another column")
-                assertEquals(listOf(fingerprintOf(value)), record.secretFingerprints)
+                assertEquals(listOf(db.secretFingerprints().of(value)), record.secretFingerprints)
                 assertEquals("https://example.invalid/$value", registry.listSubscribers(id).single().url)
 
                 // As a filter, too: a value in a WHERE clause is as much a value as one in VALUES.
@@ -88,7 +94,12 @@ class BoundValuesTest {
             val db = openDatabase(freshPath(), maxConnections = 2)
             val registry = Sqlx4kRegistryRepository(db)
             val id =
-                CreateEndpointUseCase(registry, { setOf(GithubVerifier.SCHEME) }, allowUnverified = false)(
+                CreateEndpointUseCase(
+                    registry,
+                    db.secretFingerprints(),
+                    { setOf(GithubVerifier.SCHEME) },
+                    allowUnverified = false,
+                )(
                     CreateEndpointUseCase.Params(GithubVerifier.SCHEME, "s", "plain", 10),
                 ).getOrThrow()
 
@@ -103,7 +114,13 @@ class BoundValuesTest {
         runTest {
             val db = openDatabase(freshPath(), maxConnections = 2)
             val registry = Sqlx4kRegistryRepository(db)
-            val create = CreateEndpointUseCase(registry, { setOf(GithubVerifier.SCHEME) }, allowUnverified = false)
+            val create =
+                CreateEndpointUseCase(
+                    registry,
+                    db.secretFingerprints(),
+                    { setOf(GithubVerifier.SCHEME) },
+                    allowUnverified = false,
+                )
 
             // Refused, not shortened: on Kotlin/Native a bound TEXT ends at its NUL, so storing would
             // keep "before" and drop the rest without a word.

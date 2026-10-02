@@ -327,6 +327,10 @@ func parseConfig(raw string) schemeConfig {
 	return cfg
 }
 
+// The plain hash xyk showed until 2026-10-02. xyk now keys its fingerprint per installation (research
+// D7) and the twin does not: the fingerprint is made once, at bootstrap, off the ingest path this
+// twin exists to compare, and bench/parity.sh compares the secret an event names rather than the
+// fingerprint's text, which two installations no longer share anyway.
 func fingerprintOf(value string) string {
 	sum := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(sum[:4])

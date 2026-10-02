@@ -67,6 +67,7 @@ What it deliberately does **not** do:
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/ServerConfig.kt` | typed configuration, `fromEnv()` and the `require` calls that refuse to start |
 | `server/src/nativeMain/kotlin/io/github/youndie/xyk/Env.native.kt` | `actual fun readEnv` — Kotlin/Native has no `System.getenv` |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` | the statement list and `PRAGMA user_version`, run before the engine starts |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/db/SecretFingerprints.kt` | the fingerprint a secret is shown as — an HMAC under the installation's key — and migration 8's step that draws the key and rewrites stored fingerprints |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Sql.kt` | `sql(text, values…)`: the one way a value reaches SQL — bound, never written into the text — and the NUL check in front of it |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/health/XykProbes.kt` | the three gates and the checks behind readiness |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/IngestRouting.kt` | `POST /hooks/{endpointId}` |
@@ -244,7 +245,9 @@ it cannot verify. The list below is the shape, not a copy — the file is the tr
 | `XYK_KAFKA_QUEUE` | records allowed to wait in front of the producer; **`0` ships**, above zero is a measurement arm | no (0) |
 
 Endpoint secrets are **not** environment variables: they are rows, created through the journal's
-admin routes and never readable back over HTTP — the API answers with a fingerprint.
+admin routes and never readable back over HTTP — the API answers with a fingerprint, keyed by this
+installation's own key ([research D7](../research/research-architecture.md)). That key is not an
+environment variable either: it is drawn on the database's first start and kept in it.
 
 ## 7a. The volume is as sensitive as the secrets in it
 
@@ -260,7 +263,8 @@ sentence in an audit that is true of the bytes and false about the threat.
 Concretely, for whoever operates this:
 
 * the PVC holds live credentials — an attacker with a copy of it can sign requests that xyk will
-  accept, and read every payload xyk has kept;
+  accept, and read every payload xyk has kept. It also holds the key the secret fingerprints are made
+  under, which adds nothing to that: whoever reads the key can read the secrets themselves;
 * restrict access to it as you would to a secret store, and treat its backups the same way;
 * `XYK_RETENTION_DAYS` (7 by default) bounds how much payload is in there, which is the one lever
   that reduces this exposure without changing the design;

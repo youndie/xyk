@@ -1,6 +1,7 @@
 package io.github.youndie.xyk.registry
 
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
+import io.github.youndie.xyk.db.SecretFingerprints
 import io.github.youndie.xyk.registry.data.Sqlx4kRegistryRepository
 import io.github.youndie.xyk.registry.domain.CreateEndpointUseCase
 import io.github.youndie.xyk.registry.domain.RegistryRepository
@@ -11,6 +12,7 @@ import org.koin.dsl.module
 
 fun registryModule(
     db: ISQLite,
+    fingerprints: SecretFingerprints,
     allowUnverified: Boolean,
 ): Module =
     module {
@@ -18,6 +20,7 @@ fun registryModule(
         single {
             CreateEndpointUseCase(
                 repository = get(),
+                fingerprints = fingerprints,
                 // Resolved at call time, not captured: the set of implemented schemes grows with
                 // B-09, and a validator holding a copy from start-up would refuse a scheme the
                 // ingest path had learned to verify.
@@ -25,5 +28,5 @@ fun registryModule(
                 allowUnverified = allowUnverified,
             )
         }
-        single { RotateSecretUseCase(get()) }
+        single { RotateSecretUseCase(get(), fingerprints) }
     }

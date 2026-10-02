@@ -68,6 +68,12 @@ hmac_hex() { printf %s "$2" | openssl dgst -sha256 -hmac "$1" -hex | sed 's/.*= 
 # What reached the database, projected so that the parts which are allowed to differ — random ids,
 # timestamps — are left out, and the parts that are not are compared exactly.
 #
+# An event's fingerprint is compared as the secret it names, not as its text. xyk's fingerprint is an
+# HMAC under a key each installation draws for itself (research D7), so two arms — two installations
+# — never share its text, and the twin keeps the plain hash xyk had before. Which secret verified the
+# event is the part both must agree on; a fingerprint that names no stored secret reads as empty,
+# so one that names nothing on one side only is a difference like any other.
+#
 # The journal is copied with the database: in WAL mode the main file is only the checkpointed part,
 # and a comparison of two half-copied databases agrees about nothing at all (research 1.15).
 stored() {
@@ -77,7 +83,8 @@ stored() {
     docker cp "$container:/data/$file" "$WORK/$container.db${file#xyk.db}" >/dev/null 2>&1
   done
   sqlite3 "$WORK/$container.db" \
-    "SELECT scheme, body_bytes, secret_fingerprint, hex(body) FROM events ORDER BY hex(body), body_bytes;" \
+    "SELECT e.scheme, e.body_bytes, (SELECT s.secret FROM endpoint_secrets s WHERE s.endpoint_id = e.endpoint_id
+       AND s.fingerprint = e.secret_fingerprint), hex(e.body) FROM events e ORDER BY hex(e.body), e.body_bytes;" \
     > "$out" 2>/dev/null
   sqlite3 "$WORK/$container.db" "SELECT count(*) FROM deliveries;" >> "$out" 2>/dev/null
 }
