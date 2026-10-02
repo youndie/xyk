@@ -21,3 +21,6 @@ build
 .kotlin
 .idea
 docs
+# The documentation checks, fetched by the first `make` at the version check.yaml pins. Nothing in an
+# image is built from them.
+.docs-bootstrap
