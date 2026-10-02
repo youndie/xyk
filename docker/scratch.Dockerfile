@@ -14,9 +14,12 @@
 #
 # STATIC DOES NOT MEAN SELF-CONTAINED. glibc has no built-in charset converters — even UTF-8 arrives
 # from a gconv module that `iconv_open` loads with `dlopen` — and Ktor's charset layer on
-# Kotlin/Native *is* glibc `iconv`. An image with the binary alone starts, answers `/health/ready`
-# with `200`, and returns `500` on the first rendered page. That is why `dev/image-smoke.sh` insists
-# on reading a timestamp out of the HTML, and why this image carries five things and not one.
+# Kotlin/Native *is* glibc `iconv`. On a service of the same shape an image without the converters
+# started, answered `/health/ready` with `200`, and returned `500` on the first rendered page. Here the
+# pages never reach them (research §1.14); a request body declared in another charset does, and
+# without them it is stored as U+FFFD rather than refused. That is why `dev/image-smoke.sh` reads a
+# timestamp out of the HTML *and* a windows-1251 word back out of the API, and why this image carries
+# five things and not one.
 FROM --platform=linux/amd64 gradle:9.8.0-jdk25-noble AS build
 
 # `gradle:*-noble` carries the right glibc and NOT ONE STATIC ARCHIVE: no `libc.a`, no `crt1.o`, no
@@ -60,7 +63,9 @@ COPY --from=build /lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/libc.so.
 # The WHOLE gconv directory, not one module: glibc picked `UTF-16.so` to convert UTF-8 elsewhere in
 # this portfolio, so the set of reachable modules is not something a COPY line should predict. The
 # price is known — curating it down saved 2 811 555 bytes there — and an unusual `charset=` in a
-# `Content-Type` is a `500` in production that no test in the suite would catch.
+# `Content-Type` without its module is a body stored as U+FFFD with a `201` (measured 2026-10-02). The
+# smoke test catches that for windows-1251 only; a curated list would be right until the first charset
+# nobody tested.
 COPY --from=build /usr/lib/x86_64-linux-gnu/gconv /usr/lib/x86_64-linux-gnu/gconv
 # Nothing reads this today: the binary embeds no zones and `strace` opened neither `/usr/share/zoneinfo`
 # nor `/etc/localtime`. It is 346 KB of insurance for the day somebody asks for a named zone, and the

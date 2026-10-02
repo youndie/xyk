@@ -112,6 +112,16 @@ handful of endpoints, and running a second one costs a container.
 * **When:** it is removed
 * **Then:** the attempts remain visible on each event's page, attributed to the removed subscriber
 
+### Scenario: a body in another charset is decoded inside the image
+
+* **Given:** the image as built, and an endpoint
+* **When:** its description is changed with a body in windows-1251 whose `Content-Type` says so
+* **Then:** the response is `200` and carries the description as the same word in UTF-8
+* **Automated:** `dev/image-smoke.sh` (run by `make build`), which exits `4` otherwise
+* **And:** `make image-scratch` runs it against an image without glibc's charset converters and
+  requires exactly `4` — without them such a body is answered `201` or `200` and stored as U+FFFD
+  ([research §1.14](../research/research-architecture.md), the correction of 2026-10-02)
+
 ## 6. Out of scope
 
 * **Users, roles, teams, projects.** One install, a handful of endpoints.

@@ -54,6 +54,15 @@ it signs with every active secret, and an endpoint that dropped the old one the 
 was created would reject genuine traffic. `PATCH` therefore adds a secret and schedules the
 retirement of the previous one; it does not replace.
 
+## Request bodies
+
+JSON, decoded in the charset the `Content-Type` declares, and UTF-8 when it declares none. Any other
+charset is decoded by glibc's converters, which the image carries for this reason: without them a
+body in `ISO-8859-1`, `windows-1251` or `KOI8-R` is accepted and stored with every non-ASCII
+character replaced by U+FFFD, and one in `US-ASCII` is refused with `400`
+([research §1.14](../research/research-architecture.md), the correction of 2026-10-02).
+`dev/image-smoke.sh` checks a windows-1251 body on every image `make build` makes.
+
 ## Responses
 
 | Condition | Status | Body |
@@ -64,6 +73,7 @@ retirement of the previous one; it does not replace.
 | scheme not one the code implements | `400` | `{"error":"unknown scheme: <value>"}` |
 | subscriber URL is not absolute http(s) | `400` | `{"error":"subscriber url must be absolute http or https"}` |
 | `none` requested without `XYK_ALLOW_UNVERIFIED=true` | `400` | `{"error":"scheme none is disabled"}` |
+| a body that cannot be decoded into the request | `400` | plain text, `Failed to convert request body to class …` — Ktor's, not this API's JSON shape |
 
 The last row is a guard rather than a feature: an endpoint that verifies nothing is a public write
 endpoint on somebody's database, and it should take a deliberate act to create one.
