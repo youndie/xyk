@@ -5,8 +5,8 @@
 1. **[docs/research/research-architecture.md](docs/research/research-architecture.md)** — first,
    always. It says what was actually verified and where, which decisions were taken and what was
    rejected. A task read without it looks like "do the obvious thing", and here the obvious thing is
-   frequently wrong: chronik has no native artifacts, a static glibc is not self-contained, and the
-   memory criterion is expected to fail for a reason that is written down.
+   frequently wrong: chronik's only native variant is `linuxX64`, a static glibc is not
+   self-contained, and the memory criterion is expected to fail for a reason that is written down.
 2. **[backlog.md](backlog.md)** — the stage the task belongs to, the item, and what it is blocked by.
 3. **The layer document for the thing you are changing** — `docs/features/` for behaviour,
    `docs/api/` for a route, `docs/services/` for how a module is put together.

@@ -145,7 +145,7 @@ batches.
 | Kind | Name | What for |
 |---|---|---|
 | Database | SQLite via `io.github.smyrgeorge:sqlx4k-sqlite` | events, subscribers, deliveries, timers — one file |
-| Library | `io.github.youndie.chronik:chronik-core`, `chronik-sqlx4k-sqlite` | the timer contract, the worker and the SQLite store; native for `linuxX64` only, so the delivery half exists only there ([B-02](../backlog/B-02-chronik-native-targets.md)); the pin is the snapshot `0.1.0.16` and resolves from reposilite, not Central |
+| Library | `io.github.youndie.chronik:chronik-core`, `chronik-sqlx4k-sqlite` | the timer contract, the worker and the SQLite store; native for `linuxX64` only, so the delivery half exists only there ([B-02](../backlog/B-02-chronik-native-targets.md)); the pin is the release `0.2.0`, from Maven Central |
 | Library | `io.github.youndie:kore-core`, `kore-ktor` + `io.github.youndie.kore.build` | ordered shutdown, three probes, `/version`; resolves from reposilite, not Central |
 | Library | `org.kotlincrypto.macs:hmac-sha2`, `org.kotlincrypto.hash:sha2` | HMAC-SHA256 for GitHub and Stripe |
 | Library | `io.ktor:ktor-client-curl` | the only native engine that speaks HTTPS; carries its own static libcurl/OpenSSL |
