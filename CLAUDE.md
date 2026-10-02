@@ -35,9 +35,12 @@ make build     # link, image, and the assertion that the process stops in order 
 `make check` is exactly what CI runs. `make report` is the two non-blocking reports; `make fix`
 regenerates the backlog index and fills in missing coverage-map lines with placeholders you then
 finish. The documentation checks are docs-bootstrap's, at the version the
-`uses: youndie/docs-bootstrap@…` line in `.github/workflows/check.yaml` pins; the first `make`
-fetches that version into `.docs-bootstrap/` (it ignores itself), and there are no copies under
-`scripts/` to run by hand.
+`uses: youndie/docs-bootstrap@…` line in `.github/workflows/check.yaml` pins; the first `make check`
+(or `docs`, `gate`, `report`, `fix`) fetches that version into `.docs-bootstrap/` (it ignores
+itself), and there are no copies under `scripts/` to run by hand. The other targets — `build`,
+`image`, `image-scratch`, `twin`, `parity` — neither read the pin nor fetch the checks. A new target
+that leads to the checks goes into `DOCS_BOOTSTRAP_GOALS` at the top of the `Makefile`, or it stops
+on a message saying so.
 
 `code_anchors.py` resolves most paths now that the backlog is finished. What it still reports are
 addresses **inside other repositories and artefacts** — a line in chronik's sources, a key in

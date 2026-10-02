@@ -32,6 +32,9 @@ subscribers with URLs, and the routes to manage both.
   structural — `EndpointRecord` has no secret field, so there is nothing in the mapping to forget to
   drop — and a test asserting the absence of a field that does not exist would pass for the wrong
   reason. The grep stays in the script as the check that the structure has not changed.
+  *Corrected 2026-10-02: the script was never committed — no file in the repository greps a response
+  for a secret, so nothing repeats the check; feature-journal's scenario is marked manual for that
+  reason.*
 
 ## Closed 2026-09-15
 
