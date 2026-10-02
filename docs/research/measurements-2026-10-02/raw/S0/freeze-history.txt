@@ -1,0 +1,9 @@
+# 2026-10-02T16:42:50+0200 on branch at 1256f97, before the squash merge
+#  on branch at 1256f97, before the squash merge
+docs/research/measurements-2026-10-02/arena-cap-brief.md: recorded at 6c07f36; the same bytes in all 1 commit(s) that held it since
+docs/research/measurements-2026-10-02/arena-cap-brief.md: frozen at 6c07f36, before 1 of the 1 commit(s) adding measurements under docs/research/measurements-2026-10-02/raw
+ok: 0 problem(s)
+rc=0
+50/50 cases behave
+6c07f36 2026-10-02 14:10:46 +0200 test(bench): pre-register the arena cap on the paged-off build
+1256f97 2026-10-02 16:42:34 +0200 docs(research): record the arena cap verdicts on the paged-off build
