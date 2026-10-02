@@ -123,6 +123,21 @@ expects `./gradlew build` to work locally, which is why it is written here rathe
 snapshot repository rather than Central. That is the repository this portfolio's other consumers
 already use, and the pin is an exact version (`0.1.0.16`), not a moving `+`.
 
+**Third correction, 2026-10-02: the pin is a release on Central, and Consequence 4 binds as first
+written.** chronik 0.2.0 went to Maven Central on 2026-09-17 with the same three modules, each with
+`jvm` and `linuxX64`, and xyk now pins `0.2.0`. It is the snapshot's code under a release number,
+which is what made the switch a one-line change rather than a migration:
+
+| Fact | Where verified |
+|---|---|
+| Between the commit that published `0.1.0.16` and the `v0.2.0` tag, chronik changed `gradle.properties` and its backlog, and no source | `git diff --stat 36db439 v0.2.0` in chronik |
+| The `jvm` jars of all three modules are byte-identical across the two versions | both jars unpacked, `diff -r` empty |
+| The `linuxX64` klibs differ in one file, the IR string table, and only by the source path the build machine recorded — the DDL `chronikTimersSchema()` returns is the same text | both klibs unpacked; their string tables compared with that path stripped |
+| The `.module` files list the same dependencies at the same versions | both fetched and compared |
+
+So the timers table did not move: a database already at `user_version = 5` needs nothing, and
+`ChronikSchemaParityTest` holds the v5 copy against the same text it held before.
+
 ### 1.2 What chronik's contract actually demands of a store
 
 Read in `chronik/chronik-core/src/commonMain/kotlin/TimerStore.kt` and `Chronik.kt`.

@@ -79,6 +79,9 @@ delivery half cannot be compiled locally at all, where the ingest half can.
   group directory contains `chronik-core-linuxx64`.
 - AC: xyk's version catalog pins that released version — never a snapshot, never a project
   dependency across repositories.
+  *Met as written on 2026-10-02: the pin moved from the snapshot `0.1.0.16` to the release `0.2.0`
+  on Maven Central, which is the same code ([research §1.1](../research/research-architecture.md),
+  third correction).*
 - AC: if the change is refused or turns out to be expensive, the refusal and its reason are written
   into [research §1.1](../research/research-architecture.md) at the point of divergence, and this
   item becomes the decision to write a store against a different contract.
