@@ -115,7 +115,7 @@ same as reading the template.
 
 ```bash
 make check     # documents + ./gradlew check — what CI runs
-make build     # link, image, and the assertion that the process stops in order
+make build     # link, image, the stop order, a rendered page, and no secret in any response or log
 ```
 
 Outbound HTTPS is a build variant — `-Pxyk.httpClient=true` links `ktor-client-curl`, the only engine

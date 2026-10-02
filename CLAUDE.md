@@ -29,7 +29,7 @@ reader nothing, an invented detail costs them the whole file.
 ```bash
 make check     # documents + ./gradlew check — needs the Linux box
 make docs      # the documentation half only; runs anywhere
-make build     # link, image, and the assertion that the process stops in order (needs docker)
+make build     # link, image, stop order, a rendered page, no secret in any response or log (docker)
 ```
 
 `make check` is exactly what CI runs. `make report` is the two non-blocking reports; `make fix`
