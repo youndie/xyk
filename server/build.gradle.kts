@@ -5,8 +5,8 @@ plugins {
     alias(wip.plugins.kotlinSerialization)
     // Generates `KoreBuildIdentity` — the version, the commit and the build time, as compiled-in
     // source. Kotlin/Native has neither resources nor a manifest, so `/version` has no other way to
-    // know what it is serving. `commit` reads `unknown` wherever the build context has no `.git`,
-    // which on this project is the mutagen replica and the docker context both.
+    // know what it is serving. `commit` reads `unknown` wherever the build context has no `.git`
+    // and no `SOURCE_COMMIT`/`GITHUB_SHA` is set (the wiring is below the plugins block).
     alias(libs.plugins.koreBuild)
 }
 
@@ -28,7 +28,8 @@ plugins {
 // exactly as before: this adds a path, it does not replace one.
 tasks.named<io.github.youndie.kore.gradle.GenerateBuildIdentity>("generateKoreBuildIdentity") {
     commit.set(
-        providers.environmentVariable("SOURCE_COMMIT")
+        providers
+            .environmentVariable("SOURCE_COMMIT")
             .orElse(providers.environmentVariable("GITHUB_SHA")),
     )
 }
