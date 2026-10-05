@@ -276,11 +276,15 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.koin.test)
+            // The application through HTTP, in memory: what a client is answered is decided in the
+            // pipeline (StatusPages), where a test of a handler alone does not reach.
+            implementation(ktorLibs.server.testHost)
         }
 
-        // CHRONIK IS A TEST DEPENDENCY HERE AND NOTHING MORE, until the delivery half lands.
-        // It publishes `jvm` and `linuxX64` and no `macosArm64`, so where it is declared decides
-        // which hosts can still build this repository at all.
+        // ON THE JVM CHRONIK IS A TEST DEPENDENCY AND NOTHING MORE: the JVM build never delivers,
+        // and the delivery half takes chronik in `nativeMain` below. It publishes `jvm` and
+        // `linuxX64` and no `macosArm64`, so where it is declared decides which hosts can still
+        // build this repository at all.
         jvmTest.dependencies {
             // The jvm variant resolves on every host, which is why the check that xyk's copy of
             // chronik's DDL still matches chronik's own lives in the JVM suite: it is the one

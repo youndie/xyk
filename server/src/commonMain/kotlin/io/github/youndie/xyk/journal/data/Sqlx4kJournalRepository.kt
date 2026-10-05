@@ -5,6 +5,7 @@ import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLongOrNull
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.db.fromSqliteHex
+import io.github.youndie.xyk.db.sql
 import io.github.youndie.xyk.delivery.TimerScheduler
 import io.github.youndie.xyk.journal.domain.DeliveryLine
 import io.github.youndie.xyk.journal.domain.EventDetail
@@ -28,9 +29,14 @@ class Sqlx4kJournalRepository(
 ) : JournalRepository {
     override suspend fun recent(filter: JournalFilter): List<EventLine> {
         val conditions = mutableListOf<String>()
-        filter.endpointId?.let { conditions += "e.endpoint_id = ${it.quoted()}" }
+        val values = mutableListOf<Any?>()
+        filter.endpointId?.let {
+            conditions += "e.endpoint_id = ?"
+            values += it
+        }
         // The state of an event is the state of its deliveries: pending if any is waiting, dead if
-        // any gave up, delivered otherwise — including an event nobody was waiting for.
+        // any gave up, delivered otherwise — including an event nobody was waiting for. The value
+        // picks one of three fixed fragments and never reaches the SQL itself.
         filter.state?.let { state ->
             conditions +=
                 when (state) {
@@ -58,8 +64,13 @@ class Sqlx4kJournalRepository(
         val limit = filter.limit.coerceIn(1, JournalFilter.MAX_LIMIT)
 
         return db
-            .fetchAll(SELECT_EVENTS + where + " ORDER BY e.received_at DESC, e.id DESC LIMIT $limit;")
-            .getOrThrow()
+            .fetchAll(
+                sql(
+                    SELECT_EVENTS + where + " ORDER BY e.received_at DESC, e.id DESC LIMIT ?;",
+                    *values.toTypedArray(),
+                    limit,
+                ),
+            ).getOrThrow()
             .rows
             .map { it.toLine() }
     }
@@ -67,7 +78,7 @@ class Sqlx4kJournalRepository(
     override suspend fun detail(eventId: String): EventDetail? {
         val event =
             db
-                .fetchAll(SELECT_EVENTS + " WHERE e.id = ${eventId.quoted()};")
+                .fetchAll(sql(SELECT_EVENTS + " WHERE e.id = ?;", eventId))
                 .getOrThrow()
                 .rows
                 .firstOrNull()
@@ -76,9 +87,12 @@ class Sqlx4kJournalRepository(
         val deliveries =
             db
                 .fetchAll(
-                    "SELECT d.id, s.url, d.state, d.attempts, d.created_at FROM deliveries d " +
-                        "LEFT JOIN subscribers s ON s.id = d.subscriber_id " +
-                        "WHERE d.event_id = ${eventId.quoted()} ORDER BY d.created_at;",
+                    sql(
+                        "SELECT d.id, s.url, d.state, d.attempts, d.created_at FROM deliveries d " +
+                            "LEFT JOIN subscribers s ON s.id = d.subscriber_id " +
+                            "WHERE d.event_id = ? ORDER BY d.created_at;",
+                        eventId,
+                    ),
                 ).getOrThrow()
                 .rows
                 .map { row ->
@@ -101,7 +115,11 @@ class Sqlx4kJournalRepository(
         cursor: String?,
     ): EventPage {
         val conditions = mutableListOf<String>()
-        filter.endpointId?.let { conditions += "e.endpoint_id = ${it.quoted()}" }
+        val values = mutableListOf<Any?>()
+        filter.endpointId?.let {
+            conditions += "e.endpoint_id = ?"
+            values += it
+        }
         // The cursor is the sort key itself: (received_at, id). Written out as the comparison rather
         // than as a row value, because SQLite's row-value support is newer than some of the builds
         // this may run on and the expansion is three lines.
@@ -109,8 +127,8 @@ class Sqlx4kJournalRepository(
             val at = raw.substringBefore('.').toLongOrNull()
             val id = raw.substringAfter('.', missingDelimiterValue = "")
             if (at != null && id.isNotEmpty()) {
-                conditions +=
-                    "(e.received_at < $at OR (e.received_at = $at AND e.id < ${id.quoted()}))"
+                conditions += "(e.received_at < ? OR (e.received_at = ? AND e.id < ?))"
+                values.addAll(listOf(at, at, id))
             }
         }
         val where = if (conditions.isEmpty()) "" else " WHERE " + conditions.joinToString(" AND ")
@@ -120,8 +138,13 @@ class Sqlx4kJournalRepository(
         // a second `count(*)` over a table that is being written to.
         val rows =
             db
-                .fetchAll(SELECT_EVENTS + where + " ORDER BY e.received_at DESC, e.id DESC LIMIT ${limit + 1};")
-                .getOrThrow()
+                .fetchAll(
+                    sql(
+                        SELECT_EVENTS + where + " ORDER BY e.received_at DESC, e.id DESC LIMIT ?;",
+                        *values.toTypedArray(),
+                        limit + 1,
+                    ),
+                ).getOrThrow()
                 .rows
                 .map { it.toLine() }
 
@@ -132,9 +155,8 @@ class Sqlx4kJournalRepository(
 
     override suspend fun payloadMeta(eventId: String): PayloadMeta? =
         db
-            .fetchAll(
-                "SELECT body_bytes, content_type, purged_at FROM events WHERE id = ${eventId.quoted()};",
-            ).getOrThrow()
+            .fetchAll(sql("SELECT body_bytes, content_type, purged_at FROM events WHERE id = ?;", eventId))
+            .getOrThrow()
             .rows
             .firstOrNull()
             ?.let { row ->
@@ -155,10 +177,8 @@ class Sqlx4kJournalRepository(
         // memory twice (once as hex) before a single byte reached the socket.
         val hex =
             db
-                .fetchAll(
-                    "SELECT hex(substr(body, ${offset + 1}, $length)) FROM events " +
-                        "WHERE id = ${eventId.quoted()};",
-                ).getOrThrow()
+                .fetchAll(sql("SELECT hex(substr(body, ?, ?)) FROM events WHERE id = ?;", offset + 1, length, eventId))
+                .getOrThrow()
                 .rows
                 .firstOrNull()
                 ?.get(0)
@@ -174,8 +194,11 @@ class Sqlx4kJournalRepository(
         val subscribers =
             db
                 .fetchAll(
-                    "SELECT s.id FROM subscribers s JOIN events e ON e.endpoint_id = s.endpoint_id " +
-                        "WHERE e.id = ${eventId.quoted()} AND s.enabled = 1;",
+                    sql(
+                        "SELECT s.id FROM subscribers s JOIN events e ON e.endpoint_id = s.endpoint_id " +
+                            "WHERE e.id = ? AND s.enabled = 1;",
+                        eventId,
+                    ),
                 ).getOrThrow()
                 .rows
                 .map { it.get(0).asString() }
@@ -189,9 +212,14 @@ class Sqlx4kJournalRepository(
             for (subscriberId in subscribers) {
                 val deliveryId = newId()
                 execute(
-                    "INSERT INTO deliveries (id, event_id, subscriber_id, state, attempts, created_at) " +
-                        "VALUES (${deliveryId.quoted()}, ${eventId.quoted()}, ${subscriberId.quoted()}, " +
-                        "'pending', 0, $nowEpochSeconds);",
+                    sql(
+                        "INSERT INTO deliveries (id, event_id, subscriber_id, state, attempts, created_at) " +
+                            "VALUES (?, ?, ?, 'pending', 0, ?);",
+                        deliveryId,
+                        eventId,
+                        subscriberId,
+                        nowEpochSeconds,
+                    ),
                 ).getOrThrow()
                 // In the same transaction, for the same reason as the ingest path: the row and its
                 // timer commit together or neither does.
@@ -200,8 +228,6 @@ class Sqlx4kJournalRepository(
         }
         return subscribers.size
     }
-
-    private fun String.quoted(): String = "'" + replace("'", "''") + "'"
 
     private fun io.github.smyrgeorge.sqlx4k.ResultSet.Row.toLine(): EventLine =
         EventLine(

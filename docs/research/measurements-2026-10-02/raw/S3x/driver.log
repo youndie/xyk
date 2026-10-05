@@ -1,0 +1,32 @@
+quiet-check: 2026-10-02 16:24:40 runner=[online busy=false] load1=3.36 rest_cpu=4.8% heavy=[] builds=[] -> NOISY
+quiet-check: 2026-10-02 16:25:45 runner=[online busy=false] load1=1.13 rest_cpu=1.3% heavy=[] builds=[] -> QUIET
+series start 2026-10-02 16:25:45
+# host=DESKTOP-85OS64M kernel=6.6.87.2-microsoft-standard-WSL2 nproc_host=20 uptime=" 16:25:45 up 1 day, 17:12, 54 users,  load average: 1.04, 2.60, 2.50"
+# commit=dae1cb8f5816b533601ccc586e2819732cd378cd dirty=0
+# generator=grafana/k6:0.54.0 generator_cpus=12-19 subject_cpus=0-3 rate=200 connections=50 duration=30s limit=512m control=A0@6m lever=yes
+# arm A0 = xyk-g1:paged-off|MALLOC_ARENA_MAX=2 image_id=sha256:5a352c9e7fdae8bb53446e6b65f6dde4119a3562622a71a614184f5e6dad0d7e
+# arm A0b = xyk-g1:paged-off|MALLOC_ARENA_MAX=2 image_id=sha256:5a352c9e7fdae8bb53446e6b65f6dde4119a3562622a71a614184f5e6dad0d7e
+# arm A1 = xyk-g1:paged-off image_id=sha256:5a352c9e7fdae8bb53446e6b65f6dde4119a3562622a71a614184f5e6dad0d7e
+# arm C = xyk-g1:default image_id=sha256:4561f73c7e4fc26ac8857b4bd0e0b9fb55fcaf95cfd1da0cf3b0b3f43a472fdb
+=== the positive control: A0 at 6m must be killed ===
+control died as it must
+=== 6 rounds per arm at 512m, interleaved ===
+  round 1 done
+  round 2 done
+  round 3 done
+  round 4 done
+  round 5 done
+  round 6 done
+=== results ===
+**Control** (6m): 2 of 2 killed.
+
+| arm | survived | peak RSS kB (min–max) | threads (max) |
+|---|---|---|---|
+| `A0` | **6/6** | 37176–210852 | 98 |
+| `A0b` | **6/6** | 38564–348040 | 109 |
+| `A1` | **6/6** | 48800–246576 | 106 |
+| `C` | **6/6** | 214316–309480 | 97 |
+raw: /home/youndie/xyk-g1-raw/S3x/results.csv
+series rc=0 end 2026-10-02 16:39:47
+post-check: 2026-10-02 16:39:52 runner=[online busy=true] load1=3.97 rest_cpu=35.7% heavy=[ 959078:33.4%:node] builds=[]
+runner jobs that started during the series: 8

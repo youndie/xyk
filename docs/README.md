@@ -28,11 +28,11 @@ ingests; there is no client application anybody would change from a document. Th
 listed in [feature-journal](features/feature-journal.md) and the way it is assembled is in
 [xyk-server](services/xyk-server.md). A missing layer is a valid answer; a renamed one is not.
 
-**Nothing in this repository is built yet.** Every layer document is `status: draft` and every path
-in a code-anchors table is a path the backlog is about to create — which is also why
-`code_anchors.py` reports them missing and why that report does not block. The facts in the research
-document are read out of *other people's* artefacts, which is what "verified" can mean before there
-is a source tree.
+**Every layer document describes code that is on `main`.** All of them are `status: active` — a
+`draft` on the default branch fails the gate — and the backlog below is closed. `code_anchors.py`
+resolves the paths into this tree; what it still reports are addresses inside *other* repositories
+and artefacts — a line in chronik's sources, a directory of the Kotlin/Native distribution — kept as
+the places a research fact was verified, which is why that report does not block.
 
 **Backlog** — [backlog.md](../backlog.md): the index, the criteria declared before the code, and the
 decisions; the items themselves are one file each in [`backlog/`](backlog/), cited as
@@ -44,9 +44,8 @@ decisions; the items themselves are one file each in [`backlog/`](backlog/), cit
 - Cross-layer links are ids in the frontmatter and ordinary markdown links in the body.
 - One document, one entity. A feature spanning two modules is **one** file with two entries in
   `involved_services`.
-- BDD scenarios are written from the code — and while there is no code they are marked **target**,
-  as they are today. An `**Automated:**` line appears on a scenario when a test covers it, and its
-  absence means the check is manual.
+- BDD scenarios are written from the code. An `**Automated:**` line appears on a scenario when a
+  test covers it, and its absence means the check is manual; `make report` counts both.
 - **The primary consumer is a coding agent.** Every document carries code anchors, so the reader
   reaches the code in one hop. Do not duplicate what lives in code (DTO fields, config keys); give
   the path. A copy rots, a path does not.
@@ -66,7 +65,10 @@ make check
 ```
 
 `make check` is the gate and CI runs exactly that target; `make report` is the two non-blocking
-reports and `make fix` regenerates the backlog index and fills in missing coverage-map lines.
+reports and `make fix` regenerates the backlog index and fills in missing coverage-map lines. The
+checks are [docs-bootstrap](https://github.com/youndie/docs-bootstrap)'s, at the version
+`.github/workflows/check.yaml` pins, fetched into `.docs-bootstrap/` by the first run of one of
+those targets (or `make docs`); the build targets never fetch them.
 
 ## Coverage map
 

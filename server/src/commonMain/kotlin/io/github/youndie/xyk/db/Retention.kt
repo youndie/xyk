@@ -33,7 +33,7 @@ class Retention(
         val affected =
             db
                 .fetchAll(
-                    "SELECT count(*) FROM events WHERE received_at < $cutoffEpochSeconds AND purged_at IS NULL;",
+                    sql("SELECT count(*) FROM events WHERE received_at < ? AND purged_at IS NULL;", cutoffEpochSeconds),
                 ).getOrThrow()
                 .rows
                 .first()
@@ -44,8 +44,11 @@ class Retention(
 
         db
             .execute(
-                "UPDATE events SET body = X'', purged_at = $cutoffEpochSeconds " +
-                    "WHERE received_at < $cutoffEpochSeconds AND purged_at IS NULL;",
+                sql(
+                    "UPDATE events SET body = X'', purged_at = ? WHERE received_at < ? AND purged_at IS NULL;",
+                    cutoffEpochSeconds,
+                    cutoffEpochSeconds,
+                ),
             ).getOrThrow()
         return affected
     }

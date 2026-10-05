@@ -26,8 +26,11 @@ The machinery is chronik's, not ours ([research §1.2–1.3](../research/researc
 failed attempt. What is ours is the sink — one HTTP POST, bounded by a timeout — and the decision of
 how many workers there are.
 
-**This half is blocked on an upstream release.** chronik publishes no native artifacts today, so
-nothing here can be built until [B-02](../backlog/B-02-chronik-native-targets.md) lands.
+**This half exists only where chronik publishes a native variant, and that is `linuxX64`**
+([B-02](../backlog/B-02-chronik-native-targets.md)). A native build on any other host compiles
+without the workers instead of failing to resolve — `server/build.gradle.kts` picks
+`server/src/variants/with-chronik/kotlin` or `server/src/variants/no-chronik/kotlin` by host, and the
+JVM build never delivers — and `main` says at start-up that delivery is off.
 
 ## 2. Business rules
 

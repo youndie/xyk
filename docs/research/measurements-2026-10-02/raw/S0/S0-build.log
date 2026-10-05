@@ -1,0 +1,18 @@
+# S0 build 2026-10-02T14:39:47+02:00 host=DESKTOP-85OS64M kernel=6.6.87.2-microsoft-standard-WSL2 commit=7704e0b61600ca0ca4d5ad6e21ea217b50745c3b
+=== build paged-off ===
+build paged-off rc=0
+#10 34.88 xyk build: httpClient=true outbound=real staticLink=true allocator=paged-off
+#10 188.0 BUILD SUCCESSFUL in 3m 6s
+=== build default ===
+build default rc=0
+#10 17.92 xyk build: httpClient=true outbound=real staticLink=true allocator=default
+#10 221.3 BUILD SUCCESSFUL in 3m 40s
+xyk-g1:paged-off-ship env: ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","MALLOC_ARENA_MAX=2","XYK_DB_PATH=/data/xyk.db"] entrypoint: ["/app/server"] workdir: /app
+binary paged-off sha256=8e5faa76b863a7eb0e4375686bb3a16e7baeb4c87d63c00b898fd3e2d8321568 bytes=24609448
+bare xyk-g1:paged-off env: ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","XYK_DB_PATH=/data/xyk.db"] entrypoint: ["/app/server"]
+bare binary paged-off sha256=8e5faa76b863a7eb0e4375686bb3a16e7baeb4c87d63c00b898fd3e2d8321568
+xyk-g1:default-ship env: ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","MALLOC_ARENA_MAX=2","XYK_DB_PATH=/data/xyk.db"] entrypoint: ["/app/server"] workdir: /app
+binary default sha256=90ad2205c8d822fb1cc18a3a7a134ad24e81ac930c5c14e418461ab5e812f533 bytes=24662152
+bare xyk-g1:default env: ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","XYK_DB_PATH=/data/xyk.db"] entrypoint: ["/app/server"]
+bare binary default sha256=90ad2205c8d822fb1cc18a3a7a134ad24e81ac930c5c14e418461ab5e812f533
+S0 build done

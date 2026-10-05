@@ -48,6 +48,10 @@ This is also the half the declared throughput criterion measures: 2 000 requests
 * `200` is written after that transaction commits, never before.
 * A body above `XYK_MAX_BODY_BYTES` is refused with `413` **without being read into memory** — the
   limit is a defence, and a defence that buffers first defends nothing.
+* Every refusal is counted by reason, **against the endpoint only when it exists and is enabled**,
+  and against one shared bucket, `(unknown)`, otherwise. The `413` too, although it is decided before
+  the lookup: a count must never create a row for an id nobody created, or anyone could fill the
+  table — and, between two flushes, the process's memory — with ids of their choosing.
 * An endpoint with no enabled subscribers still stores the event. The journal is a product, not a
   side effect of delivery.
 * xyk does **not** deduplicate. A sender that redelivers produces a second event with its own id.
@@ -55,9 +59,12 @@ This is also the half the declared throughput criterion measures: 2 000 requests
 
 ## 3. Flow
 
-1. `POST /hooks/{endpointId}` arrives.
-2. The endpoint is looked up. Unknown or disabled → `404`.
-3. The body is read to a byte array, bounded by the configured maximum.
+1. `POST /hooks/{endpointId}` arrives. A NUL in the id → `400`.
+2. A declared length above the configured maximum → `413`; otherwise the body is read to a byte
+   array, bounded by the maximum plus one byte, and a body that turns out larger → `413`. Both are
+   decided before the lookup, and each costs one read of `endpoints` to decide which row it is
+   counted against.
+3. The endpoint is looked up. Unknown or disabled → `404`.
 4. The endpoint's scheme verifies `(headers, bytes, now)`. Failure → `401` with the reason.
 5. In one transaction: insert the event; for each enabled subscriber, `chronik.schedule(tx, ...)`
    with `at = now` so the next worker tick claims it.
@@ -101,6 +108,33 @@ not at all, and that asymmetry is worth seeing.** The
 * *(Manual: rigging the store to fail on the second insert needs a seam the repository does not have
   yet. The transaction is real — the tests above show event and deliveries arriving together — but
   "and not at all" is unproven until something makes it fail.)*
+
+### Scenario: NUL in the endpoint id is the sender's error, not a database's
+
+* **Given:** an enabled endpoint
+* **When:** a POST arrives at its id followed by an encoded NUL (`%00`) and more text
+* **Then:** the response is `400` with `{"error":"text must not contain NUL"}` — not the endpoint
+  the id begins with, and not a `500`
+* **And:** the same `400`, and nothing counted, when the body is also above the limit
+* **Automated:** `ErrorResponsesTest`; `BoundValuesTest` for the lookup and `AcceptEventTest` for a
+  NUL in the declared `Content-Type`; `RejectionBlameTest` for the body above the limit
+
+### Scenario: a refusal never creates a row for an id nobody created
+
+* **Given:** one enabled endpoint, one disabled endpoint, and an id nobody created
+* **When:** a body above the limit is posted to each — once with its length declared, once without
+* **Then:** every response is `413`
+* **And:** after the flush, `rejections` holds a `BODY_TOO_LARGE` count of `2` for the enabled
+  endpoint, `4` against `(unknown)`, and no row for any other id
+* **Automated:** `RejectionBlameTest`
+
+### Scenario: one count that cannot be written does not cost the others
+
+* **Given:** pending counts for an endpoint, and one keyed by text the database cannot hold
+* **When:** the counts are flushed
+* **Then:** the endpoint's count is stored, and the other is stored against `(unknown)` — before
+  2026-10-02 the one bad key failed the transaction and every count in it was lost
+* **Automated:** `RejectionCountersTest`
 
 ### Scenario: an unknown endpoint is indistinguishable from a disabled one
 

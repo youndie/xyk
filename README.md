@@ -36,7 +36,7 @@ divergence rather than tidied away.
 - **[docs/research/research-architecture.md](docs/research/research-architecture.md)** — what was
   verified and against what, which decisions were taken and what was rejected, and twenty-six facts
   that cost something to learn. Read this first; the obvious thing here is frequently wrong.
-- **[backlog.md](backlog.md)** — twenty-nine items, all closed, each carrying what it found.
+- **[backlog.md](backlog.md)** — thirty-one items, all closed, each carrying what it found.
 - **[docs/](docs/)** — features, API reference, and how the service is put together.
 
 A few of those facts, as an index of what is inside:
@@ -115,7 +115,7 @@ same as reading the template.
 
 ```bash
 make check     # documents + ./gradlew check — what CI runs
-make build     # link, image, and the assertion that the process stops in order
+make build     # link, image, the stop order, a rendered page, and no secret in any response or log
 ```
 
 Outbound HTTPS is a build variant — `-Pxyk.httpClient=true` links `ktor-client-curl`, the only engine

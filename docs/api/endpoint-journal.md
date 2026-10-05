@@ -72,6 +72,8 @@ is worse than being slow.
 | payload purged by retention | `410` | `{"error":"payload purged","purgedAt":<epoch>}` |
 | redelivery accepted | `202` | `{"event":"<id>","scheduled":<n>}` |
 | redelivery of an event with no subscribers | `409` | `{"error":"no subscribers"}` |
+| NUL (U+0000) in an id, the `endpoint` filter or the cursor | `400` | `{"error":"text must not contain NUL"}` — JSON on the pages too |
+| anything the server did not expect | `500` | `{"error":"internal error"}` — the cause is logged |
 
 **`410` and not `404` for a purged payload** — the event existed and its record is still there; only
 the bytes are gone. Collapsing the two would make retention look like data loss on the page.

@@ -63,6 +63,26 @@ class RejectionCountersTest {
         }
 
     @Test
+    fun `a key the database cannot hold does not cost the rest of the flush`() =
+        runTest {
+            val db = openDatabase(freshPath(), maxConnections = 2)
+            val counters = RejectionCounters()
+            val failures = mutableListOf<Throwable>()
+            val flush = RejectionFlush(db, counters) { failures += it }
+
+            counters.record("e1", RejectionReason.SIGNATURE_INVALID)
+            // No endpoint can be named by text holding NUL, since none can be stored with it.
+            counters.record("e1\u0000tail", RejectionReason.BODY_TOO_LARGE)
+            flush.stop()
+
+            val stored = Sqlx4kRegistryRepository(db).rejections()
+            assertEquals(1L, stored["e1"]?.get("SIGNATURE_INVALID"), "one key lost the whole flush: $failures")
+            assertEquals(1L, stored[RejectionCounters.GLOBAL]?.get("BODY_TOO_LARGE"), "$stored")
+            assertTrue(failures.isEmpty(), "$failures")
+            db.close().getOrThrow()
+        }
+
+    @Test
     fun `a flush with nothing pending writes nothing`() =
         runTest {
             val db = openDatabase(freshPath(), maxConnections = 2)

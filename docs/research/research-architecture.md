@@ -21,9 +21,11 @@ This document records **verified facts** (read in code, in published artefact me
 vendor's own documentation), **decisions taken**, and **risks**. Anything unverified is marked as a
 hypothesis and says where it will be checked.
 
-Nothing in this repository is built yet. Every code path named below is a path that the backlog is
-about to create; the facts are read out of **other** people's artefacts, which is what "verified"
-can mean on a greenfield.
+It was started on a greenfield, on 2026-09-15, when every code path named below was one the backlog
+was about to create and the facts could only be read out of **other** people's artefacts. The
+backlog has since been worked to the end ([backlog.md](../../backlog.md)), so the paths in this
+repository exist; a fact that turned out wrong is corrected where it is stated, with the date, rather
+than rewritten.
 
 ---
 
@@ -121,6 +123,21 @@ expects `./gradlew build` to work locally, which is why it is written here rathe
 snapshot repository rather than Central. That is the repository this portfolio's other consumers
 already use, and the pin is an exact version (`0.1.0.16`), not a moving `+`.
 
+**Third correction, 2026-10-02: the pin is a release on Central, and Consequence 4 binds as first
+written.** chronik 0.2.0 went to Maven Central on 2026-09-17 with the same three modules, each with
+`jvm` and `linuxX64`, and xyk now pins `0.2.0`. It is the snapshot's code under a release number,
+which is what made the switch a one-line change rather than a migration:
+
+| Fact | Where verified |
+|---|---|
+| Between the commit that published `0.1.0.16` and the `v0.2.0` tag, chronik changed `gradle.properties` and its backlog, and no source | `git diff --stat 36db439 v0.2.0` in chronik |
+| The `jvm` jars of all three modules are byte-identical across the two versions | both jars unpacked, `diff -r` empty |
+| The `linuxX64` klibs differ in one file, the IR string table, and only by the source path the build machine recorded — the DDL `chronikTimersSchema()` returns is the same text | both klibs unpacked; their string tables compared with that path stripped |
+| The `.module` files list the same dependencies at the same versions | both fetched and compared |
+
+So the timers table did not move: a database already at `user_version = 5` needs nothing, and
+`ChronikSchemaParityTest` holds the v5 copy against the same text it held before.
+
 ### 1.2 What chronik's contract actually demands of a store
 
 Read in `chronik/chronik-core/src/commonMain/kotlin/TimerStore.kt` and `Chronik.kt`.
@@ -216,7 +233,7 @@ journal, or the operator debugs the wrong thing.
 |---|---|
 | `org.kotlincrypto.macs:hmac-sha2` and `org.kotlincrypto.hash:sha2` (0.8.0) are consumed from `commonMain` by a module that targets `jvm, linuxX64, macosArm64, iosArm64, iosSimulatorArm64, iosX64` | `s3kn/s3-sigv4/build.gradle.kts` |
 | The same group is used by the SMTP client's SASL module for HMAC-MD5/SHA1 | `kmp-smtp-client/smtp-sasl/build.gradle.kts` |
-| katcher takes the group through a published version catalog rather than a version pin | `katcher/settings.gradle.kts` |
+| katcher takes the group through a published version catalog rather than a version pin | `youndie/katcher@4f9b8ba!/settings.gradle.kts` |
 
 **Consequence — the whole verification path is pure Kotlin.** No OpenSSL cinterop, no `dlopen`, and
 therefore nothing that a `FROM scratch` image would have to be taught about (unlike `iconv`, §1.7).
@@ -356,6 +373,30 @@ possible characters, so nothing in a body can end it early, and SQLite stores a 
 is that the SQL text is twice the body while the insert runs — which is why the size limit is checked
 before the body is read rather than after.
 
+**Correction, 2026-10-02: sqlx4k binds, on both targets, and the second row of the table is wrong.**
+`renderNativeQuery` writes placeholders, not values: it returns the SQL with `?` in it and the values
+beside it, and both drivers bind them. Read again in the same jar the row cites, `sqlx4k-jvm-1.13.0`:
+the JDBC half calls `Connection.prepareStatement` and then `PreparedStatement.setObject` per value.
+In the sources of the pinned 1.13.1, the native half hands the values to `*_with_params` functions of
+its Rust library, TEXT as a C string and a byte array as a BLOB with its length. The row read a method
+name as a behaviour.
+
+What it cost, found by testing against SQLite on both targets rather than by reading: every value
+had been written into the statement as a quoted literal. **The quoting held** — a quote, a
+backslash, a comment or a second statement inside a value was stored as characters, and a value
+built to close the literal and assign another column did nothing. **NUL did not hold.** The
+statement ended at the NUL, SQLite answered `unrecognized token` with the start of the value in the
+message, and with no handler for unexpected exceptions Ktor wrote that message into the body of a
+`500` and into the log — for a secret, the start of the secret.
+
+**Consequence 3, from 2026-10-02 — every value is bound** (`db/Sql.kt`), the body included, which also
+drops the twice-the-body SQL text above. Binding alone does not make NUL safe: the native half
+passes TEXT as a C string, so a bound NUL would silently store the value cut short. Text holding NUL
+is refused before it is bound and answered `400`; anything else unexpected is answered
+`500 {"error":"internal error"}` with the cause in the log ([endpoint-admin](../api/endpoint-admin.md)).
+The body is still read back through `hex()`: what a driver hands back for a BLOB column differs
+between the two halves, and `hex()` is SQLite's own (`db/Blobs.kt`).
+
 ### 1.14 The gconv gotcha does not reproduce on this service (B-18, 2026-09-15)
 
 §1.7 is inherited from another service in this portfolio: a static Kotlin/Native binary loads its
@@ -395,6 +436,40 @@ the image that was supposed to fail rendered fine. What the smoke test proves to
 pages render; what it has never been shown able to catch is an image that cannot render them. That
 is written here rather than quietly forgotten, and the next candidate for such a control is a base
 image genuinely missing something the binary needs — not this one.
+
+**Correction, 2026-10-02: the control fires — on a request body, not on a page, and it is this image
+after all.** Every request in the table above carried UTF-8 or nothing to decode, so "negative on
+every route this service has" was true of those requests and not of the routes. A body whose
+`Content-Type` declares another charset reaches glibc `iconv`: Ktor honours the declaration and
+decodes anything but UTF-8 through the converters. Measured on `xyk:scratch` and
+`xyk:scratch-nogconv` built from `02305a2` (Ktor 3.6.0): `POST /api/endpoints` with the description
+encoded in the declared charset, read back with `GET /api/endpoints/{id}`.
+
+| declared charset | with gconv | without gconv |
+|---|---|---|
+| `utf-8` | `201`, text intact | `201`, text intact |
+| `ISO-8859-1` | `201`, text intact | `201`, every non-ASCII character stored as U+FFFD (`ef bf bd`) |
+| `windows-1251` | `201`, text intact | `201`, U+FFFD |
+| `KOI8-R` | `201`, text intact | `201`, U+FFFD |
+| `US-ASCII` | `201` | `400`, `Failed to convert request body` |
+
+Each consequence above changes with it:
+
+- **Consequence 2** — "a call site this service does not have *yet*" is wrong. It has one today:
+  any admin request in a declared charset other than UTF-8. And what the gconv tree prevents is
+  worse than the `500` it was priced against: for the single-byte charsets it is corruption answered
+  with `201`. The owner's decision to keep the tree
+  ([B-23](../backlog/B-23-criterion-image-size.md)) now rests on a measured failure rather than a
+  hypothetical one.
+- **Consequence 3** no longer holds. `dev/image-smoke.sh` sets a description in windows-1251 and
+  requires it back in UTF-8, exiting `4` otherwise; `make image-scratch` requires exactly `4` from
+  the image without gconv, and got it. Until this change that target demanded a failure that never
+  came: on `02305a2` every run stopped on "CONTROL PASSED", and `make parity`, which depends on it,
+  never reached `bench/parity.sh`.
+- **Ktor 3.6.0 changed nothing here.** This section was measured on 3.5.2, two days before the bump,
+  and already found no page that reaches a converter; the 3.6.0 change that removed such a call site
+  on another service concerns percent-encoding, which nothing here does on a page. Whether 3.5.2
+  decoded these bodies the same way was not measured.
 
 ### 1.8 What a 64 MiB limit means for Ktor on Kotlin/Native — and why the declared criterion is the one most likely to fail
 
@@ -487,6 +562,27 @@ peaked at or above the limit itself, which is the kernel fitting the process rat
 fitting the limit. The claim this service can make is "survives 64 MiB, ten times out of ten, at the
 declared load" — and not "runs in 60 MB".
 
+**The cap on the build that ships, 2026-10-02 ([B-32](../backlog/B-32-arena-cap-on-paged-off.md)).**
+The table at the top of this section put `MALLOC_ARENA_MAX=2` beside `-Xallocator=std` and got a
+tenfold peak; the image ships the cap beside `-Xbinary=pagedAllocator=false`, the same family, and
+nobody had measured that pair. Measured against a pre-registration frozen before the first run,
+three arms from one image — the pair, the pair without the cap, the default allocator — at 64 MiB
+under the light and the declared load, and at 512 MiB:
+
+| question | verdict | the number |
+|---|---|---|
+| memory: does the cap lower it? | **grey** | at 64 MiB both arms survive every round and peak at the limit; at 512 MiB `memory.peak` is page cache, ruler ±92 % |
+| CPU per request: does the cap cost? | **grey** | +1.7 % [−1.7, +5.2] where the ruler held (±3.5 %) |
+| contention under parallel load | **grey** | declared load: delivered +19.7 % [−14.7, +54.2], p50 −1.7 % [−9.3, +5.8] |
+| does `pagedAllocator=false` still earn its place? | **green** | the default allocator killed 6/6 twice at 64 MiB; +18.1 % [+7.7, +28.5] CPU per request is its price |
+
+**The std hazard does not transfer to this build**: no kill in 48 capped runs, and the anonymous
+memory left at the end of a round is a third *lower* with the cap — 16 against 29 MB at the light
+load, 30 against 50 MB at the declared one (exploratory `memory.stat` column, distinguishable,
+ruler ≤ 6.6 %). The lever was read from the subject: 0–1 glibc heaps with the cap, 54–136 without,
+on a four-cpu cpuset — the host-core count again. The cap stays, by the rule declared beforehand
+(nothing red). Full record: [arena-cap.md](measurements-2026-10-02/arena-cap.md).
+
 **Consequence 3 — the SQLite settings are not tuning, they are survival.** Pool of 2 connections,
 `PRAGMA wal_checkpoint(TRUNCATE)` on a timer **and** on file size, and `walBytes` reported separately
 because `page_count * page_size` does not include the journal. The failure mode is a cliff, not a
@@ -515,7 +611,7 @@ single-core pod and the whole outbound half silently stalls.
 |---|---|
 | `EmbeddedServer.stop` runs its steps in the **opposite order** on Kotlin/Native and on the JVM, from the same source, and nothing reports it | kore's premise, reproduced: `ApplicationStopping` cut 48 in-flight requests on native and none on the JVM |
 | In katcher this was literal: `SIGTERM` cancelled processing of reports already accepted with `202` while the engine kept accepting new ones | the katcher defect kore was adopted for |
-| kore ships `io.github.youndie:kore-core`, `kore-ktor` and the plugin `io.github.youndie.kore.build`; katcher runs 0.1.4 | `katcher/gradle/libs.versions.toml` |
+| kore ships `io.github.youndie:kore-core`, `kore-ktor` and the plugin `io.github.youndie.kore.build`; katcher runs 0.1.4 | `youndie/katcher@4f9b8ba!/gradle/libs.versions.toml` |
 | They resolve from `reposilite.kotlin.website/snapshots` under the `io.github.youndie` group, **not** from Central | kore's own release notes; katcher's settings |
 | `HealthRegistry.start(scope)` is called by nobody automatically — without it readiness answers `UNKNOWN` forever | kore B-41 |
 
@@ -529,7 +625,7 @@ gets asserted in CI, because "it compiled" says nothing about order.
 
 | Fact | Where verified |
 |---|---|
-| katcher pins `io.github.smyrgeorge:sqlx4k-sqlite` 1.13.0 | `katcher/gradle/libs.versions.toml` |
+| katcher pins `io.github.smyrgeorge:sqlx4k-sqlite` 1.13.0 | `youndie/katcher@4f9b8ba!/gradle/libs.versions.toml` |
 | sqlx4k is a Rust driver on Kotlin/Native and Xerial on the JVM; the JVM half refuses a pool larger than 1 against `:memory:`, and pinned to 1 it deadlocks when a transaction asks for a second connection | katcher's and metrik's test harnesses, the same eight tests moved between them |
 | A `PRAGMA` sent through the pool reaches **one** connection; only `journal_mode` survives that, `synchronous` does not | the pragma probe |
 
@@ -623,6 +719,41 @@ the positive control for each. One of them — 64 MiB — is named in §1.8 as t
 evidence says will fail. Declaring that now is the point: a criterion that is quietly relaxed after
 the run measures nothing.
 
+### D7. A secret's fingerprint is an HMAC under the installation's own key (2026-10-02)
+
+**The owner left this one to the implementer**, asked whether the fingerprint should be keyed; the
+answer taken is yes. Until this date the list and the journal showed the first four bytes of a plain
+SHA-256 of the secret (`fingerprintOf`, the description corrected by xyk#18). Two things followed
+from that, and neither is what a fingerprint is for: the same secret gave the same fingerprint on
+every installation, so two deployments sharing one could be matched by their pages; and anyone shown
+a fingerprint could test a guessed secret against it offline, which matters exactly for the weak
+secrets people actually choose.
+
+Decision: the fingerprint is the first four bytes of HMAC-SHA256 of the secret under a 32-byte key
+the installation draws for itself — `SecretFingerprints` in
+`server/src/commonMain/kotlin/io/github/youndie/xyk/db/SecretFingerprints.kt`.
+
+- **The key lives in the database**, in `install_key`, drawn from `CryptoRand` by migration 8 on the
+  first start of a database and read on every start after it. Rejected: a key from the environment.
+  It is one more variable every deployment has to set and keep, and a key that changed between two
+  starts would silently make every stored fingerprint stale — the bootstrap endpoint, idempotent by
+  fingerprint, would gain a copy of its secret on each restart. Beside the secrets is no weaker a
+  place for it: whoever can read the key can read the secrets themselves (Decision 3b).
+- **Four bytes, as before.** The pages and the documents describe eight characters, and the job — two
+  secrets of one endpoint told apart — needs no more.
+- **Stored fingerprints are rewritten by the upgrade**, not left to age out. The secrets are kept as
+  given (Decision 3b), so migration 8 recomputes every `endpoint_secrets.fingerprint` exactly, and each
+  event takes the new fingerprint of the secret whose old one it carries; an event whose fingerprint
+  names no stored secret keeps what it had. Without this, an upgraded database would show plain hashes
+  on every existing row and disagree with itself about the bootstrap secret.
+- **The Go twin keeps the plain hash.** The fingerprint is made at bootstrap, off the ingest path the
+  twin exists to compare (D4), and two installations no longer share a fingerprint's text anyway — so
+  `bench/parity.sh` now compares the secret an event's fingerprint names rather than the text.
+
+Checked by `SecretFingerprintTest` on both targets: one secret on two installations reads
+differently, a restart changes nothing and adds no second bootstrap secret, and a database at schema
+7 with plain hashes comes out of the upgrade with keyed ones in both tables.
+
 ---
 
 ## 3. Risks and open questions
@@ -668,6 +799,17 @@ cannot keep.
 stores raw bodies by design (§1.4). Mitigation: secrets come from the environment and are never
 logged or rendered; the journal shows *which* secret verified a request, never its value; and
 payloads are purged on a retention schedule — **seven days by default since 2026-09-16**, Decision 3 below.
+
+**Correction, 2026-10-02: secrets do not come from the environment.** They arrive through the admin
+API — `POST /api/endpoints` creates an endpoint with one, `PATCH /api/endpoints/{id}` adds another
+on rotation ([endpoint-admin](../api/endpoint-admin.md)) — and are kept in the database, in
+`endpoint_secrets`, unencrypted (Decision 3b below). The environment carries at most one,
+`XYK_BOOTSTRAP_SECRET` for the optional bootstrap endpoint, and that one is written into the same
+table at start. So what has to be protected is the volume, as Decision 3b says, and not the process
+environment. The rest of the mitigation stands, and since the same day it is checked from outside
+the image: `dev/image-smoke.sh` creates an endpoint of every scheme an operator can create, rotates
+one, signs an event through every secret, and finds none of the five in any response or in the log
+— with a positive control that has to find one.
 
 **Open question 1.** Will chronik take native targets, and at what cost to its own gate? The
 Postgres module's tests need Docker and stay JVM-only either way. Settled by

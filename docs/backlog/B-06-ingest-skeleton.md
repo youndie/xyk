@@ -69,7 +69,9 @@ event and its deliveries, and `chronik.schedule(tx, …)` joins them in that sam
    rather than preparing them, so the body is written as a hex blob literal (`X'…'`) and read back
    through `hex()`. Sixteen possible characters means nothing in a webhook body can end the literal
    early; the price is that the SQL text is twice the body while the insert runs, which is why the
-   size limit is checked *before* the read.
+   size limit is checked *before* the read. *Wrong, corrected 2026-10-02: sqlx4k binds on both
+   targets, and every value — the body included — is bound now; see the correction in
+   [research §1.13](../research/research-architecture.md).*
 3. **Kotlin/Native forbids commas in backticked test names**, which is in the gotcha table of the
    skill and was met anyway. The suite compiles on the JVM and fails on native, so a JVM-only run
    would not have found it.

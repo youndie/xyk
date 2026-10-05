@@ -1,7 +1,8 @@
 package io.github.youndie.xyk.db
 
-// `asLong` is an extension on the column, not a member of it — the import is what makes
+// `asLong`, below, is an extension on the column, not a member of it — the import is what makes
 // `PRAGMA user_version` readable at all.
+import io.github.smyrgeorge.sqlx4k.Transaction
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 
@@ -213,8 +214,34 @@ private val migrationV7: List<String> =
         "DROP INDEX deliveries_event;",
     )
 
+/**
+ * The installation's own key, which secret fingerprints are an HMAC under (research D7).
+ *
+ * One row, held to one by its key. The value is drawn and the stored fingerprints are rewritten by
+ * [keyTheInstallation], the step this version runs after its statement — a random key and an HMAC
+ * are not things SQL can make.
+ */
+private val migrationV8: List<String> =
+    listOf(
+        """
+        CREATE TABLE install_key (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            key TEXT NOT NULL
+        );
+        """.trimIndent(),
+    )
+
 private val allMigrations: List<List<String>> =
-    listOf(migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7)
+    listOf(migrationV1, migrationV2, migrationV3, migrationV4, migrationV5, migrationV6, migrationV7, migrationV8)
+
+/**
+ * The steps a version takes after its statements, by version number, for what SQL alone cannot do.
+ *
+ * Inside the same transaction as the statements and the `user_version` bump, so a step that fails
+ * leaves the version where it was and the next start runs the whole version again.
+ */
+private val migrationSteps: Map<Int, suspend Transaction.() -> Unit> =
+    mapOf(8 to Transaction::keyTheInstallation)
 
 /**
  * Brings the database up to [allMigrations]`.size`.
@@ -233,6 +260,14 @@ private val allMigrations: List<List<String>> =
  * somewhere else.
  */
 suspend fun ISQLite.migrateSchema() {
+    migrateSchemaTo(allMigrations.size)
+}
+
+/**
+ * The same, stopping at [targetVersion] — which is how a test builds the database an older binary
+ * left behind, and then upgrades it the way a deployment would.
+ */
+internal suspend fun ISQLite.migrateSchemaTo(targetVersion: Int) {
     // WAL first, and outside the transaction. It is the one pragma a single call settles: SQLite
     // writes it into the database header, so every connection that opens the file inherits it.
     execute("PRAGMA journal_mode = WAL;").getOrThrow()
@@ -247,11 +282,11 @@ suspend fun ISQLite.migrateSchema() {
                 ?.asLong()
                 ?.toInt() ?: 0
 
-        val targetVersion = allMigrations.size
         if (currentVersion >= targetVersion) return@transaction
 
         for (version in (currentVersion + 1)..targetVersion) {
             allMigrations[version - 1].forEach { sql -> execute(sql).getOrThrow() }
+            migrationSteps[version]?.invoke(this)
             execute("PRAGMA user_version = $version;").getOrThrow()
             println("xyk: migrated to schema version $version")
         }

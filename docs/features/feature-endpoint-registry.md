@@ -33,7 +33,8 @@ handful of endpoints, and running a second one costs a container.
 * An endpoint has an opaque unguessable id, a scheme, one or more active secrets, an enabled flag,
   and a description an operator writes for themselves.
 * **A secret is written and never read back.** The list shows a fingerprint so two can be told
-  apart.
+  apart. The fingerprint is keyed per installation: the same secret reads differently on two
+  installs, and stays the same across restarts of one.
 * **Rotation adds rather than replaces**, keeping the previous secret valid for a window. Stripe
   signs with every active secret for up to 24 hours while a secret is being rolled; an endpoint that
   dropped the old one immediately would reject genuine traffic.
@@ -43,13 +44,20 @@ handful of endpoints, and running a second one costs a container.
   per-subscriber transformation, no filters.
 * `scheme: none` requires `XYK_ALLOW_UNVERIFIED=true` at startup.
 * Changing configuration never touches timers already scheduled.
+* **Text is stored as it was sent, or refused.** Every value reaches SQLite as a bound parameter, so
+  quotes, backslashes and anything that looks like SQL arrive as characters. A field holding NUL
+  (U+0000) is the one exception: it is refused with `400` before anything is written, because on
+  Kotlin/Native it would be stored cut short at the NUL without a word.
+* **A failure nobody expected says nothing about itself.** The answer is
+  `500 {"error":"internal error"}` and the cause goes to the log.
 
 ## 3. Flow
 
 1. `POST /api/endpoints` with a scheme and a secret → `201` with the id and the full hook URL.
 2. `POST /api/endpoints/{id}/subscribers` with a URL → the subscriber is enabled immediately, which
    means the **next** event, not the ones already stored.
-3. `PATCH` to rotate, disable, or change the Stripe tolerance.
+3. `PATCH` to rotate, disable, or change the description. The Stripe tolerance is set at creation,
+   through `schemeConfig`, and nothing changes it afterwards.
 4. `DELETE /api/subscribers/{id}` stops future timers; the ones in flight still fire and fail.
 
 ## 4. Code anchors
@@ -60,7 +68,8 @@ handful of endpoints, and running a second one costs a container.
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/registry/domain/Rules.kt` — the URL and scheme checks |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/registry/data/Sqlx4kRegistryRepository.kt` |
 | xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/contract/AdminResource.kt` |
-| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` — `endpoints`, `endpoint_secrets`, `subscribers` |
+| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` — `endpoints`, `endpoint_secrets`, `subscribers`, `install_key` |
+| xyk-server | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/SecretFingerprints.kt` — the keyed fingerprint |
 
 ## 5. Scenarios (BDD / test cases)
 
@@ -81,6 +90,25 @@ handful of endpoints, and running a second one costs a container.
 * **Then:** requests signed with either are accepted until the window closes
 * **And:** the journal shows a different fingerprint for each
 * **Automated:** `RegistryTest`
+
+### Scenario: one secret reads differently on two installations
+
+* **Given:** two installations, each with its own database
+* **When:** each creates an endpoint with the same secret
+* **Then:** the two fingerprints differ, and neither is the plain SHA-256 of the secret
+* **And:** after a restart each installation shows the fingerprint it showed before, and the
+  bootstrap endpoint still holds its secret once
+* **Automated:** `SecretFingerprintTest`
+
+### Scenario: an upgrade re-fingerprints what is already stored
+
+* **Given:** a database left by a binary from before 2026-10-02, whose secrets and events carry plain
+  SHA-256 fingerprints
+* **When:** the current binary starts on it
+* **Then:** every secret's fingerprint is the keyed one, and every event shows the keyed fingerprint of
+  the secret that verified it
+* **And:** an event nothing verified still has none
+* **Automated:** `SecretFingerprintTest`
 
 ### Scenario: an unverified endpoint cannot be created without the flag
 
@@ -111,6 +139,42 @@ handful of endpoints, and running a second one costs a container.
 * **Given:** a subscriber with delivery attempts recorded
 * **When:** it is removed
 * **Then:** the attempts remain visible on each event's page, attributed to the removed subscriber
+
+### Scenario: text that looks like SQL is stored as text
+
+* **Given:** descriptions, secrets and subscriber URLs holding quotes, backslashes, comments,
+  statement separators, the placeholders of three SQL dialects, every UTF-8 width and 100 000
+  characters
+* **When:** each is created, changed, read back and used as a journal filter
+* **Then:** each comes back exactly as sent, and no other column or row has changed
+* **Automated:** `BoundValuesTest`, on both targets — with a control that writes one of them into the
+  text of a statement, unescaped, and sees it change the endpoint's scheme
+
+### Scenario: a field holding NUL is refused before anything is written
+
+* **Given:** an enabled endpoint
+* **When:** it is patched with `enabled: false` and a description holding NUL (U+0000)
+* **Then:** the response is `400` with `{"error":"description must not contain NUL"}`
+* **And:** the endpoint is still enabled and keeps its description
+* **Automated:** `ErrorResponsesTest` and `BoundValuesTest`; on the image, `dev/image-smoke.sh`
+  (run by `make build`), which exits `5` otherwise
+
+### Scenario: a failure nobody expected is a 500 that says nothing about itself
+
+* **Given:** a handler that fails with a database error
+* **When:** it is called
+* **Then:** the response is `500` with `{"error":"internal error"}` and none of the error's text
+* **Automated:** `ErrorResponsesTest`
+
+### Scenario: a body in another charset is decoded inside the image
+
+* **Given:** the image as built, and an endpoint
+* **When:** its description is changed with a body in windows-1251 whose `Content-Type` says so
+* **Then:** the response is `200` and carries the description as the same word in UTF-8
+* **Automated:** `dev/image-smoke.sh` (run by `make build`), which exits `4` otherwise
+* **And:** `make image-scratch` runs it against an image without glibc's charset converters and
+  requires exactly `4` — without them such a body is answered `201` or `200` and stored as U+FFFD
+  ([research §1.14](../research/research-architecture.md), the correction of 2026-10-02)
 
 ## 6. Out of scope
 

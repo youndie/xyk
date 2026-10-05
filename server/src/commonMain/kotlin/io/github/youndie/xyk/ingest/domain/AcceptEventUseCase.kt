@@ -1,5 +1,7 @@
 package io.github.youndie.xyk.ingest.domain
 
+import io.github.youndie.xyk.db.UnstorableText
+import io.github.youndie.xyk.db.isStorable
 import io.github.youndie.xyk.sink.AcceptedRecord
 import io.github.youndie.xyk.sink.EventSink
 import io.github.youndie.xyk.suspendRunCatching
@@ -63,7 +65,12 @@ class AcceptEventUseCase(
                             contentType = params.contentType,
                             body = params.request.body,
                         )
-                    }.recoverCatching { failure -> throw Error.NotStored(failure) }
+                    }.recoverCatching { failure ->
+                        // Text the database cannot hold — a NUL in the declared content type — is
+                        // the sender's malformed request, not our failed write: it stays itself and
+                        // is answered `400`, where `NotStored` would be a `500` the sender retries.
+                        throw if (failure is UnstorableText) failure else Error.NotStored(failure)
+                    }
 
                 // AFTER the transaction has committed, and only then. The row is what makes a
                 // publish that never happened visible from outside — an event in the table with
@@ -72,6 +79,23 @@ class AcceptEventUseCase(
                 stored
             }
         }
+    }
+
+    /**
+     * The endpoint a refusal made **before** [invoke] is counted against: [endpointId] when
+     * [invoke] would have found it, `null` — the global bucket — when it would have answered
+     * [Error.UnknownEndpoint].
+     *
+     * The body limit is that refusal. It is decided before the lookup so that an oversized body is
+     * never read, which leaves the id in the URL unchecked; counting against it as it stands let
+     * every id anybody sent become a row in `rejections`. The check is one primary-key read — the
+     * same read an unknown id already costs on the way to its `404` — and its failure blames nobody
+     * rather than failing the refusal: the count is a diagnostic, the `413` is the answer.
+     */
+    suspend fun endpointToBlame(endpointId: String): String? {
+        if (!isStorable(endpointId)) return null
+        val scheme = suspendRunCatching { repository.enabledScheme(endpointId) }.getOrNull() ?: return null
+        return endpointId.takeIf { scheme in verifiers }
     }
 
     /**

@@ -25,7 +25,23 @@
     },
     {
       "description": [
-        "kore is two libraries and a Gradle plugin that generates the object those libraries read. A plugin from one version with a library from another compiles and then disagrees about the shape of `KoreBuildIdentity` — the catalogue says so where the version is declared, and this keeps the bump honouring it."
+        "kore and kafkakn are not on Maven Central: they live in the portfolio's own repository, the one `settings.gradle.kts` names for plugins. Renovate reads that block for plugins only — libraries reach the build through the sborka settings plugin, which Renovate cannot run — so without this rule it found the kore plugin and offered it alone, while every lookup of `kore-core`, `kore-ktor` and `kafkakn-core` failed with `no-result`.",
+        "Named package by package, not by the `io.github.youndie` prefix. chronik is on Central and its per-commit builds are in this repository too: a prefix rule would merge both lists and offer chronik a build such as `0.2.1.27`, which sorts above its release `0.2.0`.",
+        "Central stays first in the list so that a library which moves there is found there without this rule changing."
+      ],
+      "matchPackageNames": [
+        "/^io\\.github\\.youndie:kore-/",
+        "/^io\\.github\\.youndie\\.kafkakn:/"
+      ],
+      "registryUrls": [
+        "https://repo.maven.apache.org/maven2",
+        "https://reposilite.kotlin.website/snapshots"
+      ]
+    },
+    {
+      "description": [
+        "kore is two libraries and a Gradle plugin that generates the object those libraries read. A plugin from one version with a library from another compiles and then disagrees about the shape of `KoreBuildIdentity` — the catalogue says so where the version is declared, and this keeps the bump honouring it.",
+        "Checked with a local Renovate 44.127.1 lookup on 2026-10-02: with the registry rule above, the three arrive in one branch, `renovate/kore` — and they do with or without this group, because the catalogue's one `kore` version already ties them. The group keeps that true if the number is ever split. What no group can do is make Renovate see a library it cannot look up: before the rule above the branch carried the plugin alone."
       ],
       "matchPackageNames": [
         "/^io\\.github\\.youndie:kore-/",

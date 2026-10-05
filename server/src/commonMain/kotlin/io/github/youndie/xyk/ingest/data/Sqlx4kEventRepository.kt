@@ -2,7 +2,7 @@ package io.github.youndie.xyk.ingest.data
 
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
-import io.github.youndie.xyk.db.toSqliteBlobLiteral
+import io.github.youndie.xyk.db.sql
 import io.github.youndie.xyk.delivery.TimerScheduler
 import io.github.youndie.xyk.ingest.domain.AcceptedEvent
 import io.github.youndie.xyk.ingest.domain.EventRepository
@@ -25,10 +25,9 @@ class Sqlx4kEventRepository(
     private val scheduler: TimerScheduler? = null,
 ) : EventRepository {
     override suspend fun findEndpoint(endpointId: String): IngestEndpoint? {
-        val quoted = endpointId.quoted()
         val row =
             db
-                .fetchAll("SELECT scheme, scheme_config FROM endpoints WHERE id = $quoted AND enabled = 1;")
+                .fetchAll(sql("SELECT scheme, scheme_config FROM endpoints WHERE id = ? AND enabled = 1;", endpointId))
                 .getOrThrow()
                 .rows
                 .firstOrNull() ?: return null
@@ -36,15 +35,18 @@ class Sqlx4kEventRepository(
         val secrets =
             db
                 .fetchAll(
-                    "SELECT secret, fingerprint FROM endpoint_secrets WHERE endpoint_id = $quoted " +
-                        "ORDER BY created_at DESC;",
+                    sql(
+                        "SELECT secret, fingerprint FROM endpoint_secrets WHERE endpoint_id = ? " +
+                            "ORDER BY created_at DESC;",
+                        endpointId,
+                    ),
                 ).getOrThrow()
                 .rows
                 .map { EndpointSecret(it.get(0).asString(), it.get(1).asString()) }
 
         val subscribers =
             db
-                .fetchAll("SELECT id FROM subscribers WHERE endpoint_id = $quoted AND enabled = 1;")
+                .fetchAll(sql("SELECT id FROM subscribers WHERE endpoint_id = ? AND enabled = 1;", endpointId))
                 .getOrThrow()
                 .rows
                 .map { it.get(0).asString() }
@@ -57,6 +59,15 @@ class Sqlx4kEventRepository(
             schemeConfig = SchemeConfig.parse(row.get(1).asStringOrNull()),
         )
     }
+
+    override suspend fun enabledScheme(endpointId: String): String? =
+        db
+            .fetchAll(sql("SELECT scheme FROM endpoints WHERE id = ? AND enabled = 1;", endpointId))
+            .getOrThrow()
+            .rows
+            .firstOrNull()
+            ?.get(0)
+            ?.asString()
 
     /**
      * One transaction, and everything that could fail is inside it.
@@ -74,12 +85,23 @@ class Sqlx4kEventRepository(
     ): AcceptedEvent {
         val eventId = newId()
         db.transaction {
+            // The body is bound as a BLOB, byte for byte: it is the one value an attacker writes in full,
+            // and the signature was computed over exactly these bytes. It is read back through `hex()`
+            // all the same — see `fromSqliteHex` for why the read does not trust the driver.
             execute(
-                "INSERT INTO events " +
-                    "(id, endpoint_id, received_at, scheme, secret_fingerprint, content_type, body, body_bytes) " +
-                    "VALUES (${eventId.quoted()}, ${endpoint.id.quoted()}, $receivedAt, ${scheme.quoted()}, " +
-                    "${secretFingerprint.quotedOrNull()}, ${contentType.quotedOrNull()}, " +
-                    "${body.toSqliteBlobLiteral()}, ${body.size});",
+                sql(
+                    "INSERT INTO events " +
+                        "(id, endpoint_id, received_at, scheme, secret_fingerprint, content_type, body, body_bytes) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+                    eventId,
+                    endpoint.id,
+                    receivedAt,
+                    scheme,
+                    secretFingerprint,
+                    contentType,
+                    body,
+                    body.size,
+                ),
             ).getOrThrow()
 
             // ONE TIMER PER DELIVERY ROW, IN THIS TRANSACTION. The pair must commit together or
@@ -91,9 +113,14 @@ class Sqlx4kEventRepository(
                 for (subscriberId in endpoint.subscriberIds) {
                     val deliveryId = newId()
                     execute(
-                        "INSERT INTO deliveries (id, event_id, subscriber_id, state, attempts, created_at) " +
-                            "VALUES (${deliveryId.quoted()}, ${eventId.quoted()}, ${subscriberId.quoted()}, " +
-                            "'pending', 0, $receivedAt);",
+                        sql(
+                            "INSERT INTO deliveries (id, event_id, subscriber_id, state, attempts, created_at) " +
+                                "VALUES (?, ?, ?, 'pending', 0, ?);",
+                            deliveryId,
+                            eventId,
+                            subscriberId,
+                            receivedAt,
+                        ),
                     ).getOrThrow()
                     // Due now. The first attempt should happen as soon as a worker looks, and the
                     // backoff for everything after it is chronik's — starting a fresh delivery in
@@ -109,18 +136,6 @@ class Sqlx4kEventRepository(
             deliveries = if (scheduler == null) 0 else endpoint.subscriberIds.size,
         )
     }
-
-    /**
-     * Quoting for the values that reach SQL as text.
-     *
-     * Every one of them is an id this process generated or a name out of a fixed set — not a webhook
-     * body, which goes through a hex literal instead ([toSqliteBlobLiteral]). The doubling is
-     * SQLite's own escape and it is here because sqlx4k renders statements into SQL text rather than
-     * preparing them, so there is no parameter to bind to.
-     */
-    private fun String.quoted(): String = "'" + replace("'", "''") + "'"
-
-    private fun String?.quotedOrNull(): String = this?.quoted() ?: "NULL"
 }
 
 /** Reads a count out of the first column of the first row. Used by the tests and the journal. */

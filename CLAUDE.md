@@ -5,8 +5,8 @@
 1. **[docs/research/research-architecture.md](docs/research/research-architecture.md)** — first,
    always. It says what was actually verified and where, which decisions were taken and what was
    rejected. A task read without it looks like "do the obvious thing", and here the obvious thing is
-   frequently wrong: chronik has no native artifacts, a static glibc is not self-contained, and the
-   memory criterion is expected to fail for a reason that is written down.
+   frequently wrong: chronik's only native variant is `linuxX64`, a static glibc is not
+   self-contained, and the memory criterion is expected to fail for a reason that is written down.
 2. **[backlog.md](backlog.md)** — the stage the task belongs to, the item, and what it is blocked by.
 3. **The layer document for the thing you are changing** — `docs/features/` for behaviour,
    `docs/api/` for a route, `docs/services/` for how a module is put together.
@@ -16,7 +16,8 @@
 ## The invariant
 
 `main` describes what **exists**. An open pull request describes what **will be**. A document about
-unbuilt behaviour is `status: draft` and lives in a branch — which is where all of them are today.
+unbuilt behaviour is `status: draft` and lives in a branch; `main` holds none — a `draft` there fails
+the gate.
 When code lands, the document that described it flips to `active` in the same pull request.
 
 Do not write a number you have not measured, and do not write a status code you have not read out of
@@ -28,12 +29,18 @@ reader nothing, an invented detail costs them the whole file.
 ```bash
 make check     # documents + ./gradlew check — needs the Linux box
 make docs      # the documentation half only; runs anywhere
-make build     # link, image, and the assertion that the process stops in order (needs docker)
+make build     # link, image, stop order, a rendered page, no secret in any response or log (docker)
 ```
 
 `make check` is exactly what CI runs. `make report` is the two non-blocking reports; `make fix`
 regenerates the backlog index and fills in missing coverage-map lines with placeholders you then
-finish.
+finish. The documentation checks are docs-bootstrap's, at the version the
+`uses: youndie/docs-bootstrap@…` line in `.github/workflows/check.yaml` pins; the first `make check`
+(or `docs`, `gate`, `report`, `fix`) fetches that version into `.docs-bootstrap/` (it ignores
+itself), and there are no copies under `scripts/` to run by hand. The other targets — `build`,
+`image`, `image-scratch`, `twin`, `parity` — neither read the pin nor fetch the checks. A new target
+that leads to the checks goes into `DOCS_BOOTSTRAP_GOALS` at the top of the `Makefile`, or it stops
+on a message saying so.
 
 `code_anchors.py` resolves most paths now that the backlog is finished. What it still reports are
 addresses **inside other repositories and artefacts** — a line in chronik's sources, a key in

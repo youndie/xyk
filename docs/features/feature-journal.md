@@ -98,7 +98,7 @@ Listed here because there is no screen document; the names are the ones the rend
 * **When:** `GET /journal` is requested from inside the container
 * **Then:** the response is `200` and the body contains the event's timestamp rendered as
   `YYYY-MM-DD HH:MM`
-* **Automated:** `dev/image-smoke.sh`, in `make build`
+* **Automated:** `dev/image-smoke.sh` (run by `make build`)
 * **And:** this check runs in CI against the built image — a smoke test that stops at a status code
   passes on an image that cannot render anything
   ([research §1.7](../research/research-architecture.md))
@@ -141,7 +141,15 @@ Listed here because there is no screen document; the names are the ones the rend
 * **Given:** endpoints of every supported scheme
 * **When:** every page and every JSON route is fetched and searched for the stored secrets
 * **Then:** none of them appears in any response
-* **Automated:** the end-to-end grep in B-07; the page renders no secret field at all
+* **And:** none of them appears in the container's log, read after a stop
+* **Automated:** `dev/image-smoke.sh` (run by `make build`) — against the built image: a GitHub
+  endpoint rotated to a second secret, a Stripe, a Telegram and an `hmac-sha256` one, each with a
+  secret the script invents and a signed event through every secret; then every route in
+  `docs/api/` with every id the run made — status line, headers and body — and the log, searched
+  for all five secrets. A hit exits `3`, and `make build` also runs the script's positive control
+  (`SECRET_IN_DESCRIPTION=1`, a secret placed where the pages render it by design), which must
+  exit exactly `3`. `none` is not covered: it is off unless the deployment allows it, and it needs
+  no secret.
 
 ## 6. Out of scope
 

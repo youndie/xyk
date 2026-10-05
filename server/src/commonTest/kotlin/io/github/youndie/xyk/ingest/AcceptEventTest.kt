@@ -2,6 +2,7 @@ package io.github.youndie.xyk.ingest
 
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.xyk.BootstrapEndpoint
+import io.github.youndie.xyk.db.UnstorableText
 import io.github.youndie.xyk.db.applyBootstrap
 import io.github.youndie.xyk.db.fromSqliteHex
 import io.github.youndie.xyk.db.openDatabase
@@ -106,6 +107,27 @@ class AcceptEventTest {
                 body.size.toLong(),
                 db.countOf("SELECT body_bytes FROM events WHERE id = '${accepted.id}';"),
             )
+            db.close().getOrThrow()
+        }
+
+    @Test
+    fun `a content type the database cannot hold is the sender's error and nothing is stored`() =
+        runTest {
+            val (accept, db) = fixture(subscribers = 1)
+
+            val failure =
+                accept(
+                    AcceptEventUseCase.Params(
+                        endpointId,
+                        signed("{}".encodeToByteArray()),
+                        contentType = "text/pl\u0000ain",
+                    ),
+                ).exceptionOrNull()
+
+            // Not `NotStored`: that is a `500`, which a sender retries, for a request that will never
+            // be any different.
+            assertIs<UnstorableText>(failure)
+            assertEquals(0, db.countOf("SELECT count(*) FROM events;").toInt())
             db.close().getOrThrow()
         }
 

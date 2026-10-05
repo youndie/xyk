@@ -29,6 +29,15 @@ class AcceptedEvent(
 interface EventRepository {
     suspend fun findEndpoint(endpointId: String): IngestEndpoint?
 
+    /**
+     * The scheme of the endpoint [endpointId] names when it exists and is enabled, else `null`.
+     *
+     * One row of one table, by primary key: the question a refusal asks before it is counted, which
+     * has to stay as cheap as the refusal it belongs to. [findEndpoint] answers it too, at the
+     * price of three reads.
+     */
+    suspend fun enabledScheme(endpointId: String): String?
+
     suspend fun accept(
         endpoint: IngestEndpoint,
         receivedAt: Long,

@@ -1,0 +1,90 @@
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": EOF"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": EOF"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": EOF"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": read tcp 172.17.0.1:54946->172.17.0.4:8080: read: connection reset by peer"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": read tcp 172.17.0.1:54962->172.17.0.4:8080: read: connection reset by peer"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": EOF"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial tcp 172.17.0.4:8080: connect: connection refused"
+time="2026-10-02T14:06:56Z" level=warning msg="Insufficient VUs, reached 50 active VUs and cannot initialize more" executor=constant-arrival-rate scenario=ingest
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+time="2026-10-02T14:07:26Z" level=warning msg="Request Failed" error="Post \"http://172.17.0.4:8080/hooks/hook-1\": dial: i/o timeout"
+
+     ✗ accepted
+      ↳  42% — ✓ 48 / ✗ 65
+
+     checks.........................: 42.47% 48 out of 113
+     data_received..................: 5.5 kB 181 B/s
+     data_sent......................: 16 kB  507 B/s
+     dropped_iterations.............: 5888   192.662864/s
+     http_req_blocked...............: avg=102.21µs p(50)=0s     p(95)=264.79µs p(99)=368.52µs max=549.89µs
+     http_req_connecting............: avg=75.62µs  p(50)=0s     p(95)=195.11µs p(99)=297.69µs max=490.98µs
+   ✓ http_req_duration..............: avg=1.88ms   p(50)=0s     p(95)=5.63ms   p(99)=21.54ms  max=26.7ms  
+     ✓ { expected_response:true }...: avg=2.59ms   p(50)=2.1ms  p(95)=3.28ms   p(99)=12.03ms  max=18.79ms 
+   ✗ http_req_failed................: 57.52% 65 out of 113
+     http_req_receiving.............: avg=20.37µs  p(50)=0s     p(95)=65.38µs  p(99)=98.38µs  max=125.79µs
+     http_req_sending...............: avg=28.33µs  p(50)=0s     p(95)=81.03µs  p(99)=124.69µs max=129.88µs
+     http_req_tls_handshaking.......: avg=0s       p(50)=0s     p(95)=0s       p(99)=0s       max=0s      
+     http_req_waiting...............: avg=1.83ms   p(50)=0s     p(95)=5.48ms   p(99)=21.45ms  max=26.63ms 
+     http_reqs......................: 113    3.697504/s
+     iteration_duration.............: avg=13.27s   p(50)=5.07ms p(95)=30s      p(99)=30s      max=30s     
+     iterations.....................: 113    3.697504/s
+     vus............................: 50     min=50        max=50
+     vus_max........................: 50     min=50        max=50
+
+time="2026-10-02T14:07:26Z" level=error msg="thresholds on metrics 'http_req_failed' have been crossed"

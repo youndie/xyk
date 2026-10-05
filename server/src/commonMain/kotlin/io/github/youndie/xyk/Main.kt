@@ -13,6 +13,7 @@ import io.github.youndie.xyk.db.WalSweep
 import io.github.youndie.xyk.db.applyBootstrap
 import io.github.youndie.xyk.db.lastCheckpoint
 import io.github.youndie.xyk.db.openDatabase
+import io.github.youndie.xyk.db.secretFingerprints
 import io.github.youndie.xyk.delivery.DeliverySink
 import io.github.youndie.xyk.delivery.data.Sqlx4kDeliveryRepository
 import io.github.youndie.xyk.delivery.deliveryWorkers
@@ -97,6 +98,9 @@ fun main() {
     // Here, before the engine: a server that opened its port ahead of a ready schema would answer
     // the first requests with errors, and those requests are webhooks nobody sends twice.
     val db = openDatabase(config)
+    // Read once, after the migrations that guarantee it is there: every fingerprint this process
+    // computes is under this installation's key (research D7).
+    val fingerprints = runBlocking { db.secretFingerprints() }
 
     // Printed rather than logged, and printed early: it names which engine variant this binary was
     // linked with, which is the one fact a size measurement of it cannot be read without.
@@ -111,7 +115,12 @@ fun main() {
             intervalSeconds = config.walCheckpointSeconds,
             ceilingBytes = config.walMaxBytes,
             onBusy = { state -> println("wal: checkpoint left ${state.framesInLog} frames, ${state.bytes} bytes") },
-            onFailure = { failure -> println("wal: checkpoint failed: ${failure::class.simpleName}") },
+            // The message as well as the class, as the rejection flush below does: every value
+            // reaches SQL bound, so a database message names the statement's shape and nothing a
+            // request carried, and the class alone left an operator with nothing to look up.
+            onFailure = { failure ->
+                println("wal: checkpoint failed: ${failure::class.simpleName}: ${failure.message}")
+            },
         )
 
     val retentionSweep =
@@ -120,7 +129,9 @@ fun main() {
             retentionDays = config.retentionDays,
             nowEpochSeconds = { hostNowEpochSeconds() },
             onPurged = { count -> println("xyk: retention purged $count payloads") },
-            onFailure = { failure -> println("xyk: retention failed: ${failure::class.simpleName}") },
+            onFailure = { failure ->
+                println("xyk: retention failed: ${failure::class.simpleName}: ${failure.message}")
+            },
         )
 
     // THE DELIVERY HALF, BUILT BEFORE THE PROBES because readiness watches it. Both pieces can be
@@ -251,7 +262,7 @@ fun main() {
                         println("xyk: kafka sink refused $eventId — ${failure::class.simpleName}: ${failure.message}")
                     },
                 ),
-                registryModule(db, config.allowUnverified),
+                registryModule(db, fingerprints, config.allowUnverified),
                 journalModule(db, scheduler),
             )
         }
@@ -259,7 +270,10 @@ fun main() {
     val rejections = koin.koin.get<RejectionCounters>()
     val rejectionFlush =
         RejectionFlush(db, rejections) { failure ->
-            println("xyk: rejection flush failed: ${failure::class.simpleName}")
+            // The message as well as the class: every value reaches SQL bound, so a database message
+            // names the statement's shape and never an id or a count, and the class alone left an
+            // operator with nothing to look up.
+            println("xyk: rejection flush failed: ${failure::class.simpleName}: ${failure.message}")
         }
     val registry = koin.koin.get<RegistryRepository>()
     val createEndpoint = koin.koin.get<CreateEndpointUseCase>()

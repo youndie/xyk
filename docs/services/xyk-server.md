@@ -15,10 +15,10 @@ coordinates: none — this is an application, not a library
 
 # xyk-server
 
-> **Status: the skeleton exists (B-01, 2026-09-15); the features do not.** Files marked *(B-nn)*
-> below are paths the backlog creates; everything else is in the tree and builds. The layout follows
-> the portfolio's other native services (katcher, metrik), so that a reader who knows one knows this
-> one.
+> **Status: built and published.** Every path below is in the tree; every push runs `make check` and
+> `make build` (`.github/workflows/check.yaml`, `build.yaml`), and a push to `main` publishes the
+> image of section 5 (`publish.yaml`). The layout follows the portfolio's other native services
+> (katcher, metrik), so that a reader who knows one knows this one.
 
 ## 1. Responsibility
 
@@ -62,12 +62,15 @@ What it deliberately does **not** do:
 | File | What is there |
 |---|---|
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/Main.kt` | `main`: the deadlines, the start order, and kore's stop sequence |
-| `server/src/commonMain/kotlin/io/github/youndie/xyk/Application.kt` | the Ktor module — the three installs, content negotiation, and every route mount with its tier |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/Application.kt` | the Ktor module — the three installs, content negotiation, the error responses, and every route mount with its tier |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/ErrorResponses.kt` | `StatusPages`: text the database cannot hold is a `400`, an unexpected failure a `500` whose body says nothing and whose cause goes to the log |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/ServerConfig.kt` | typed configuration, `fromEnv()` and the `require` calls that refuse to start |
 | `server/src/nativeMain/kotlin/io/github/youndie/xyk/Env.native.kt` | `actual fun readEnv` — Kotlin/Native has no `System.getenv` |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Migrate.kt` | the statement list and `PRAGMA user_version`, run before the engine starts |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/db/SecretFingerprints.kt` | the fingerprint a secret is shown as — an HMAC under the installation's key — and migration 8's step that draws the key and rewrites stored fingerprints |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/db/Sql.kt` | `sql(text, values…)`: the one way a value reaches SQL — bound, never written into the text — and the NUL check in front of it |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/health/XykProbes.kt` | the three gates and the checks behind readiness |
-| `server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/IngestRouting.kt` | *(B-06)* `POST /hooks/{endpointId}` |
+| `server/src/commonMain/kotlin/io/github/youndie/xyk/ingest/IngestRouting.kt` | `POST /hooks/{endpointId}` |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/verify/` | one verifier per scheme + the constant-time compare |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliverySink.kt` | the `TimerSink`: one POST, one timeout, one attempt row |
 | `server/src/commonMain/kotlin/io/github/youndie/xyk/delivery/DeliveryWorkers.kt` | N `TimerWorker`s and their owner names |
@@ -140,12 +143,24 @@ POST finishes: `deliver` throwing is the only retry signal chronik has
 timeout itself, and parallelism comes from workers with distinct `owner` values claiming separate
 batches.
 
+**Refusals are counted in memory, keyed only by endpoints that exist.** A rejected request costs no
+write: `RejectionCounters` holds the counts and `RejectionFlush` writes them every ten seconds and in
+the stop sequence, one upsert per endpoint and reason, so a flood of bad signatures cannot take the
+writer lock from genuine traffic, and a crash loses at most one interval. The map and the
+`rejections` table are bounded by the endpoints in the registry rather than by what requests send:
+an id is a key only once the endpoint is known to exist and be enabled, and every other refusal goes
+to the shared `(unknown)` key. The `413` is decided before the endpoint lookup, so it pays for that
+with one primary-key read of its own
+([endpoint-ingest](../api/endpoint-ingest.md#what-a-refusal-leaves-behind)). A flush that fails
+loses its batch — re-adding it would double-count — and logs the class and the message, which name
+the statement's shape and never a value, since every value is bound.
+
 ## 4. Dependencies
 
 | Kind | Name | What for |
 |---|---|---|
 | Database | SQLite via `io.github.smyrgeorge:sqlx4k-sqlite` | events, subscribers, deliveries, timers — one file |
-| Library | `io.github.youndie.chronik:chronik-core` | the timer contract and the worker; **not yet published for native**, see [research §1.1](../research/research-architecture.md) |
+| Library | `io.github.youndie.chronik:chronik-core`, `chronik-sqlx4k-sqlite` | the timer contract, the worker and the SQLite store; native for `linuxX64` only, so the delivery half exists only there ([B-02](../backlog/B-02-chronik-native-targets.md)); the pin is the release `0.2.0`, from Maven Central |
 | Library | `io.github.youndie:kore-core`, `kore-ktor` + `io.github.youndie.kore.build` | ordered shutdown, three probes, `/version`; resolves from reposilite, not Central |
 | Library | `org.kotlincrypto.macs:hmac-sha2`, `org.kotlincrypto.hash:sha2` | HMAC-SHA256 for GitHub and Stripe |
 | Library | `io.ktor:ktor-client-curl` | the only native engine that speaks HTTPS; carries its own static libcurl/OpenSSL |
@@ -205,7 +220,7 @@ batches.
 change when the build moves. `XYK_DB_PATH` is required and the process refuses to start without it.
 
 Nothing else has to be running: the subscribers are whatever is in the database, and `bench/delivery-sink.py`
-*(B-10)* starts a local one that logs what it receives and can be told to be slow.
+starts a local one that counts what it receives and can be told to be slow (`SINK_DELAY_MS`).
 
 **Builds are not cheap and do not belong on a laptop.** A release link is minutes of LLVM, so
 `make build` wants a machine with cores; `macos*` targets are the exception and have to be built on
@@ -230,7 +245,9 @@ it cannot verify. The list below is the shape, not a copy — the file is the tr
 | `XYK_KAFKA_QUEUE` | records allowed to wait in front of the producer; **`0` ships**, above zero is a measurement arm | no (0) |
 
 Endpoint secrets are **not** environment variables: they are rows, created through the journal's
-admin routes and never readable back over HTTP — the API answers with a fingerprint.
+admin routes and never readable back over HTTP — the API answers with a fingerprint, keyed by this
+installation's own key ([research D7](../research/research-architecture.md)). That key is not an
+environment variable either: it is drawn on the database's first start and kept in it.
 
 ## 7a. The volume is as sensitive as the secrets in it
 
@@ -246,7 +263,8 @@ sentence in an audit that is true of the bytes and false about the threat.
 Concretely, for whoever operates this:
 
 * the PVC holds live credentials — an attacker with a copy of it can sign requests that xyk will
-  accept, and read every payload xyk has kept;
+  accept, and read every payload xyk has kept. It also holds the key the secret fingerprints are made
+  under, which adds nothing to that: whoever reads the key can read the secrets themselves;
 * restrict access to it as you would to a secret store, and treat its backups the same way;
 * `XYK_RETENTION_DAYS` (7 by default) bounds how much payload is in there, which is the one lever
   that reduces this exposure without changing the design;
