@@ -5,9 +5,33 @@ plugins {
     alias(wip.plugins.kotlinSerialization)
     // Generates `KoreBuildIdentity` — the version, the commit and the build time, as compiled-in
     // source. Kotlin/Native has neither resources nor a manifest, so `/version` has no other way to
-    // know what it is serving. `commit` reads `unknown` wherever the build context has no `.git`,
-    // which on this project is the mutagen replica and the docker context both.
+    // know what it is serving. `commit` reads `unknown` wherever the build context has no `.git`
+    // and no `SOURCE_COMMIT`/`GITHUB_SHA` is set (the wiring is below the plugins block).
     alias(libs.plugins.koreBuild)
+}
+
+// WHERE THE COMMIT COMES FROM WHEN `.git` IS NOT THERE.
+//
+// The plugin asks git and degrades to `unknown`, which is honest but is usually a value that WAS
+// available and had no way in: a Docker context excludes `.git`, a mutagen replica has none, and
+// an rsync'd build tree has none either. Every binary this service has shipped from such a tree
+// answers `/version` with `commit: unknown`, and a binary that cannot be traced to a revision
+// cannot be a baseline for anything.
+//
+// kore's plugin already takes a commit for exactly this (kore #71); nothing here needed changing
+// but the wiring. It is read from the environment rather than a Gradle property because the
+// things that know the sha — CI, a container build, a copy script — set environment variables.
+//
+//   SOURCE_COMMIT=$(git rev-parse --short=12 HEAD) ./gradlew :server:linkReleaseExecutableNative
+//
+// `GITHUB_SHA` is the fallback so an Actions build needs no extra step. Unset, git is asked
+// exactly as before: this adds a path, it does not replace one.
+tasks.named<io.github.youndie.kore.gradle.GenerateBuildIdentity>("generateKoreBuildIdentity") {
+    commit.set(
+        providers
+            .environmentVariable("SOURCE_COMMIT")
+            .orElse(providers.environmentVariable("GITHUB_SHA")),
+    )
 }
 
 // NOT A LIBRARY: nothing resolves this module, so there is no consumer for a spelled-out public API.
@@ -27,6 +51,23 @@ kotlin {
 // the "with curl" arm would measure a binary that contains no curl.
 val withHttpClient = (project.findProperty("xyk.httpClient") as String?)?.toBoolean() ?: false
 val staticLinkRequested = (project.findProperty("xyk.staticLink") as String?)?.toBoolean() ?: false
+
+// COMPILER ARGUMENTS THAT NOTHING HERE HAS AN OPINION ABOUT, so that diagnosing this binary does
+// not require editing this file. The one that prompted it is `-Xruntime-logs=gc=info`, which is
+// the only way to see what the collector is doing and is a `freeCompilerArgs` entry, so without a
+// property it can only be had by a local patch — and a measurement taken on a patched build is a
+// measurement of something that was never shipped.
+//
+//   ./gradlew :server:linkReleaseExecutableNative -Pxyk.extraCompilerArgs=-Xruntime-logs=gc=info
+//
+// Space-separated for several. Deliberately unvalidated: this is an escape hatch, and a list of
+// blessed arguments would be the same edit-to-diagnose problem one level up. An argument that
+// contradicts one set above wins or loses by the compiler's own rules, not by anything here.
+val extraCompilerArgs =
+    (project.findProperty("xyk.extraCompilerArgs") as String?)
+        ?.split(" ")
+        ?.filter { it.isNotBlank() }
+        .orEmpty()
 
 // WHICH ALLOCATOR THE BINARY IS LINKED WITH, as a property rather than an edit, because the two
 // criteria had to compare arms and a measurement whose variants are produced by editing a file is a
@@ -165,6 +206,10 @@ kotlin {
 
                     else -> throw GradleException("xyk.allocator must be fixed16, std, paged-off or default")
                 }
+
+                // Last, so that an argument passed in can override one set above rather than
+                // being silently overridden by it.
+                freeCompilerArgs += extraCompilerArgs
 
                 if (staticLinux) {
                     linkerOpts("-static", "--no-dynamic-linker", "-L/usr/lib/x86_64-linux-gnu")

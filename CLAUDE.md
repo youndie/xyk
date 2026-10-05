@@ -53,9 +53,10 @@ research claim, not paths in this tree. It does not block, for that reason.
 rather than whatever is under your hands. `macos*` targets are the exception: they have to be built
 on macOS.
 
-Two consequences worth knowing wherever the build happens. A build context without `.git` stamps
-`/version` with `commit: unknown` — that is what a `.dockerignore` normally produces, and a file git
-tracks but the ignore excludes reads as *deleted*, which makes the stamp `-dirty` permanently. And
+Two consequences worth knowing wherever the build happens. A build context without `.git` — what a
+`.dockerignore` normally produces — stamps `/version` with `commit: unknown` unless `SOURCE_COMMIT`
+(or, on Actions, `GITHUB_SHA`) is in the Gradle run's environment; and a file git tracks but the
+ignore excludes reads as *deleted*, which makes the stamp `-dirty` permanently. And
 work done only on the build machine reaches neither git nor the checkout you are editing.
 
 **The benchmark harnesses in `bench/` need two machines**, and they refuse to take a number on one:
