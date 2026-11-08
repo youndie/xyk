@@ -1,4 +1,4 @@
-plugins { kotlin("multiplatform") version "2.4.10" }
+plugins { kotlin("multiplatform") version "2.4.21" }
 
 kotlin {
     // EXPLICIT, because `getByName("nativeMain")` below runs before the template would have created

@@ -29,7 +29,7 @@ chronik = "0.2.0"
 # through the `kafkakn` rule in renovate.json. Until then the coordinate alone does not say what was
 # built: every snapshot publication is a unique timestamped one underneath, and a run that measures
 # anything through this sink records which one it resolved.
-kafkakn = "0.1.0-SNAPSHOT"
+kafkakn = "0.1.0.14"
 sqlx4k = "1.13.1"
 
 [libraries]
