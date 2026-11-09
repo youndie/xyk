@@ -404,9 +404,11 @@ fun main() {
             sink?.let { destination -> consumer(participant("kafka sink") { destination.close() }) }
 
             // A READER, AND CANCELLATION IS NOT ENOUGH. The store check is `SELECT 1` on the
-            // pool, so a probe in flight holds a read lock; `HealthRegistry.stop()` cancels without
-            // joining, and the statement is inside an FFI call cancellation does not reach. Only
-            // the join establishes that no reader is left by the time this stage ends.
+            // pool, so a probe in flight holds a read lock, and the statement is inside an FFI call
+            // cancellation does not reach. `probes.stop()` joins the registry's loop
+            // (`HealthRegistry.stopAndJoin`, kore 0.1.15); the scope's join covers anything else
+            // started there. Only the join establishes that no reader is left by the time this
+            // stage ends.
             consumer(
                 participant("health checks") {
                     probes.stop()

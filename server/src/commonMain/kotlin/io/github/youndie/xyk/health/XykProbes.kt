@@ -72,8 +72,12 @@ class XykProbes(
         checks.start(scope)
     }
 
-    fun stop() {
-        checks.stop()
+    /**
+     * Stops the polling loop and waits for the check in flight. A cancelled `SELECT 1` is still
+     * inside the driver until it returns, and the stage after this one closes the pool under it.
+     */
+    suspend fun stop() {
+        checks.stopAndJoin()
     }
 }
 
