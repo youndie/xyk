@@ -2,7 +2,9 @@ package io.github.youndie.xyk
 
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.kore.ktor.EngineDrain
+import io.github.youndie.kore.ktor.startForKore
 import io.github.youndie.kore.lifecycle.AnnounceNotReady
+import io.github.youndie.kore.lifecycle.DrainGate
 import io.github.youndie.kore.lifecycle.ShutdownDeadlines
 import io.github.youndie.kore.lifecycle.ShutdownParticipant
 import io.github.youndie.kore.lifecycle.runUntilSignal
@@ -285,6 +287,10 @@ fun main() {
     // exposes this port without a proxy in front of it.
     println("xyk: /api/** has no authentication of its own — the deployment is responsible")
 
+    // One instance for the refusal and the drain stage: `EngineDrain` opens it as its first act, and
+    // the refusal installed by the module reads it.
+    val draining = DrainGate()
+
     val server =
         embeddedServer(
             CIO,
@@ -313,6 +319,7 @@ fun main() {
                     // No worker exists yet (B-11), and the page says so rather than showing states
                     // that nothing maintains. This becomes a real reading when the workers land.
                     { DeliveryStatus.NOT_CONFIGURED },
+                    draining,
                 )
             },
         )
@@ -338,10 +345,13 @@ fun main() {
     // — from an unreadable abort into a line naming the address.
     preflightBind(config.host, config.port)
 
-    // NOT `wait = true`. The main thread has to reach the await below, or the signal arrives at a
-    // process that has no sequence to run and is killed at the end of the grace period instead —
-    // which from outside is indistinguishable from a clean stop.
-    server.start(wait = false)
+    // NOT `start(wait = true)`, and not `start` at all. The main thread has to reach the await below,
+    // or the signal arrives at a process that has no sequence to run and is killed at the end of the
+    // grace period instead — which from outside is indistinguishable from a clean stop. And `start`
+    // leaves Ktor's own shutdown hook in place: on the JVM it stops the engine concurrently with the
+    // announce, and on native a signal in the window before `runUntilSignal` runs Ktor's handler on
+    // the signal stack (kore B-60, B-63). `startForKore` is `start(wait = false)` without either.
+    server.startForKore()
 
     val checksScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     // A scope of its own, not `checksScope`, and the reason is the stop sequence rather than
@@ -371,7 +381,7 @@ fun main() {
             onFinished = { run -> println(run.transcript) },
         ) {
             announce(AnnounceNotReady(probes.readiness))
-            drain(EngineDrain(server, DEADLINES.drain, DEADLINES.drain + 5.seconds))
+            drain(EngineDrain(server, DEADLINES.drain, DEADLINES.drain + 5.seconds, draining))
 
             // BETWEEN THE DRAIN AND THE POOL, and this position is the whole reason kore is in this
             // design. A worker mid-POST is holding a webhook that was already accepted with a
@@ -394,9 +404,11 @@ fun main() {
             sink?.let { destination -> consumer(participant("kafka sink") { destination.close() }) }
 
             // A READER, AND CANCELLATION IS NOT ENOUGH. The store check is `SELECT 1` on the
-            // pool, so a probe in flight holds a read lock; `HealthRegistry.stop()` cancels without
-            // joining, and the statement is inside an FFI call cancellation does not reach. Only
-            // the join establishes that no reader is left by the time this stage ends.
+            // pool, so a probe in flight holds a read lock, and the statement is inside an FFI call
+            // cancellation does not reach. `probes.stop()` joins the registry's loop
+            // (`HealthRegistry.stopAndJoin`, kore 0.1.15); the scope's join covers anything else
+            // started there. Only the join establishes that no reader is left by the time this
+            // stage ends.
             consumer(
                 participant("health checks") {
                     probes.stop()

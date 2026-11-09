@@ -3,7 +3,7 @@
 # `CGO_ENABLED=0` is the point rather than a habit — it is what makes this a fair second column. The
 # Kotlin arm is a statically linked binary on `scratch`; a cgo Go build would need a base image and
 # the comparison would be measuring packaging.
-FROM golang:1.23-bookworm AS build
+FROM golang:1.27-bookworm AS build
 WORKDIR /src
 COPY go.mod ./
 RUN go mod download

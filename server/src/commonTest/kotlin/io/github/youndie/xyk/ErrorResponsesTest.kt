@@ -2,6 +2,7 @@ package io.github.youndie.xyk
 
 import io.github.smyrgeorge.sqlx4k.SQLError
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
+import io.github.youndie.kore.lifecycle.DrainGate
 import io.github.youndie.xyk.db.openDatabase
 import io.github.youndie.xyk.db.secretFingerprints
 import io.github.youndie.xyk.health.XykProbes
@@ -65,6 +66,7 @@ class ErrorResponsesTest {
                 rotateSecret = RotateSecretUseCase(registry, fingerprints),
                 journal = Sqlx4kJournalRepository(db),
                 deliveryStatus = { DeliveryStatus.NOT_CONFIGURED },
+                draining = DrainGate(),
             )
             // A failure nobody planned for, carrying the kind of text the database used to put in
             // front of a client: a piece of the statement, and of the value in it.
