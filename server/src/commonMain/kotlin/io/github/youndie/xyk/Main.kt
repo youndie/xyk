@@ -3,8 +3,8 @@ package io.github.youndie.xyk
 import io.github.smyrgeorge.sqlx4k.sqlite.ISQLite
 import io.github.youndie.kore.ktor.EngineDrain
 import io.github.youndie.kore.ktor.startForKore
-import io.github.youndie.kore.lifecycle.DrainGate
 import io.github.youndie.kore.lifecycle.AnnounceNotReady
+import io.github.youndie.kore.lifecycle.DrainGate
 import io.github.youndie.kore.lifecycle.ShutdownDeadlines
 import io.github.youndie.kore.lifecycle.ShutdownParticipant
 import io.github.youndie.kore.lifecycle.runUntilSignal
