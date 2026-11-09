@@ -7,7 +7,7 @@ sborka = "0.4.0.111"
 # /version. One number for the two libraries and the Gradle plugin that generates the identity: they
 # are published together, and a plugin from one version with a library from another would compile
 # and then disagree about the object it generates.
-kore = "0.1.4"
+kore = "0.1.15"
 koin = "4.2.2"
 kotlinxCoroutinesCore = "1.11.0"
 kotlinxDatetime = "0.8.0"
