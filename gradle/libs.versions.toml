@@ -30,7 +30,7 @@ chronik = "0.2.0"
 # built: every snapshot publication is a unique timestamped one underneath, and a run that measures
 # anything through this sink records which one it resolved.
 kafkakn = "0.1.0.14"
-sqlx4k = "1.13.1"
+sqlx4k = "1.18.0"
 
 [libraries]
 kore-core = { module = "io.github.youndie:kore-core", version.ref = "kore" }
