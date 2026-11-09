@@ -4,6 +4,7 @@ import io.github.youndie.kore.generated.KoreBuildIdentity
 import io.github.youndie.kore.ktor.installKoreProbes
 import io.github.youndie.kore.ktor.installKoreVersion
 import io.github.youndie.kore.ktor.installShutdownRefusal
+import io.github.youndie.kore.lifecycle.DrainGate
 import io.github.youndie.xyk.health.XykProbes
 import io.github.youndie.xyk.ingest.RejectionCounters
 import io.github.youndie.xyk.ingest.domain.AcceptEventUseCase
@@ -43,12 +44,16 @@ fun Application.module(
     rotateSecret: RotateSecretUseCase,
     journal: JournalRepository,
     deliveryStatus: () -> DeliveryStatus,
+    /** The latch `EngineDrain` opens in `main`. The same instance, or the refusal never opens. */
+    draining: DrainGate,
 ) {
     // BEFORE the probes and before any route. An interceptor installed later would let through every
-    // call that arrived first, and the one request this must not miss is the first one after
-    // readiness has gone false. It leaves kore's own routes alone: a `503` from `/health/live` is a
-    // failed liveness probe, which restarts the pod in the middle of the shutdown it is reporting.
-    installShutdownRefusal(isShuttingDown = { probes.readiness.isShuttingDown })
+    // call that arrived first, and the one request this must not miss is the first one after the
+    // drain has begun. Not after readiness goes false: the announce keeps serving the nodes that have
+    // not heard yet, and a `503` then is the dropped request the wait is there to prevent (kore
+    // B-61). It leaves kore's own routes alone: a `503` from `/health/live` is a failed liveness
+    // probe, which restarts the pod in the middle of the shutdown it is reporting.
+    installShutdownRefusal(draining)
     installKoreProbes(probes.startup, probes.readiness, probes.liveness)
 
     // The version and the commit, compiled in by the Gradle plugin because Kotlin/Native has neither
