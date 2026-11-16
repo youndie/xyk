@@ -45,11 +45,11 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # 25 rather than the runner's default, and it must match what the build actually resolves
       # against: the shared Gradle conventions refuse anything below 21.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "25"
@@ -57,7 +57,7 @@ jobs:
       # MANDATORY, NOT AN OPTIMISATION. Without it every run downloads the Kotlin/Native distribution
       # and its sysroots — hundreds of megabytes — before it can compile a line. Keyed on the version
       # catalogue so a Kotlin upgrade invalidates it.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
@@ -75,7 +75,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The code lives in this checkout, so its parent is a directory whose one subdirectory is
       # this repository - which is exactly what REPOS (`..` by default) expects. What it still
