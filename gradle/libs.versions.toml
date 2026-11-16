@@ -11,7 +11,7 @@ kore = "0.1.17"
 koin = "4.2.2"
 kotlinxCoroutinesCore = "1.11.0"
 kotlinxDatetime = "0.8.0"
-kotlinxSerializationJson = "1.11.0"
+kotlinxSerializationJson = "1.13.0"
 # HMAC and a random source that is not `kotlin.random`. Both are used on linuxX64 by two
 # other repositories here, which is the evidence this line rests on rather than a datasheet.
 kotlincrypto = "0.8.0"
